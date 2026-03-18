@@ -1,6 +1,11 @@
-package model;
+package com.sms.model;
 
-public class Admin extends Person {
+
+import jakarta.persistence.Entity;
+import java.io.Serializable;
+
+@Entity
+public class Admin extends Person implements Serializable {
 
     private String password;
 

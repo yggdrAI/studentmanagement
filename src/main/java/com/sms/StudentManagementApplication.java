@@ -1,14 +1,12 @@
 package com.sms;
 
-import com.sms.gui.LoginFrame;
-import com.sms.gui.UITheme;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import javax.swing.SwingUtilities;
-
+@SpringBootApplication
 public class StudentManagementApplication {
 
     public static void main(String[] args) {
-        UITheme.apply();
-        SwingUtilities.invokeLater(LoginFrame::new);
+        SpringApplication.run(StudentManagementApplication.class, args);
     }
 }

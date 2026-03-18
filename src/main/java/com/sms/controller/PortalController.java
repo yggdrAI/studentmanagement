@@ -6,11 +6,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class PortalController {
 
-    @GetMapping("/dashboard")
-    public String dashboard() {
-        return "admin-dashboard"; // Unified dashboard view
-    }
-
     @GetMapping("/attendance")
     public String attendance() {
         return "attendance";

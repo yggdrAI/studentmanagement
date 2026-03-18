@@ -1,6 +1,6 @@
-package service;
+package com.sms.service;
 
-import model.Student;
+import com.sms.model.Student;
 
 import java.io.*;
 import java.util.HashMap;

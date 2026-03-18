@@ -1,10 +1,17 @@
-package model;
+package com.sms.model;
 
+import jakarta.persistence.*;
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
+@Entity
 public class Student extends Person implements Serializable, Comparable<Student> {
+    
+    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Course> courses = new ArrayList<>();
+
+    public Student() {}
 
     public Student(String id, String name) {
         super(id, name);

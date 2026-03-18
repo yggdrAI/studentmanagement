@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard - Smart Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+</head>
+<body>
+
+    <div th:replace="~{fragments/sidebar :: sidebar(activeTab='dashboard')}"></div>
+
+    <main class="content-area" id="maincontent" tabindex="-1">
+        <div class="content-wrapper">
+            <header class="page-header">
+                <div>
+                    <h1 class="page-title">
+                        Faculty Dashboard - <span th:text="${#authentication.name}">Teacher</span>
+                    </h1>
+                </div>
+            </header>
+
+            <section class="generic-card">
+                <h2>Manage Academic Resources 📘</h2>
+                <p>Upload lecture notes, mark student attendance, and submit grades from this portal.</p>
+                <div style="margin-top: 24px;">
+                    <button type="button" class="btn btn-outline">My Classes</button>
+                    <button type="button" class="btn btn-outline">Submit Grades</button>
+                    <button type="button" class="btn btn-outline">Add Attendance</button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div th:replace="~{fragments/sidebar :: floating-tools}"></div>
+
+</body>
+</html>

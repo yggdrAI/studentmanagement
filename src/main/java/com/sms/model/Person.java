@@ -1,10 +1,16 @@
-package model;
+package com.sms.model;
 
+import jakarta.persistence.Id;
+import jakarta.persistence.MappedSuperclass;
 import java.io.Serializable;
 
+@MappedSuperclass
 public abstract class Person implements Serializable {
+    @Id
     private String id;
     private String name;
+
+    public Person() {}
 
     public Person(String id, String name) {
         this.id = id;

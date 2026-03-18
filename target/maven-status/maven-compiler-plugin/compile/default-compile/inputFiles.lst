@@ -1,4 +1,3 @@
-F:\Coding\studentmanagement\src\main\java\com\sms\gui\MainFrame.java
 F:\Coding\studentmanagement\src\main\java\com\sms\config\SecurityConfig.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\TeacherService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\TeacherRepository.java
@@ -7,7 +6,6 @@ F:\Coding\studentmanagement\src\main\java\com\sms\model\Student.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\AuthenticationService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\FileService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\util\StudentComparators.java
-F:\Coding\studentmanagement\src\main\java\com\sms\view\ConsoleView.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\UserService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\util\CustomException.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\Enrollment.java
@@ -19,18 +17,16 @@ F:\Coding\studentmanagement\src\main\java\com\sms\controller\TeacherController.j
 F:\Coding\studentmanagement\src\main\java\com\sms\service\StudentService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\PortalController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\UserRepository.java
-F:\Coding\studentmanagement\src\main\java\com\sms\Main.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\Teacher.java
 F:\Coding\studentmanagement\src\main\java\com\sms\util\GradeUtil.java
-F:\Coding\studentmanagement\src\main\java\com\sms\gui\UITheme.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\StudentRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\CourseService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminController.java
-F:\Coding\studentmanagement\src\main\java\com\sms\gui\LoginFrame.java
-F:\Coding\studentmanagement\src\main\java\com\sms\gui\StudentDialog.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\Person.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\User.java
+F:\Coding\studentmanagement\src\main\java\com\sms\model\UserRole.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\Admin.java
+F:\Coding\studentmanagement\src\main\java\com\sms\model\LoginUser.java
 F:\Coding\studentmanagement\src\main\java\com\sms\util\LoggerUtil.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AuthController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\util\InputValidator.java

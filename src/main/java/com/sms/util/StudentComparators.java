@@ -1,6 +1,6 @@
-package util;
+package com.sms.util;
 
-import model.Student;
+import com.sms.model.Student;
 import java.util.Comparator;
 
 public class StudentComparators {

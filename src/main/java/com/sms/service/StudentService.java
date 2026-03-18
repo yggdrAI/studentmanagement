@@ -1,56 +1,50 @@
-package service;
+package com.sms.service;
 
-import model.Student;
-import util.StudentComparators;
+import com.sms.model.Student;
+import com.sms.repository.StudentRepository;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 
+@Service
 public class StudentService {
 
-    private Map<String, Student> studentMap = new HashMap<>();
+    private final StudentRepository studentRepository;
 
-    public void addStudent(Student student) {
-        studentMap.put(student.getId(), student);
-    }
-
-    public void deleteStudent(String id) {
-        studentMap.remove(id);
-    }
-
-    public Student searchById(String id) {
-        return studentMap.get(id);
+    public StudentService(StudentRepository studentRepository) {
+        this.studentRepository = studentRepository;
     }
 
     public List<Student> getAllStudents() {
-        return new ArrayList<>(studentMap.values());
+        return studentRepository.findAll();
     }
 
-    public Map<String, Student> getStudentMap() {
-        return studentMap;
+    public List<Student> getAllStudentsSortedByName() {
+        return studentRepository.findAll(Sort.by(Sort.Direction.ASC, "name"));
     }
 
-    public void setStudentMap(Map<String, Student> map) {
-        this.studentMap = map;
+    public List<Student> getAllStudentsSortedById() {
+        return studentRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
     }
 
-    public void sortByName() {
-        List<Student> sorted = getAllStudents();
-        Collections.sort(sorted);
-        studentMap.clear();
-        for (Student s : sorted) studentMap.put(s.getId(), s);
+    public List<Student> getAllStudentsSortedByMarks() {
+        List<Student> students = studentRepository.findAll();
+        students.sort(Comparator.comparingDouble(Student::calculateAverage));
+        return students;
     }
 
-    public void sortById() {
-        List<Student> sorted = getAllStudents();
-        sorted.sort(StudentComparators.sortById());
-        studentMap.clear();
-        for (Student s : sorted) studentMap.put(s.getId(), s);
+    public Optional<Student> findById(String id) {
+        return studentRepository.findById(id);
     }
 
-    public void sortByMarks() {
-        List<Student> sorted = getAllStudents();
-        sorted.sort(StudentComparators.sortByMarks());
-        studentMap.clear();
-        for (Student s : sorted) studentMap.put(s.getId(), s);
+    public Student save(Student student) {
+        return studentRepository.save(student);
+    }
+
+    public void deleteById(String id) {
+        studentRepository.deleteById(id);
     }
 }

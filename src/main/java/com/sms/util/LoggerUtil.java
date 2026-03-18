@@ -1,4 +1,4 @@
-package util;
+package com.sms.util;
 
 import java.io.FileWriter;
 import java.io.IOException;

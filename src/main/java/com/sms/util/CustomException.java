@@ -1,4 +1,4 @@
-package util;
+package com.sms.util;
 
 public class CustomException extends Exception {
     public CustomException(String message) {

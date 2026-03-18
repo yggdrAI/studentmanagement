@@ -53,6 +53,18 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Jakarta APIs -->
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <version>3.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+            <version>3.0.2</version>
+        </dependency>
+
         <!-- Developer Tools -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
