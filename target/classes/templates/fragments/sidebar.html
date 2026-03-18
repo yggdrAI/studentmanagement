@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+    <!-- Accessible Sidebar Navigation Fragment -->
+    <aside th:fragment="sidebar(activeTab)" class="sidebar" aria-label="Main Navigation">
+        <!-- Logo -->
+        <div class="logo-container">
+            <a href="/dashboard" class="logo-placeholder" aria-label="Bennett University Logo">
+                <span class="red">BENNETT</span><br>
+                UNIVERSITY<br>
+                <span class="subtitle">The Times Group</span>
+            </a>
+        </div>
+
+        <!-- Search Form -->
+        <div class="search-area">
+            <label for="navSearch" class="sr-only">Search Navigation</label>
+            <div class="search-input-wrapper">
+                <svg class="search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <input type="search" id="navSearch" class="search-input" placeholder="Search...">
+            </div>
+        </div>
+
+        <!-- Links (Highlight Active Tab Dynamically) -->
+        <nav class="nav-links" aria-label="Sidebar Links">
+            <a href="/dashboard" class="nav-item" th:classappend="${activeTab == 'dashboard'} ? 'active' : ''">Dashboard</a>
+            <a href="/students" class="nav-item" th:classappend="${activeTab == 'students'} ? 'active' : ''">Manage Students</a>
+            <a href="/teachers" class="nav-item" th:classappend="${activeTab == 'teachers'} ? 'active' : ''">Manage Teachers</a>
+            <a href="/courses" class="nav-item" th:classappend="${activeTab == 'courses'} ? 'active' : ''">Manage Courses</a>
+            <a href="/attendance" class="nav-item" th:classappend="${activeTab == 'attendance'} ? 'active' : ''">Attendance</a>
+            <a href="/cafeteria" class="nav-item" th:classappend="${activeTab == 'cafeteria'} ? 'active' : ''">Cafeteria</a>
+            <a href="/exam-schedules" class="nav-item" th:classappend="${activeTab == 'exams'} ? 'active' : ''">Exam Schedules</a>
+            <a href="/reports" class="nav-item" th:classappend="${activeTab == 'reports'} ? 'active' : ''">Reports</a>
+            <a href="/holidays" class="nav-item" th:classappend="${activeTab == 'holidays'} ? 'active' : ''">Holidays</a>
+            <a href="/services" class="nav-item" th:classappend="${activeTab == 'services'} ? 'active' : ''">Services</a>
+            <a href="/enrollment" class="nav-item" th:classappend="${activeTab == 'enrollment'} ? 'active' : ''">Enrollment</a>
+        </nav>
+    </aside>
+
+    <!-- Side tools Fragment -->
+    <aside th:fragment="floating-tools" class="floating-tools" aria-label="Quick Tools">
+        <button type="button" class="tool-btn" aria-label="Virtual ID Card">🪪</button>
+        <button type="button" class="tool-btn" aria-label="Application Menu">⋮⋮</button>
+        <button type="button" class="tool-btn" aria-label="User Settings">⚙</button>
+        <!-- Logout Form using Spring Security -->
+        <form th:action="@{/logout}" method="post" style="margin-top: 24px;">
+            <button type="submit" class="tool-btn" aria-label="Logout" style="color: #dc2626; width: 48px;">🚪</button>
+        </form>
+    </aside>
+
+</body>
+</html>

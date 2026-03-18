@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance - Student Portal</title>
+    <!-- Premium Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Global Dashboard CSS -->
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+</head>
+<body>
+
+    <!-- Inject Sidebar Fragment passing 'attendance' as the active tab -->
+    <div th:replace="~{fragments/sidebar :: sidebar(activeTab='attendance')}"></div>
+
+    <!-- Main Content -->
+    <main class="content-area" id="maincontent" tabindex="-1">
+        <div class="content-wrapper">
+            <header class="page-header">
+                <div>
+                    <h1 class="page-title">Attendance Tracking</h1>
+                </div>
+            </header>
+
+            <section class="generic-card">
+                <h2>No Absences Logged</h2>
+                <p>You have a 100% attendance rate for the current semester. Keep up the good work!</p>
+            </section>
+        </div>
+    </main>
+
+    <!-- Inject Floating Tools Fragment -->
+    <div th:replace="~{fragments/sidebar :: floating-tools}"></div>
+
+</body>
+</html>
