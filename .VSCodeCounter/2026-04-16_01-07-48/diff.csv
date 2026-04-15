@@ -1,0 +1,35 @@
+"filename", "language", "Java Properties", "HTML", "Java", "comment", "blank", "total"
+"f:\Coding\studentmanagement\src\main\java\com\sms\controller\StudentAttendanceController.java", "Java", 0, 0, 172, 38, 29, 239
+"f:\Coding\studentmanagement\src\main\java\com\sms\controller\StudentViewController.java", "Java", 0, 0, -4, -4, -1, -9
+"f:\Coding\studentmanagement\src\main\java\com\sms\controller\TeacherAttendanceController.java", "Java", 0, 0, 163, 38, 32, 233
+"f:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\AttendanceQRResponse.java", "Java", 0, 0, 63, 3, 18, 84
+"f:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\GenerateAttendanceQRRequest.java", "Java", 0, 0, 31, 3, 11, 45
+"f:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\ManualAttendanceRequest.java", "Java", 0, 0, 53, 6, 18, 77
+"f:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\MarkAttendanceRequest.java", "Java", 0, 0, 44, 3, 14, 61
+"f:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\MarkAttendanceResponse.java", "Java", 0, 0, 52, 3, 15, 70
+"f:\Coding\studentmanagement\src\main\java\com\sms\model\Attendance.java", "Java", 0, 0, 125, 6, 42, 173
+"f:\Coding\studentmanagement\src\main\java\com\sms\repository\AttendanceRepository.java", "Java", 0, 0, 62, 31, 13, 106
+"f:\Coding\studentmanagement\src\main\java\com\sms\service\AttendanceQRTokenService.java", "Java", 0, 0, 110, 31, 24, 165
+"f:\Coding\studentmanagement\src\main\java\com\sms\service\AttendanceService.java", "Java", 0, 0, 123, 36, 35, 194
+"f:\Coding\studentmanagement\src\main\resources\templates\attendance-scanner.html", "HTML", 0, 475, 0, 9, 79, 563
+"f:\Coding\studentmanagement\src\main\resources\templates\teacher-attendance.html", "HTML", 0, 610, 0, 12, 101, 723
+"f:\Coding\studentmanagement\target\classes\com\sms\controller\StudentAttendanceController.class", "Java", 0, 0, 98, 0, 1, 99
+"f:\Coding\studentmanagement\target\classes\com\sms\controller\StudentViewController.class", "Java", 0, 0, -1, 0, 0, -1
+"f:\Coding\studentmanagement\target\classes\com\sms\controller\TeacherAttendanceController.class", "Java", 0, 0, 85, 0, 1, 86
+"f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\AttendanceQRResponse.class", "Java", 0, 0, 25, 0, 0, 25
+"f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\GenerateAttendanceQRRequest.class", "Java", 0, 0, 26, 0, 0, 26
+"f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\ManualAttendanceRequest$StudentAttendanceRecord.class", "Java", 0, 0, 18, 0, 0, 18
+"f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\ManualAttendanceRequest.class", "Java", 0, 0, 16, 0, 0, 16
+"f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\MarkAttendanceRequest.class", "Java", 0, 0, 20, 0, 0, 20
+"f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\MarkAttendanceResponse.class", "Java", 0, 0, 21, 0, 0, 21
+"f:\Coding\studentmanagement\target\classes\com\sms\model\Attendance.class", "Java", 0, 0, 39, 0, 0, 39
+"f:\Coding\studentmanagement\target\classes\com\sms\repository\AttendanceRepository.class", "Java", 0, 0, 17, 0, 0, 17
+"f:\Coding\studentmanagement\target\classes\com\sms\service\AttendanceQRTokenService$AttendanceTokenClaims.class", "Java", 0, 0, 10, 0, 0, 10
+"f:\Coding\studentmanagement\target\classes\com\sms\service\AttendanceQRTokenService.class", "Java", 0, 0, 66, 0, 0, 66
+"f:\Coding\studentmanagement\target\classes\com\sms\service\AttendanceService$AttendanceStats.class", "Java", 0, 0, 11, 0, 0, 11
+"f:\Coding\studentmanagement\target\classes\com\sms\service\AttendanceService$ManualAttendanceRecord.class", "Java", 0, 0, 8, 0, 0, 8
+"f:\Coding\studentmanagement\target\classes\com\sms\service\AttendanceService.class", "Java", 0, 0, 64, 0, 0, 64
+"f:\Coding\studentmanagement\target\classes\templates\attendance-scanner.html", "HTML", 0, 475, 0, 9, 79, 563
+"f:\Coding\studentmanagement\target\classes\templates\teacher-attendance.html", "HTML", 0, 610, 0, 12, 101, 723
+"f:\Coding\studentmanagement\target\maven-archiver\pom.properties", "Java Properties", 3, 0, 0, 0, 1, 4
+"Total", "-", 3, 2170, 1517, 236, 613, 4539

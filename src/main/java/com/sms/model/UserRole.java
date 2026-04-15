@@ -1,4 +1,4 @@
-package model;
+package com.sms.model;
 
 public enum UserRole {
     ADMIN,

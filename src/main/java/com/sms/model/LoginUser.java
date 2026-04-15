@@ -1,4 +1,4 @@
-package model;
+package com.sms.model;
 
 import java.io.Serializable;
 

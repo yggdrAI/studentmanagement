@@ -1,6 +1,13 @@
 package com.sms.model;
-import jakarta.persistence.*;
 import java.io.Serializable;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 
 
 @Entity
@@ -9,7 +16,10 @@ public class Course implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(unique = true)
+    private String code;
     private String courseName;
+    private Integer credits = 3;
     private double marks;
 
     @ManyToOne
@@ -25,8 +35,12 @@ public class Course implements Serializable {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public String getCode() { return code; }
+    public void setCode(String code) { this.code = code; }
     public String getCourseName() { return courseName; }
     public void setCourseName(String name) { this.courseName = name; }
+    public Integer getCredits() { return credits; }
+    public void setCredits(Integer credits) { this.credits = credits; }
     public double getMarks() { return marks; }
     public void setMarks(double marks) { this.marks = marks; }
 

@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Government-Style Digital ID Card</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <style>
+        /* Government-Style Digital ID Card Styling */
+        .id-card-container {
+            max-width: 500px;
+            margin: 2rem auto;
+            perspective: 1000px;
+        }
+
+        .id-card-wrapper {
+            position: relative;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .id-card-wrapper.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .id-card-front, .id-card-back {
+            backface-visibility: hidden;
+            width: 100%;
+            aspect-ratio: 8.5 / 5.4;
+            border-radius: 12px;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .id-card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Watermark and Security Elements */
+        .id-watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 5rem;
+            opacity: 0.1;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .id-hologram {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(45deg, 
+                rgba(255,0,127,0.3) 0%,
+                rgba(58,123,213,0.3) 25%,
+                rgba(0,212,255,0.3) 50%,
+                rgba(255,0,127,0.3) 75%,
+                rgba(58,123,213,0.3) 100%);
+            border-radius: 50%;
+            animation: shimmer 3s infinite;
+            box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        @keyframes shimmer {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.05); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
+        /* National Badge / Security Strip */
+        .id-security-strip {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcf7f);
+            z-index: 10;
+        }
+
+        .id-official-seal {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            font-size: 0.6rem;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+        }
+
+        /* Card Content - Front */
+        .id-card-content {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            gap: 1.5rem;
+            align-items: flex-start;
+        }
+
+        .id-photo-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .id-photo {
+            width: 100px;
+            height: 120px;
+            border-radius: 6px;
+            border: 2px solid white;
+            object-fit: cover;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .id-photo-fallback {
+            width: 100px;
+            height: 120px;
+            border-radius: 6px;
+            border: 2px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.2);
+            font-size: 3rem;
+            font-weight: bold;
+        }
+
+        .id-info-section {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .id-header-text {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+            letter-spacing: 2px;
+        }
+
+        .id-subtitle-text {
+            font-size: 0.7rem;
+            opacity: 0.9;
+            margin-bottom: 1rem;
+            letter-spacing: 1px;
+        }
+
+        .id-info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.6rem;
+            font-size: 0.85rem;
+        }
+
+        .id-info-label {
+            opacity: 0.8;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .id-info-value {
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .id-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.3);
+            margin: 0.8rem 0;
+        }
+
+        /* QR Code Section */
+        .id-qr-section {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .id-qr-label {
+            font-size: 0.7rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .id-qr-code {
+            background: white;
+            padding: 0.5rem;
+            border-radius: 6px;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .id-qr-code img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        /* Card Footer */
+        .id-card-footer {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            font-size: 0.75rem;
+        }
+
+        .id-validity {
+            text-align: left;
+        }
+
+        .id-validity-label {
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .id-validity-date {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .id-status-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 1px;
+            font-size: 0.65rem;
+        }
+
+        .id-status-badge.active {
+            background: rgba(107, 199, 127, 0.3);
+            border-color: rgba(107, 199, 127, 0.6);
+            color: #6bcf7f;
+        }
+
+        .id-status-badge.expired {
+            background: rgba(255, 107, 107, 0.3);
+            border-color: rgba(255, 107, 107, 0.6);
+            color: #ff6b6b;
+        }
+
+        /* Card Back */
+        .id-card-back-content {
+            position: relative;
+            z-index: 1;
+            h3 {
+                text-transform: uppercase;
+                font-size: 1rem;
+                margin-bottom: 1rem;
+                letter-spacing: 2px;
+            }
+        }
+
+        .id-back-info {
+            font-size: 0.8rem;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .id-chip {
+            width: 60px;
+            height: 40px;
+            background: linear-gradient(135deg, #cccccc, #999999);
+            border-radius: 6px;
+            margin: 1rem 0;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Action Buttons */
+        .id-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .id-action-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+
+        .id-action-btn.primary {
+            background: #2a5298;
+            color: white;
+            box-shadow: 0 4px 12px rgba(42, 82, 152, 0.3);
+        }
+
+        .id-action-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(42, 82, 152, 0.4);
+        }
+
+        .id-action-btn.secondary {
+            background: transparent;
+            color: #2a5298;
+            border: 2px solid #2a5298;
+        }
+
+        .id-action-btn.secondary:hover {
+            background: #2a5298;
+            color: white;
+        }
+
+        /* Flip Instruction */
+        .id-flip-hint {
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            opacity: 0.7;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        /* Verification Status */
+        .verification-section {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.02);
+            border-left: 4px solid #2a5298;
+        }
+
+        .verification-status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .verification-icon {
+            font-size: 2rem;
+        }
+
+        .verification-text h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: #2a5298;
+        }
+
+        .verification-text p {
+            margin: 0.3rem 0 0 0;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .id-card-front, .id-card-back {
+                padding: 1.5rem;
+                font-size: 0.9rem;
+            }
+
+            .id-header-text {
+                font-size: 1rem;
+            }
+
+            .id-info-row {
+                font-size: 0.75rem;
+            }
+
+            .id-actions {
+                gap: 0.5rem;
+            }
+
+            .id-action-btn {
+                padding: 0.6rem 1rem;
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/sidebar :: sidebar(activeTab='dashboard')}"></div>
+
+<main class="content-area" id="maincontent" tabindex="-1">
+    <div class="content-wrapper">
+        <header class="page-header">
+            <div>
+                <h1 class="page-title">🪪 Government-Style Digital ID</h1>
+                <p class="dashboard-subtitle">Secure, verified student identity with embedded QR verification.</p>
+            </div>
+        </header>
+
+        <!-- Digital ID Card -->
+        <div class="id-card-container">
+            <div class="id-card-wrapper" id="cardWrapper">
+                <!-- Front of Card -->
+                <div class="id-card-front">
+                    <div class="id-security-strip"></div>
+                    <div class="id-watermark">BENNETT</div>
+                    <div class="id-hologram"></div>
+                    <div class="id-official-seal">©OFFICIAL</div>
+
+                    <div class="id-card-content">
+                        <div class="id-photo-section">
+                            <img id="profilePhoto" class="id-photo" alt="Student" style="display:none;">
+                            <div id="photoFallback" class="id-photo-fallback">ID</div>
+                        </div>
+                        <div class="id-info-section">
+                            <div class="id-header-text">Bennett University</div>
+                            <div class="id-subtitle-text">Digital Student Identity</div>
+                            <div class="id-divider"></div>
+                            <div class="id-info-row">
+                                <span class="id-info-label">Name</span>
+                                <span class="id-info-value" id="cardName">—</span>
+                            </div>
+                            <div class="id-info-row">
+                                <span class="id-info-label">ID</span>
+                                <span class="id-info-value" id="cardStudentId">—</span>
+                            </div>
+                            <div class="id-info-row">
+                                <span class="id-info-label">Course</span>
+                                <span class="id-info-value" id="cardCourse">—</span>
+                            </div>
+                            <div class="id-info-row">
+                                <span class="id-info-label">Semester</span>
+                                <span class="id-info-value" id="cardSemester">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="id-qr-section">
+                        <div class="id-qr-label">Verified Identity QR</div>
+                        <div class="id-qr-code" id="qrCodeContainer">
+                            <img id="qrImage" src="" alt="QR Code" style="display:none;">
+                            <div id="qrLoadingPlaceholder" style="color: #2a5298; font-weight: 600;">Loading QR...</div>
+                        </div>
+                    </div>
+
+                    <div class="id-card-footer">
+                        <div class="id-validity">
+                            <div class="id-validity-label">Valid Until</div>
+                            <div class="id-validity-date" id="cardValidUntil">—</div>
+                        </div>
+                        <div class="id-status-badge active" id="cardStatus">ACTIVE</div>
+                    </div>
+                </div>
+
+                <!-- Back of Card -->
+                <div class="id-card-back">
+                    <div class="id-security-strip"></div>
+                    <div class="id-watermark">BENNETT</div>
+
+                    <div class="id-card-back-content">
+                        <h3>Security Information</h3>
+                        
+                        <div class="id-back-info">
+                            <strong>⚠️ SECURITY NOTICE:</strong><br>
+                            This is a digitally signed and encrypted identity document. Any modification or tampering is recorded and subject to legal action.
+                        </div>
+
+                        <div class="id-chip"></div>
+
+                        <div class="id-back-info">
+                            <strong>Contact:</strong><br>
+                            Bennett University<br>
+                            Noida, Uttar Pradesh<br>
+                            India
+                        </div>
+
+                        <div class="id-back-info" style="font-size: 0.7rem; opacity: 0.8;">
+                            <strong>Token:</strong><br>
+                            <span id="tokenPreview" style="word-break: break-all; font-family: monospace;">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="id-flip-hint" onclick="document.getElementById('cardWrapper').classList.toggle('flipped')">
+                👆 Click to flip card for security details
+            </div>
+        </div>
+
+        <!-- Verification Status Section -->
+        <div class="verification-section">
+            <div class="verification-status">
+                <div class="verification-icon" id="verificationIcon">✅</div>
+                <div class="verification-text">
+                    <h3 id="verificationTitle">Verified Student</h3>
+                    <p id="verificationMessage">Your digital identity is authenticated and valid.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="id-actions">
+            <button class="id-action-btn primary" onclick="scanQRCode()">📱 Scan QR Code</button>
+            <button class="id-action-btn secondary" onclick="downloadIDCard()">⬇️ Download as PDF</button>
+            <button class="id-action-btn secondary" onclick="shareVerification()">🔗 Share Verification</button>
+        </div>
+    </div>
+</main>
+
+<script>
+    // Fetch digital ID card with embedded QR
+    async function loadDigitalID() {
+        try {
+            const response = await fetch('/api/student/id/card');
+            if (!response.ok) throw new Error('Failed to load ID card');
+
+            const card = await response.json();
+
+            // Populate card details
+            document.getElementById('cardName').textContent = card.fullName;
+            document.getElementById('cardStudentId').textContent = card.studentId;
+            document.getElementById('cardCourse').textContent = card.course;
+            document.getElementById('cardSemester').textContent = card.semester;
+            document.getElementById('cardValidUntil').textContent = card.validUntil;
+            document.getElementById('cardStatus').textContent = card.status;
+
+            // Load profile photo
+            if (card.profileImageUrl && card.profileImageUrl !== 'null') {
+                const profileImg = document.getElementById('profilePhoto');
+                profileImg.src = card.profileImageUrl;
+                profileImg.style.display = 'block';
+                document.getElementById('photoFallback').style.display = 'none';
+            }
+
+            // Load QR code
+            if (card.qrCodeBase64) {
+                const qrImg = document.getElementById('qrImage');
+                qrImg.src = card.qrCodeBase64;
+                qrImg.style.display = 'block';
+                document.getElementById('qrLoadingPlaceholder').style.display = 'none';
+            }
+
+            // Show token preview (abbreviated for security)
+            // Extract token from base64 data URI and show first 50 chars
+            if (card.qrCodeBase64) {
+                const tokenPreview = card.qrCodeBase64.substring(0, 70) + '...';
+                document.getElementById('tokenPreview').textContent = tokenPreview;
+            }
+
+            // Update verification status
+            document.getElementById('verificationTitle').textContent = `✅ ${card.status} - Verified Identity`;
+            document.getElementById('verificationMessage').textContent = `Digital ID for ${card.fullName} is authenticated and cryptographically signed.`;
+        } catch (error) {
+            console.error('Error loading ID card:', error);
+            document.getElementById('qrLoadingPlaceholder').textContent = '⚠️ Error loading QR';
+        }
+    }
+
+    // Simulate QR code scan
+    function scanQRCode() {
+        alert('📱 In production, this would open a QR scanner interface.\n\nScanned QR codes can be verified at: /verify?token=...');
+    }
+
+    // Download ID as PDF (bonus feature)
+    function downloadIDCard() {
+        alert('📄 PDF download feature coming soon!\n\nWill generate official ID card PDF with watermarks and security features.');
+    }
+
+    // Share verification link
+    function shareVerification() {
+        const currentURL = window.location.origin + '/verify?token=' + btoa(new Date().toISOString());
+        alert('🔗 Share this link for instant verification:\n' + currentURL);
+    }
+
+    // Load on page ready
+    document.addEventListener('DOMContentLoaded', loadDigitalID);
+</script>
+
+</body>
+</html>

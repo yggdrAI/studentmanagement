@@ -1,7 +1,12 @@
 package com.sms.model;
 
-import jakarta.persistence.*;
 import java.io.Serializable;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
 
 @Entity
 public class Enrollment implements Serializable {
@@ -30,11 +35,12 @@ public class Enrollment implements Serializable {
     public void setMarks(Double marks) { this.marks = marks; }
 
     public String getGrade() {
-        if (marks >= 90) return "A+";
-        if (marks >= 80) return "A";
-        if (marks >= 70) return "B";
-        if (marks >= 60) return "C";
-        if (marks >= 50) return "D";
+        double score = marks == null ? 0.0 : marks;
+        if (score >= 90) return "A+";
+        if (score >= 80) return "A";
+        if (score >= 70) return "B";
+        if (score >= 60) return "C";
+        if (score >= 50) return "D";
         return "F";
     }
 }

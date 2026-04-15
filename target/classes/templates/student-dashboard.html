@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Dashboard - Student Portal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
 </head>
 <body>
@@ -12,27 +12,342 @@
     <div th:replace="~{fragments/sidebar :: sidebar(activeTab='dashboard')}"></div>
 
     <main class="content-area" id="maincontent" tabindex="-1">
-        <div class="content-wrapper">
-            <header class="page-header">
+        <div class="content-wrapper student-dashboard-page">
+            <header class="page-header dashboard-header">
                 <div>
                     <h1 class="page-title">
-                        Student Dashboard - <span th:text="${#authentication.name}">Student</span>
+                        Smart Course Dashboard - <span th:text="${#authentication.name}">Student</span>
                     </h1>
+                    <p class="dashboard-subtitle">Track subjects, complete tasks, and stay ready for your next class.</p>
                 </div>
             </header>
 
-            <section class="generic-card">
-                <h2>Welcome to your Academic Portal 🎓</h2>
-                <p>Track your assignments, view your courses, and check your attendance here.</p>
-                <div style="margin-top: 24px;">
-                    <button type="button" class="btn btn-outline">My Schedule</button>
-                    <button type="button" class="btn btn-outline">My Results</button>
+            <section class="student-info-card" id="studentInfoCard">
+                <div class="student-info-title-wrap">
+                    <h2 id="studentName">Loading student profile...</h2>
+                    <p id="dashboardStatus" class="dashboard-status" style="display: none;"></p>
                 </div>
+                <div class="student-info-metrics">
+                    <div class="metric-block">
+                        <span class="metric-label">Student ID</span>
+                        <strong id="studentId">-</strong>
+                    </div>
+                    <div class="metric-block">
+                        <span class="metric-label">Credits</span>
+                        <strong id="totalCredits">0</strong>
+                    </div>
+                    <div class="metric-block">
+                        <span class="metric-label">Completed Tasks</span>
+                        <strong id="taskStats">0 / 0</strong>
+                    </div>
+                    <div class="metric-block">
+                        <span class="metric-label">Overall Progress</span>
+                        <strong id="overallProgressLabel">0%</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="dashboard-main-grid">
+                <div class="subjects-pane">
+                    <h3>Subjects</h3>
+                    <div id="subjectsGrid" class="subjects-grid"></div>
+                </div>
+
+                <aside class="insights-pane">
+                    <div class="insight-card">
+                        <h3>Progress Overview</h3>
+                        <div class="progress-hero">
+                            <div id="overallProgressValue" class="progress-value">0%</div>
+                            <div id="progressStatus" class="progress-status status-low">Below Target</div>
+                        </div>
+                        <div class="progress-track">
+                            <div id="overallProgressBar" class="progress-fill" style="width: 0%;"></div>
+                        </div>
+                        <p id="progressSummary" class="progress-summary">Complete tasks to improve your learning momentum.</p>
+                    </div>
+
+                    <div class="insight-card">
+                        <h3>Upcoming Classes</h3>
+                        <div id="upcomingClassesList" class="timeline-list"></div>
+                    </div>
+                </aside>
+            </section>
+
+            <section class="tasks-section">
+                <div class="tasks-header">
+                    <h3>Tasks</h3>
+                    <p>Mark tasks complete to instantly recalculate progress.</p>
+                </div>
+                <div id="taskBoard" class="task-board"></div>
             </section>
         </div>
     </main>
 
     <div th:replace="~{fragments/sidebar :: floating-tools}"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script>
+        let stompClient = null;
+        let pollHandle = null;
+
+        async function loadDashboard() {
+            try {
+                const response = await fetch('/api/student/dashboard', {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    showStatus('Unable to load dashboard data.', true);
+                    return;
+                }
+
+                const dashboard = await response.json();
+                renderDashboard(dashboard);
+                showStatus('Dashboard synchronized.', false);
+            } catch (error) {
+                showStatus('Connection issue while loading dashboard.', true);
+            }
+        }
+
+        function renderDashboard(dashboard) {
+            const studentName = dashboard.studentName || 'Student';
+            const studentId = dashboard.studentId || '-';
+            const totalCredits = dashboard.totalCredits || 0;
+            const completedTasks = dashboard.completedTasks || 0;
+            const totalTasks = dashboard.totalTasks || 0;
+            const overallProgress = Number(dashboard.overallProgress || 0).toFixed(2);
+
+            document.getElementById('studentName').textContent = studentName;
+            document.getElementById('studentId').textContent = studentId;
+            document.getElementById('totalCredits').textContent = String(totalCredits);
+            document.getElementById('taskStats').textContent = completedTasks + ' / ' + totalTasks;
+            document.getElementById('overallProgressLabel').textContent = overallProgress + '%';
+            document.getElementById('overallProgressValue').textContent = overallProgress + '%';
+            document.getElementById('overallProgressBar').style.width = Math.min(100, Math.max(0, Number(overallProgress))) + '%';
+
+            updateProgressStatus(Number(overallProgress), completedTasks, totalTasks);
+            renderSubjects(dashboard.subjects || []);
+            renderTasks(dashboard.tasks || []);
+            renderUpcomingClasses(dashboard.upcomingClasses || []);
+        }
+
+        function showStatus(message, isError) {
+            const banner = document.getElementById('dashboardStatus');
+            banner.textContent = message;
+            banner.style.display = 'block';
+            banner.style.color = isError ? '#b42318' : '#166534';
+        }
+
+        function updateProgressStatus(overallProgress, completedTasks, totalTasks) {
+            const statusEl = document.getElementById('progressStatus');
+            const summaryEl = document.getElementById('progressSummary');
+            statusEl.classList.remove('status-low', 'status-medium', 'status-high');
+
+            if (overallProgress < 40) {
+                statusEl.classList.add('status-low');
+                statusEl.textContent = 'Needs Attention';
+            } else if (overallProgress <= 75) {
+                statusEl.classList.add('status-medium');
+                statusEl.textContent = 'On Track';
+            } else {
+                statusEl.classList.add('status-high');
+                statusEl.textContent = 'Excellent';
+            }
+
+            summaryEl.textContent = 'Completed ' + completedTasks + ' of ' + totalTasks + ' tasks this term.';
+        }
+
+        function renderSubjects(subjects) {
+            const grid = document.getElementById('subjectsGrid');
+            grid.innerHTML = '';
+
+            if (subjects.length === 0) {
+                grid.innerHTML = '<div class="empty-card">No enrolled subjects yet.</div>';
+                return;
+            }
+
+            subjects.forEach(subject => {
+                const card = document.createElement('article');
+                card.className = 'subject-card';
+
+                const progress = Number(subject.progressPercent || 0).toFixed(2);
+                card.innerHTML =
+                    '<div class="subject-head">' +
+                        '<h4>' + escapeHtml(subject.subjectName || 'Untitled Subject') + '</h4>' +
+                        '<span>' + escapeHtml(subject.subjectCode || 'N/A') + '</span>' +
+                    '</div>' +
+                    '<p>Faculty: <strong>' + escapeHtml(subject.facultyName || 'N/A') + '</strong></p>' +
+                    '<p>Credits: <strong>' + escapeHtml(String(subject.credits || 0)) + '</strong></p>' +
+                    '<div class="subject-progress-track"><span style="width:' + Math.min(100, Math.max(0, Number(progress))) + '%"></span></div>' +
+                    '<div class="subject-progress-label">Progress: ' + progress + '%</div>';
+
+                grid.appendChild(card);
+            });
+        }
+
+        function renderTasks(tasks) {
+            const board = document.getElementById('taskBoard');
+            board.innerHTML = '';
+
+            if (tasks.length === 0) {
+                board.innerHTML = '<div class="empty-card">No tasks available.</div>';
+                return;
+            }
+
+            tasks.forEach(task => {
+                const row = document.createElement('div');
+                row.className = 'task-row';
+
+                const isDone = task.status === 'COMPLETED';
+                const dueLabel = task.dueAt ? formatDateTime(task.dueAt) : 'No due date';
+
+                const detail = document.createElement('div');
+                detail.className = 'task-detail';
+                detail.innerHTML =
+                    '<div class="task-subject">' + escapeHtml(task.courseCode || 'SUBJECT') + '</div>' +
+                    '<div class="task-title">' + (isDone ? '&#10003; ' : '&#9633; ') + escapeHtml(task.title || 'Untitled Task') + '</div>' +
+                    '<div class="task-meta">Due: ' + escapeHtml(dueLabel) + '</div>';
+
+                row.appendChild(detail);
+
+                if (!isDone) {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'btn btn-primary student-action-btn';
+                    button.textContent = 'Mark Complete';
+                    button.onclick = async () => {
+                        try {
+                            button.disabled = true;
+                            const completeResponse = await fetch('/api/student/task/' + task.id + '/complete', {
+                                method: 'POST',
+                                headers: { 'Accept': 'application/json' }
+                            });
+
+                            if (!completeResponse.ok) {
+                                showStatus('Failed to complete task. Please retry.', true);
+                                button.disabled = false;
+                                return;
+                            }
+
+                            const updatedDashboard = await completeResponse.json();
+                            renderDashboard(updatedDashboard);
+                            showStatus('Task marked as complete.', false);
+                        } catch (error) {
+                            showStatus('Network error while completing task.', true);
+                            button.disabled = false;
+                        }
+                    };
+                    row.appendChild(button);
+                } else {
+                    const completedBadge = document.createElement('span');
+                    completedBadge.className = 'task-completed-badge';
+                    completedBadge.textContent = 'Completed';
+                    row.appendChild(completedBadge);
+                }
+
+                board.appendChild(row);
+            });
+        }
+
+        function renderUpcomingClasses(classes) {
+            const timeline = document.getElementById('upcomingClassesList');
+            timeline.innerHTML = '';
+
+            if (classes.length === 0) {
+                timeline.innerHTML = '<div class="empty-card">No upcoming classes.</div>';
+                return;
+            }
+
+            classes.forEach(session => {
+                const item = document.createElement('article');
+                item.className = 'timeline-item';
+                item.innerHTML =
+                    '<div class="timeline-icon">&#128197;</div>' +
+                    '<div class="timeline-content">' +
+                        '<div class="timeline-title">' + escapeHtml(session.subjectCode || session.courseCode || 'SUBJECT') + ' - ' + escapeHtml(session.title || 'Class Session') + '</div>' +
+                        '<div class="timeline-meta">' + escapeHtml(formatDateTime(session.startsAt)) + ' | ' + escapeHtml(session.room || 'TBA') + '</div>' +
+                    '</div>';
+                timeline.appendChild(item);
+            });
+        }
+
+        function formatDateTime(value) {
+            if (!value) {
+                return 'TBA';
+            }
+
+            const parsed = new Date(value);
+            if (Number.isNaN(parsed.getTime())) {
+                return 'TBA';
+            }
+
+            return parsed.toLocaleString([], {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function connectRealtime() {
+            if (typeof SockJS === 'undefined' || typeof Stomp === 'undefined') {
+                startPolling();
+                showStatus('Realtime unavailable, fallback polling enabled.', true);
+                return;
+            }
+
+            const socket = new SockJS('/ws');
+            stompClient = Stomp.over(socket);
+            stompClient.debug = null;
+
+            stompClient.connect({}, function () {
+                showStatus('Realtime updates connected.', false);
+                stopPolling();
+
+                stompClient.subscribe('/user/queue/dashboard', function (message) {
+                    try {
+                        const payload = JSON.parse(message.body);
+                        renderDashboard(payload);
+                        showStatus('Live update received.', false);
+                    } catch (error) {
+                        showStatus('Failed to process live update.', true);
+                    }
+                });
+            }, function () {
+                startPolling();
+                showStatus('Realtime disconnected, fallback polling enabled.', true);
+            });
+        }
+
+        function startPolling() {
+            if (pollHandle) {
+                return;
+            }
+            pollHandle = window.setInterval(loadDashboard, 30000);
+        }
+
+        function stopPolling() {
+            if (!pollHandle) {
+                return;
+            }
+            window.clearInterval(pollHandle);
+            pollHandle = null;
+        }
+
+        loadDashboard();
+        connectRealtime();
+        startPolling();
+    </script>
 
 </body>
 </html>

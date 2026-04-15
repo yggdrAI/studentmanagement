@@ -1,0 +1,282 @@
+Date : 2026-04-15 23:33:46
+Directory : f:\Coding\studentmanagement
+Total : 182 files,  5943 codes, 628 comments, 848 blanks, all 7419 lines
+
+Languages
++-----------------+------------+------------+------------+------------+------------+
+| language        | files      | code       | comment    | blank      | total      |
++-----------------+------------+------------+------------+------------+------------+
+| Java            |        148 |      3,553 |         83 |        479 |      4,115 |
+| PostCSS         |          2 |        860 |         56 |        124 |      1,040 |
+| HTML            |         16 |        834 |         50 |        128 |      1,012 |
+| XML             |          5 |        459 |        333 |         35 |        827 |
+| Batch           |          2 |        133 |         73 |         43 |        249 |
+| Java Properties |          6 |         66 |         31 |         26 |        123 |
+| PowerShell      |          2 |         30 |          2 |         10 |         42 |
+| Properties      |          1 |          8 |          0 |          3 |         11 |
++-----------------+------------+------------+------------+------------+------------+
+
+Directories
++---------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                    | files      | code       | comment    | blank      | total      |
++---------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                       |        182 |      5,943 |        628 |        848 |      7,419 |
+| . (Files)                                                                                               |          4 |        223 |          9 |         24 |        256 |
+| apache-maven-3.9.6                                                                                      |          6 |        178 |        416 |         66 |        660 |
+| apache-maven-3.9.6\bin                                                                                  |          3 |        141 |         73 |         46 |        260 |
+| apache-maven-3.9.6\conf                                                                                 |          3 |         37 |        343 |         20 |        400 |
+| apache-maven-3.9.6\conf (Files)                                                                         |          2 |         26 |        326 |         17 |        369 |
+| apache-maven-3.9.6\conf\logging                                                                         |          1 |         11 |         17 |          3 |         31 |
+| out                                                                                                     |         24 |        736 |         40 |          3 |        779 |
+| out\com                                                                                                 |         13 |        562 |         40 |          0 |        602 |
+| out\com\sms                                                                                             |         13 |        562 |         40 |          0 |        602 |
+| out\com\sms (Files)                                                                                     |          1 |         11 |          0 |          0 |         11 |
+| out\com\sms\gui                                                                                         |         12 |        551 |         40 |          0 |        591 |
+| out\model                                                                                               |          4 |         53 |          0 |          0 |         53 |
+| out\service                                                                                             |          3 |         81 |          0 |          0 |         81 |
+| out\util                                                                                                |          4 |         40 |          0 |          3 |         43 |
+| src                                                                                                     |         80 |      2,692 |         67 |        610 |      3,369 |
+| src\main                                                                                                |         78 |      2,614 |         67 |        590 |      3,271 |
+| src\main\java                                                                                           |         67 |      1,741 |          7 |        453 |      2,201 |
+| src\main\java\com                                                                                       |         67 |      1,741 |          7 |        453 |      2,201 |
+| src\main\java\com\sms                                                                                   |         67 |      1,741 |          7 |        453 |      2,201 |
+| src\main\java\com\sms (Files)                                                                           |          1 |         11 |          0 |          4 |         15 |
+| src\main\java\com\sms\config                                                                            |          4 |        264 |          0 |         53 |        317 |
+| src\main\java\com\sms\controller                                                                        |          7 |        195 |          3 |         54 |        252 |
+| src\main\java\com\sms\dto                                                                               |          6 |        228 |          0 |         82 |        310 |
+| src\main\java\com\sms\dto\auth                                                                          |          2 |         30 |          0 |         14 |         44 |
+| src\main\java\com\sms\dto\dashboard                                                                     |          4 |        198 |          0 |         68 |        266 |
+| src\main\java\com\sms\model                                                                             |         17 |        468 |          0 |        130 |        598 |
+| src\main\java\com\sms\repository                                                                        |          7 |         64 |          0 |         31 |         95 |
+| src\main\java\com\sms\service                                                                           |         15 |        399 |          4 |         83 |        486 |
+| src\main\java\com\sms\util                                                                              |         10 |        112 |          0 |         16 |        128 |
+| src\main\resources                                                                                      |         11 |        873 |         60 |        137 |      1,070 |
+| src\main\resources (Files)                                                                              |          2 |         26 |          7 |         11 |         44 |
+| src\main\resources\static                                                                               |          1 |        430 |         28 |         62 |        520 |
+| src\main\resources\static\css                                                                           |          1 |        430 |         28 |         62 |        520 |
+| src\main\resources\templates                                                                            |          8 |        417 |         25 |         64 |        506 |
+| src\main\resources\templates (Files)                                                                    |          7 |        375 |         19 |         58 |        452 |
+| src\main\resources\templates\fragments                                                                  |          1 |         42 |          6 |          6 |         54 |
+| src\test                                                                                                |          2 |         78 |          0 |         20 |         98 |
+| src\test\java                                                                                           |          2 |         78 |          0 |         20 |         98 |
+| src\test\java\com                                                                                       |          2 |         78 |          0 |         20 |         98 |
+| src\test\java\com\sms                                                                                   |          2 |         78 |          0 |         20 |         98 |
+| src\test\java\com\sms\controller                                                                        |          1 |         42 |          0 |          9 |         51 |
+| src\test\java\com\sms\service                                                                           |          1 |         36 |          0 |         11 |         47 |
+| target                                                                                                  |         68 |      2,114 |         96 |        145 |      2,355 |
+| target\classes                                                                                          |         63 |      1,745 |         96 |        140 |      1,981 |
+| target\classes (Files)                                                                                  |          2 |         26 |          7 |         11 |         44 |
+| target\classes\com                                                                                      |         52 |        872 |         36 |          3 |        911 |
+| target\classes\com\sms                                                                                  |         52 |        872 |         36 |          3 |        911 |
+| target\classes\com\sms (Files)                                                                          |          1 |          9 |          0 |          0 |          9 |
+| target\classes\com\sms\config                                                                           |          4 |        142 |         36 |          0 |        178 |
+| target\classes\com\sms\controller                                                                       |          7 |         86 |          0 |          0 |         86 |
+| target\classes\com\sms\dto                                                                              |          6 |         84 |          0 |          0 |         84 |
+| target\classes\com\sms\dto\auth                                                                         |          2 |         16 |          0 |          0 |         16 |
+| target\classes\com\sms\dto\dashboard                                                                    |          4 |         68 |          0 |          0 |         68 |
+| target\classes\com\sms\model                                                                            |         13 |        188 |          0 |          0 |        188 |
+| target\classes\com\sms\repository                                                                       |          7 |         30 |          0 |          0 |         30 |
+| target\classes\com\sms\service                                                                          |          9 |        273 |          0 |          0 |        273 |
+| target\classes\com\sms\util                                                                             |          5 |         60 |          0 |          3 |         63 |
+| target\classes\static                                                                                   |          1 |        430 |         28 |         62 |        520 |
+| target\classes\static\css                                                                               |          1 |        430 |         28 |         62 |        520 |
+| target\classes\templates                                                                                |          8 |        417 |         25 |         64 |        506 |
+| target\classes\templates (Files)                                                                        |          7 |        375 |         19 |         58 |        452 |
+| target\classes\templates\fragments                                                                      |          1 |         42 |          6 |          6 |         54 |
+| target\maven-archiver                                                                                   |          1 |          3 |          0 |          1 |          4 |
+| target\surefire-reports                                                                                 |          2 |        314 |          0 |          4 |        318 |
+| target\test-classes                                                                                     |          2 |         52 |          0 |          0 |         52 |
+| target\test-classes\com                                                                                 |          2 |         52 |          0 |          0 |         52 |
+| target\test-classes\com\sms                                                                             |          2 |         52 |          0 |          0 |         52 |
+| target\test-classes\com\sms\controller                                                                  |          1 |         23 |          0 |          0 |         23 |
+| target\test-classes\com\sms\service                                                                     |          1 |         29 |          0 |          0 |         29 |
++---------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++---------------------------------------------------------------------------------------------------------+-----------------+------------+------------+------------+------------+
+| filename                                                                                                | language        | code       | comment    | blank      | total      |
++---------------------------------------------------------------------------------------------------------+-----------------+------------+------------+------------+------------+
+| f:\Coding\studentmanagement\Main.class                                                                  | Java            |         74 |          0 |          0 |         74 |
+| f:\Coding\studentmanagement\apache-maven-3.9.6\bin\m2.conf                                              | Properties      |          8 |          0 |          3 |         11 |
+| f:\Coding\studentmanagement\apache-maven-3.9.6\bin\mvn.cmd                                              | Batch           |        126 |         41 |         36 |        203 |
+| f:\Coding\studentmanagement\apache-maven-3.9.6\bin\mvnDebug.cmd                                         | Batch           |          7 |         32 |          7 |         46 |
+| f:\Coding\studentmanagement\apache-maven-3.9.6\conf\logging\simplelogger.properties                     | Java Properties |         11 |         17 |          3 |         31 |
+| f:\Coding\studentmanagement\apache-maven-3.9.6\conf\settings.xml                                        | XML             |         22 |        231 |         13 |        266 |
+| f:\Coding\studentmanagement\apache-maven-3.9.6\conf\toolchains.xml                                      | XML             |          4 |         95 |          4 |        103 |
+| f:\Coding\studentmanagement\out\com\sms\StudentManagementApplication.class                              | Java            |         11 |          0 |          0 |         11 |
+| f:\Coding\studentmanagement\out\com\sms\gui\LoginFrame.class                                            | Java            |         86 |          4 |          0 |         90 |
+| f:\Coding\studentmanagement\out\com\sms\gui\MainFrame$1.class                                           | Java            |          8 |          0 |          0 |          8 |
+| f:\Coding\studentmanagement\out\com\sms\gui\MainFrame$2.class                                           | Java            |         17 |          0 |          0 |         17 |
+| f:\Coding\studentmanagement\out\com\sms\gui\MainFrame$3.class                                           | Java            |          8 |          0 |          0 |          8 |
+| f:\Coding\studentmanagement\out\com\sms\gui\MainFrame$4.class                                           | Java            |         18 |          0 |          0 |         18 |
+| f:\Coding\studentmanagement\out\com\sms\gui\MainFrame$5.class                                           | Java            |         17 |          0 |          0 |         17 |
+| f:\Coding\studentmanagement\out\com\sms\gui\MainFrame.class                                             | Java            |        172 |         36 |          0 |        208 |
+| f:\Coding\studentmanagement\out\com\sms\gui\StudentDialog.class                                         | Java            |        117 |          0 |          0 |        117 |
+| f:\Coding\studentmanagement\out\com\sms\gui\UITheme$1.class                                             | Java            |          9 |          0 |          0 |          9 |
+| f:\Coding\studentmanagement\out\com\sms\gui\UITheme$2.class                                             | Java            |         11 |          0 |          0 |         11 |
+| f:\Coding\studentmanagement\out\com\sms\gui\UITheme$3.class                                             | Java            |          9 |          0 |          0 |          9 |
+| f:\Coding\studentmanagement\out\com\sms\gui\UITheme.class                                               | Java            |         79 |          0 |          0 |         79 |
+| f:\Coding\studentmanagement\out\model\Admin.class                                                       | Java            |          7 |          0 |          0 |          7 |
+| f:\Coding\studentmanagement\out\model\Course.class                                                      | Java            |         10 |          0 |          0 |         10 |
+| f:\Coding\studentmanagement\out\model\Person.class                                                      | Java            |          8 |          0 |          0 |          8 |
+| f:\Coding\studentmanagement\out\model\Student.class                                                     | Java            |         28 |          0 |          0 |         28 |
+| f:\Coding\studentmanagement\out\service\AuthenticationService.class                                     | Java            |         17 |          0 |          0 |         17 |
+| f:\Coding\studentmanagement\out\service\FileService.class                                               | Java            |         23 |          0 |          0 |         23 |
+| f:\Coding\studentmanagement\out\service\StudentService.class                                            | Java            |         41 |          0 |          0 |         41 |
+| f:\Coding\studentmanagement\out\util\CustomException.class                                              | Java            |          5 |          0 |          0 |          5 |
+| f:\Coding\studentmanagement\out\util\GradeUtil.class                                                    | Java            |          8 |          0 |          3 |         11 |
+| f:\Coding\studentmanagement\out\util\InputValidator.class                                               | Java            |         16 |          0 |          0 |         16 |
+| f:\Coding\studentmanagement\out\util\StudentComparators.class                                           | Java            |         11 |          0 |          0 |         11 |
+| f:\Coding\studentmanagement\pom.xml                                                                     | XML             |        119 |          7 |         14 |        140 |
+| f:\Coding\studentmanagement\run_gui.ps1                                                                 | PowerShell      |         17 |          1 |          6 |         24 |
+| f:\Coding\studentmanagement\run_spring.ps1                                                              | PowerShell      |         13 |          1 |          4 |         18 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\StudentManagementApplication.java                     | Java            |         11 |          0 |          4 |         15 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\config\DemoDataLoader.java                            | Java            |        132 |          0 |         21 |        153 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\config\JwtAuthenticationFilter.java                   | Java            |         48 |          0 |         15 |         63 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\config\SecurityConfig.java                            | Java            |         65 |          0 |         12 |         77 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\config\WebSocketConfig.java                           | Java            |         19 |          0 |          5 |         24 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminController.java                       | Java            |         50 |          2 |         13 |         65 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\controller\ApiAuthController.java                     | Java            |         33 |          0 |         10 |         43 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\controller\AuthController.java                        | Java            |         25 |          0 |          8 |         33 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\controller\DashboardController.java                   | Java            |         45 |          0 |         10 |         55 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\controller\PortalController.java                      | Java            |         22 |          1 |          7 |         30 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\controller\StudentController.java                     | Java            |         10 |          0 |          3 |         13 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\controller\TeacherController.java                     | Java            |         10 |          0 |          3 |         13 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\dto\auth\LoginRequest.java                            | Java            |         20 |          0 |          9 |         29 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\dto\auth\LoginResponse.java                           | Java            |         10 |          0 |          5 |         15 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\CourseProgressDto.java                  | Java            |         45 |          0 |         15 |         60 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\DashboardResponse.java                  | Java            |         60 |          0 |         20 |         80 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\TaskDto.java                            | Java            |         40 |          0 |         15 |         55 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\UpcomingClassDto.java                   | Java            |         53 |          0 |         18 |         71 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\Admin.class                                     | Java            |          7 |          0 |          0 |          7 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\Admin.java                                      | Java            |         17 |          0 |          9 |         26 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\ClassSession.java                               | Java            |         68 |          0 |         22 |         90 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\Course.class                                    | Java            |         10 |          0 |          0 |         10 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\Course.java                                     | Java            |         44 |          0 |         10 |         54 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\Enrollment.java                                 | Java            |         41 |          0 |         10 |         51 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\LoginUser.java                                  | Java            |         26 |          0 |         10 |         36 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\Person.class                                    | Java            |          8 |          0 |          0 |          8 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\Person.java                                     | Java            |         20 |          0 |          7 |         27 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\Role.java                                       | Java            |          6 |          0 |          1 |          7 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\Student.class                                   | Java            |         28 |          0 |          0 |         28 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\Student.java                                    | Java            |         53 |          0 |         15 |         68 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\TaskItem.java                                   | Java            |         71 |          0 |         23 |         94 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\TaskStatus.java                                 | Java            |          5 |          0 |          2 |          7 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\Teacher.java                                    | Java            |         27 |          0 |          9 |         36 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\User.java                                       | Java            |         31 |          0 |          9 |         40 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\UserRole.java                                   | Java            |          6 |          0 |          3 |          9 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\repository\ClassSessionRepository.java                | Java            |         10 |          0 |          5 |         15 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\repository\CourseRepository.java                      | Java            |          9 |          0 |          4 |         13 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\repository\EnrollmentRepository.java                  | Java            |          9 |          0 |          5 |         14 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\repository\StudentRepository.java                     | Java            |          9 |          0 |          5 |         14 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\repository\TaskItemRepository.java                    | Java            |         11 |          0 |          6 |         17 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\repository\TeacherRepository.java                     | Java            |          7 |          0 |          3 |         10 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\repository\UserRepository.java                        | Java            |          9 |          0 |          3 |         12 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\AuthenticationService.class                   | Java            |         17 |          0 |          0 |         17 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\AuthenticationService.java                    | Java            |         18 |          4 |          7 |         29 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\CourseService.class                           | Java            |          4 |          0 |          0 |          4 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\CourseService.java                            | Java            |          3 |          0 |          3 |          6 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\CustomUserDetailsService.java                 | Java            |         23 |          0 |          8 |         31 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\DashboardService.java                         | Java            |        146 |          0 |         25 |        171 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\FileService.class                             | Java            |         23 |          0 |          0 |         23 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\FileService.java                              | Java            |         24 |          0 |          6 |         30 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\JwtService.java                               | Java            |         48 |          0 |         15 |         63 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\StudentService.class                          | Java            |         41 |          0 |          0 |         41 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\StudentService.java                           | Java            |         38 |          0 |         13 |         51 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\TeacherService.class                          | Java            |          4 |          0 |          0 |          4 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\TeacherService.java                           | Java            |          3 |          0 |          3 |          6 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\UserService.class                             | Java            |          4 |          0 |          0 |          4 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\UserService.java                              | Java            |          3 |          0 |          3 |          6 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\util\CustomException.class                            | Java            |          5 |          0 |          0 |          5 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\util\CustomException.java                             | Java            |          6 |          0 |          1 |          7 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\util\GradeUtil.class                                  | Java            |          8 |          0 |          3 |         11 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\util\GradeUtil.java                                   | Java            |         11 |          0 |          2 |         13 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\util\InputValidator.class                             | Java            |         16 |          0 |          0 |         16 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\util\InputValidator.java                              | Java            |         11 |          0 |          3 |         14 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\util\LoggerUtil.class                                 | Java            |         20 |          0 |          0 |         20 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\util\LoggerUtil.java                                  | Java            |         13 |          0 |          3 |         16 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\util\StudentComparators.class                         | Java            |         11 |          0 |          0 |         11 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\util\StudentComparators.java                          | Java            |         11 |          0 |          4 |         15 |
+| f:\Coding\studentmanagement\src\main\resources\application-postgres.properties                          | Java Properties |          9 |          0 |          3 |         12 |
+| f:\Coding\studentmanagement\src\main\resources\application.properties                                   | Java Properties |         17 |          7 |          8 |         32 |
+| f:\Coding\studentmanagement\src\main\resources\static\css\dashboard.css                                 | PostCSS         |        430 |         28 |         62 |        520 |
+| f:\Coding\studentmanagement\src\main\resources\templates\admin-dashboard.html                           | HTML            |        117 |         12 |         14 |        143 |
+| f:\Coding\studentmanagement\src\main\resources\templates\attendance.html                                | HTML            |         27 |          5 |          6 |         38 |
+| f:\Coding\studentmanagement\src\main\resources\templates\cafeteria.html                                 | HTML            |         28 |          0 |          6 |         34 |
+| f:\Coding\studentmanagement\src\main\resources\templates\fragments\sidebar.html                         | HTML            |         42 |          6 |          6 |         54 |
+| f:\Coding\studentmanagement\src\main\resources\templates\login.html                                     | HTML            |        105 |          2 |         14 |        121 |
+| f:\Coding\studentmanagement\src\main\resources\templates\student-dashboard.html                         | HTML            |         33 |          0 |          6 |         39 |
+| f:\Coding\studentmanagement\src\main\resources\templates\teacher-dashboard.html                         | HTML            |         34 |          0 |          6 |         40 |
+| f:\Coding\studentmanagement\src\main\resources\templates\teachers.html                                  | HTML            |         31 |          0 |          6 |         37 |
+| f:\Coding\studentmanagement\src\test\java\com\sms\controller\DashboardControllerTest.java               | Java            |         42 |          0 |          9 |         51 |
+| f:\Coding\studentmanagement\src\test\java\com\sms\service\DashboardServiceTest.java                     | Java            |         36 |          0 |         11 |         47 |
+| f:\Coding\studentmanagement\target\classes\application-postgres.properties                              | Java Properties |          9 |          0 |          3 |         12 |
+| f:\Coding\studentmanagement\target\classes\application.properties                                       | Java Properties |         17 |          7 |          8 |         32 |
+| f:\Coding\studentmanagement\target\classes\com\sms\StudentManagementApplication.class                   | Java            |          9 |          0 |          0 |          9 |
+| f:\Coding\studentmanagement\target\classes\com\sms\config\DemoDataLoader.class                          | Java            |         79 |          0 |          0 |         79 |
+| f:\Coding\studentmanagement\target\classes\com\sms\config\JwtAuthenticationFilter.class                 | Java            |         28 |          0 |          0 |         28 |
+| f:\Coding\studentmanagement\target\classes\com\sms\config\SecurityConfig.class                          | Java            |         25 |         36 |          0 |         61 |
+| f:\Coding\studentmanagement\target\classes\com\sms\config\WebSocketConfig.class                         | Java            |         10 |          0 |          0 |         10 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\AdminController.class                     | Java            |         25 |          0 |          0 |         25 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\ApiAuthController.class                   | Java            |         15 |          0 |          0 |         15 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\AuthController.class                      | Java            |          9 |          0 |          0 |          9 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\DashboardController.class                 | Java            |         17 |          0 |          0 |         17 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\PortalController.class                    | Java            |          8 |          0 |          0 |          8 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\StudentController.class                   | Java            |          6 |          0 |          0 |          6 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\TeacherController.class                   | Java            |          6 |          0 |          0 |          6 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\auth\LoginRequest.class                          | Java            |          8 |          0 |          0 |          8 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\auth\LoginResponse.class                         | Java            |          8 |          0 |          0 |          8 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\CourseProgressDto.class                | Java            |         22 |          0 |          0 |         22 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\DashboardResponse.class                | Java            |         16 |          0 |          0 |         16 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\TaskDto.class                          | Java            |         14 |          0 |          0 |         14 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\UpcomingClassDto.class                 | Java            |         16 |          0 |          0 |         16 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\Admin.class                                    | Java            |         10 |          0 |          0 |         10 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\ClassSession.class                             | Java            |         16 |          0 |          0 |         16 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\Course.class                                   | Java            |         20 |          0 |          0 |         20 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\Enrollment.class                               | Java            |         14 |          0 |          0 |         14 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\LoginUser.class                                | Java            |          7 |          0 |          0 |          7 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\Person.class                                   | Java            |          8 |          0 |          0 |          8 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\Role.class                                     | Java            |         18 |          0 |          0 |         18 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\Student.class                                  | Java            |         24 |          0 |          0 |         24 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\TaskItem.class                                 | Java            |         20 |          0 |          0 |         20 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\TaskStatus.class                               | Java            |         19 |          0 |          0 |         19 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\Teacher.class                                  | Java            |          7 |          0 |          0 |          7 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\User.class                                     | Java            |          6 |          0 |          0 |          6 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\UserRole.class                                 | Java            |         19 |          0 |          0 |         19 |
+| f:\Coding\studentmanagement\target\classes\com\sms\repository\ClassSessionRepository.class              | Java            |          4 |          0 |          0 |          4 |
+| f:\Coding\studentmanagement\target\classes\com\sms\repository\CourseRepository.class                    | Java            |          5 |          0 |          0 |          5 |
+| f:\Coding\studentmanagement\target\classes\com\sms\repository\EnrollmentRepository.class                | Java            |          4 |          0 |          0 |          4 |
+| f:\Coding\studentmanagement\target\classes\com\sms\repository\StudentRepository.class                   | Java            |          4 |          0 |          0 |          4 |
+| f:\Coding\studentmanagement\target\classes\com\sms\repository\TaskItemRepository.class                  | Java            |          5 |          0 |          0 |          5 |
+| f:\Coding\studentmanagement\target\classes\com\sms\repository\TeacherRepository.class                   | Java            |          4 |          0 |          0 |          4 |
+| f:\Coding\studentmanagement\target\classes\com\sms\repository\UserRepository.class                      | Java            |          4 |          0 |          0 |          4 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\AuthenticationService.class                  | Java            |         18 |          0 |          0 |         18 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\CourseService.class                          | Java            |          5 |          0 |          0 |          5 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\CustomUserDetailsService.class               | Java            |         24 |          0 |          0 |         24 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\DashboardService.class                       | Java            |        143 |          0 |          0 |        143 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\FileService.class                            | Java            |         23 |          0 |          0 |         23 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\JwtService.class                             | Java            |         29 |          0 |          0 |         29 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\StudentService.class                         | Java            |         21 |          0 |          0 |         21 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\TeacherService.class                         | Java            |          5 |          0 |          0 |          5 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\UserService.class                            | Java            |          5 |          0 |          0 |          5 |
+| f:\Coding\studentmanagement\target\classes\com\sms\util\CustomException.class                           | Java            |          6 |          0 |          0 |          6 |
+| f:\Coding\studentmanagement\target\classes\com\sms\util\GradeUtil.class                                 | Java            |          8 |          0 |          3 |         11 |
+| f:\Coding\studentmanagement\target\classes\com\sms\util\InputValidator.class                            | Java            |         16 |          0 |          0 |         16 |
+| f:\Coding\studentmanagement\target\classes\com\sms\util\LoggerUtil.class                                | Java            |         20 |          0 |          0 |         20 |
+| f:\Coding\studentmanagement\target\classes\com\sms\util\StudentComparators.class                        | Java            |         10 |          0 |          0 |         10 |
+| f:\Coding\studentmanagement\target\classes\static\css\dashboard.css                                     | PostCSS         |        430 |         28 |         62 |        520 |
+| f:\Coding\studentmanagement\target\classes\templates\admin-dashboard.html                               | HTML            |        117 |         12 |         14 |        143 |
+| f:\Coding\studentmanagement\target\classes\templates\attendance.html                                    | HTML            |         27 |          5 |          6 |         38 |
+| f:\Coding\studentmanagement\target\classes\templates\cafeteria.html                                     | HTML            |         28 |          0 |          6 |         34 |
+| f:\Coding\studentmanagement\target\classes\templates\fragments\sidebar.html                             | HTML            |         42 |          6 |          6 |         54 |
+| f:\Coding\studentmanagement\target\classes\templates\login.html                                         | HTML            |        105 |          2 |         14 |        121 |
+| f:\Coding\studentmanagement\target\classes\templates\student-dashboard.html                             | HTML            |         33 |          0 |          6 |         39 |
+| f:\Coding\studentmanagement\target\classes\templates\teacher-dashboard.html                             | HTML            |         34 |          0 |          6 |         40 |
+| f:\Coding\studentmanagement\target\classes\templates\teachers.html                                      | HTML            |         31 |          0 |          6 |         37 |
+| f:\Coding\studentmanagement\target\maven-archiver\pom.properties                                        | Java Properties |          3 |          0 |          1 |          4 |
+| f:\Coding\studentmanagement\target\surefire-reports\TEST-com.sms.controller.DashboardControllerTest.xml | XML             |        187 |          0 |          2 |        189 |
+| f:\Coding\studentmanagement\target\surefire-reports\TEST-com.sms.service.DashboardServiceTest.xml       | XML             |        127 |          0 |          2 |        129 |
+| f:\Coding\studentmanagement\target\test-classes\com\sms\controller\DashboardControllerTest.class        | Java            |         23 |          0 |          0 |         23 |
+| f:\Coding\studentmanagement\target\test-classes\com\sms\service\DashboardServiceTest.class              | Java            |         29 |          0 |          0 |         29 |
+| Total                                                                                                   |                 |      5,943 |        628 |        848 |      7,419 |
++---------------------------------------------------------------------------------------------------------+-----------------+------------+------------+------------+------------+

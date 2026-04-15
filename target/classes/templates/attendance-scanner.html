@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📱 Attendance Scanner - Bennett University</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <style>
+        .scanner-container {
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .scanner-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .scanner-header h1 {
+            font-size: 2rem;
+            color: #1e3c72;
+            margin: 0.5rem 0;
+        }
+
+        .camera-area {
+            width: 100%;
+            max-width: 500px;
+            margin: 1.5rem auto;
+            background: #f5f5f5;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #2a5298;
+        }
+
+        #reader {
+            width: 100%;
+            min-height: 400px;
+            position: relative;
+        }
+
+        #cameraVideo {
+            width: 100%;
+            min-height: 400px;
+            object-fit: cover;
+            background: #111827;
+            display: block;
+        }
+
+        #scannerOverlay {
+            position: absolute;
+            inset: 0;
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            pointer-events: none;
+            box-shadow: inset 0 0 0 9999px rgba(0, 0, 0, 0.12);
+        }
+
+        .scan-frame {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 240px;
+            height: 240px;
+            transform: translate(-50%, -50%);
+            border: 2px solid rgba(59, 130, 246, 0.95);
+            border-radius: 14px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.25);
+        }
+
+        .scan-line {
+            position: absolute;
+            left: 10%;
+            right: 10%;
+            top: 50%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #60a5fa, transparent);
+            animation: sweep 2.2s ease-in-out infinite;
+        }
+
+        @keyframes sweep {
+            0% { transform: translateY(-84px); opacity: 0.2; }
+            50% { transform: translateY(84px); opacity: 1; }
+            100% { transform: translateY(-84px); opacity: 0.2; }
+        }
+
+        .qr-reader__shaded_region {
+            background: rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .scanner-controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: #2a5298;
+            color: white;
+            box-shadow: 0 4px 12px rgba(42, 82, 152, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(42, 82, 152, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        .status-message {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 600;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #6ee7b7;
+            display: block;
+        }
+
+        .status-message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 2px solid #fca5a5;
+            display: block;
+        }
+
+        .status-message.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 2px solid #93c5fd;
+            display: block;
+        }
+
+        .status-message.warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 2px solid #fcd34d;
+            display: block;
+        }
+
+        .status-icon {
+            font-size: 1.5rem;
+            margin-right: 0.5rem;
+        }
+
+        .scanner-info {
+            background: #f0f9ff;
+            border-left: 4px solid #2a5298;
+            padding: 1rem;
+            margin: 1.5rem 0;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #1e40af;
+        }
+
+        .manual-entry {
+            background: #f9f9f9;
+            border: 1px dashed #ccc;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+        }
+
+        .manual-entry input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 0.8rem;
+            font-size: 1rem;
+        }
+
+        .loader {
+            display: none;
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2a5298;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .countdown {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #dc2626;
+            margin-top: 0.5rem;
+        }
+
+        .metadata {
+            background: #f5f5f5;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .metadata-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .metadata-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .metadata-value {
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .scanner-container {
+                padding: 1rem;
+                margin: 1rem;
+            }
+
+            #reader {
+                min-height: 300px;
+            }
+
+            .scanner-controls {
+                gap: 0.5rem;
+            }
+
+            .control-btn {
+                padding: 0.6rem 1rem;
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/sidebar :: sidebar(activeTab='attendance')}"></div>
+
+<main class="content-area" id="maincontent" tabindex="-1">
+    <div class="content-wrapper">
+        <header class="page-header">
+            <div>
+                <h1 class="page-title">📱 Attendance Scanner</h1>
+                <p class="dashboard-subtitle">Scan QR code to mark your attendance instantly</p>
+            </div>
+        </header>
+
+        <!-- Scanner Container -->
+        <div class="scanner-container">
+            
+            <!-- Info Card -->
+            <div class="scanner-info">
+                🔍 <strong>How it works:</strong> Click "Start Scanner" to open your camera, then point it at the attendance QR code displayed by your teacher.
+            </div>
+
+            <div class="scanner-header">
+                <h2>🎯 Attendance QR Scanner</h2>
+                <p style="color: #666; margin: 0.5rem 0;">Position QR code within the frame</p>
+            </div>
+
+            <!-- Camera Area -->
+            <div class="camera-area">
+                <div id="reader">
+                    <video id="cameraVideo" autoplay playsinline muted></video>
+                    <div id="scannerOverlay">
+                        <div class="scan-frame"></div>
+                        <div class="scan-line"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loader -->
+            <div class="loader" id="loader">
+                <div class="spinner"></div>
+                <p style="margin-top: 1rem;">Processing QR Code...</p>
+            </div>
+
+            <!-- Status Message -->
+            <div class="status-message" id="statusMessage">
+                <span class="status-icon" id="statusIcon">ℹ️</span>
+                <span id="statusText">Initialization...</span>
+            </div>
+
+            <!-- Manual Token Entry -->
+            <div class="manual-entry" id="manualEntry">
+                <h3 style="margin-top: 0;">🔗 Can't scan? Enter token manually</h3>
+                <input type="text" id="manualToken" placeholder="Paste QR token here..." />
+                <button class="control-btn btn-primary" onclick="markAttendanceManual()" style="width: 100%;">
+                    ✓ Submit Token
+                </button>
+            </div>
+
+            <!-- Controls -->
+            <div class="scanner-controls">
+                <button class="control-btn btn-primary" id="startBtn" onclick="startScanner()">
+                    ▶️ Start Scanner
+                </button>
+                <button class="control-btn btn-secondary" id="stopBtn" onclick="stopScanner()" style="display: none;">
+                    ⏹️ Stop Scanner
+                </button>
+                <button class="control-btn btn-secondary" onclick="window.location.reload()">
+                    🔄 Reset
+                </button>
+            </div>
+
+            <!-- Metadata -->
+            <div class="metadata" id="metadata" style="display: none;">
+                <div class="metadata-item">
+                    <span class="metadata-label">Device ID:</span>
+                    <span class="metadata-value" id="deviceId">-</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Scanner Status:</span>
+                    <span class="metadata-value" id="scanStatus">Ready</span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Last Scan:</span>
+                    <span class="metadata-value" id="lastScan">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Attendance -->
+        <div class="scanner-container" style="margin-top: 2rem;">
+            <h2 style="margin-top: 0; color: #1e3c72;">📊 Today's Attendance</h2>
+            <div id="todayAttendance" style="color: #666;">Loading...</div>
+        </div>
+    </div>
+</main>
+
+<script>
+    // Configuration
+    const DEVICE_ID = generateDeviceId();
+    let cameraStream = null;
+    let scanTimer = null;
+    let canvasContext = null;
+    let scanCanvas = null;
+    let qrDetector = null;
+    let isScanning = false;
+    let lastScannedToken = null;
+    let scanInProgress = false;
+
+    /**
+     * Generate unique device ID for audit logging
+     */
+    function generateDeviceId() {
+        let deviceId = localStorage.getItem('deviceId');
+        if (!deviceId) {
+            deviceId = 'device_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            localStorage.setItem('deviceId', deviceId);
+        }
+        document.getElementById('deviceId').textContent = deviceId.substring(0, 20) + '...';
+        return deviceId;
+    }
+
+    /**
+     * Start QR code scanner
+     */
+    async function startScanner() {
+        if (scanInProgress || isScanning) {
+            return;
+        }
+
+        if (!window.isSecureContext) {
+            showStatus('⚠️ Camera scanning requires HTTPS or localhost.', 'error');
+            return;
+        }
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showStatus('⚠️ Camera access is not supported in this browser. Use manual entry.', 'error');
+            return;
+        }
+
+        scanInProgress = true;
+
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+            if (!videoDevices.length) {
+                showStatus('⚠️ No camera detected on this device.', 'error');
+                return;
+            }
+
+            const preferredCamera = videoDevices.find(device => /back|rear|environment/i.test(device.label)) || videoDevices[0];
+            const constraints = {
+                audio: false,
+                video: {
+                    deviceId: preferredCamera.deviceId ? { exact: preferredCamera.deviceId } : undefined,
+                    facingMode: preferredCamera === videoDevices[0] ? { ideal: 'environment' } : undefined,
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+
+            cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+            const video = document.getElementById('cameraVideo');
+            video.srcObject = cameraStream;
+
+            if ('BarcodeDetector' in window) {
+                qrDetector = new BarcodeDetector({ formats: ['qr_code'] });
+            } else {
+                qrDetector = null;
+            }
+
+            if (!scanCanvas) {
+                scanCanvas = document.createElement('canvas');
+                canvasContext = scanCanvas.getContext('2d', { willReadFrequently: true });
+            }
+
+            await video.play();
+            scanTimer = window.setInterval(() => detectQRCode(video), 250);
+
+            isScanning = true;
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('stopBtn').style.display = 'block';
+            showStatus('Scanner started - Position QR code in view', 'info');
+        } catch (err) {
+            console.error('Error starting scanner:', err);
+            showStatus('⚠️ Camera could not start: ' + (err && err.message ? err.message : 'permission denied or unavailable'), 'error');
+        } finally {
+            scanInProgress = false;
+        }
+    }
+
+    /**
+     * Stop QR code scanner
+     */
+    async function stopScanner() {
+        try {
+            if (scanTimer) {
+                window.clearInterval(scanTimer);
+                scanTimer = null;
+            }
+
+            const video = document.getElementById('cameraVideo');
+            if (video) {
+                video.pause();
+                video.srcObject = null;
+            }
+
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+        } catch (err) {
+            console.error('Error stopping scanner:', err);
+        } finally {
+            isScanning = false;
+            document.getElementById('startBtn').style.display = 'block';
+            document.getElementById('stopBtn').style.display = 'none';
+            showStatus('Scanner stopped', 'info');
+        }
+    }
+
+    async function detectQRCode(video) {
+        if (!isScanning || !video.videoWidth || !video.videoHeight) {
+            return;
+        }
+
+        if (qrDetector) {
+            try {
+                const codes = await qrDetector.detect(video);
+                if (codes && codes.length) {
+                    onScanSuccess(codes[0].rawValue);
+                }
+                return;
+            } catch (error) {
+                console.debug('BarcodeDetector scan attempt failed:', error);
+            }
+        }
+
+        if (!canvasContext) {
+            return;
+        }
+
+        scanCanvas.width = video.videoWidth;
+        scanCanvas.height = video.videoHeight;
+        canvasContext.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
+
+        const imageData = canvasContext.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+        const qrCode = decodeQrFromImageData(imageData);
+        if (qrCode) {
+            onScanSuccess(qrCode);
+        }
+    }
+
+    function decodeQrFromImageData(imageData) {
+        if (!window.jsQR) {
+            return null;
+        }
+
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'dontInvert'
+        });
+
+        return code ? code.data : null;
+    }
+
+    /**
+     * Handle successful QR scan
+     */
+    function onScanSuccess(decodedText, decodedResult) {
+        // Only process if it looks like a token (JWT format)
+        if (!decodedText.includes('.') || lastScannedToken === decodedText) {
+            return;
+        }
+
+        lastScannedToken = decodedText;
+        console.log('QR Scanned:', decodedText.substring(0, 50) + '...');
+
+        stopScanner();
+        markAttendance(decodedText);
+    }
+
+    /**
+     * Handle scan failure (not a serious error, just keeps trying)
+     */
+    function onScanFailure(error) {
+        // Silently fail - scanner will keep trying
+    }
+
+    /**
+     * Mark attendance by submitting QR token to backend
+     */
+    function markAttendance(token) {
+        showLoader(true);
+
+        const request = {
+            qrToken: token,
+            deviceId: DEVICE_ID,
+            userAgent: navigator.userAgent
+        };
+
+        fetch('/api/student/attendance/mark', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + getAuthToken()
+            },
+            body: JSON.stringify(request)
+        })
+        .then(response => response.json())
+        .then(data => {
+            showLoader(false);
+            
+            if (data.success) {
+                showStatus('✅ ' + data.message, 'success');
+                document.getElementById('lastScan').textContent = new Date().toLocaleTimeString();
+                setTimeout(() => loadTodayAttendance(), 1000);
+            } else {
+                showStatus('❌ ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            showLoader(false);
+            console.error('Error:', error);
+            showStatus('❌ Error marking attendance: ' + error.message, 'error');
+        });
+    }
+
+    /**
+     * Mark attendance manually with token
+     */
+    function markAttendanceManual() {
+        const token = document.getElementById('manualToken').value.trim();
+        
+        if (!token) {
+            showStatus('⚠️ Please enter a QR token', 'warning');
+            return;
+        }
+
+        markAttendance(token);
+    }
+
+    /**
+     * Show status message
+     */
+    function showStatus(message, type) {
+        const el = document.getElementById('statusMessage');
+        const icon = document.getElementById('statusIcon');
+        const text = document.getElementById('statusText');
+
+        el.className = 'status-message ' + type;
+        
+        const icons = {
+            'success': '✅',
+            'error': '❌',
+            'warning': '⚠️',
+            'info': 'ℹ️'
+        };
+        
+        icon.textContent = icons[type] || 'ℹ️';
+        text.textContent = message;
+    }
+
+    /**
+     * Show/hide loader
+     */
+    function showLoader(show) {
+        document.getElementById('loader').style.display = show ? 'block' : 'none';
+    }
+
+    /**
+     * Get auth token from localStorage
+     */
+    function getAuthToken() {
+        return localStorage.getItem('authToken') || '';
+    }
+
+    /**
+     * Load today's attendance status
+     */
+    function loadTodayAttendance() {
+        const subjectId = new URLSearchParams(window.location.search).get('subjectId') || '1';
+        
+        fetch(`/api/student/attendance/check-today?subjectId=${subjectId}`, {
+            headers: {
+                'Authorization': 'Bearer ' + getAuthToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const el = document.getElementById('todayAttendance');
+            
+            if (data.alreadyMarked) {
+                el.innerHTML = `
+                    <div style="background: #d1fae5; padding: 1rem; border-radius: 6px; border-left: 4px solid #10b981;">
+                        <strong style="color: #065f46;">✅ Attendance Marked</strong>
+                        <p style="margin: 0.5rem 0 0 0; color: #047857;">Status: <strong>${data.status}</strong></p>
+                        <p style="margin: 0; font-size: 0.9rem; color: #047857;">Date: ${data.date}</p>
+                    </div>
+                `;
+            } else {
+                el.innerHTML = `
+                    <div style="background: #fef3c7; padding: 1rem; border-radius: 6px; border-left: 4px solid #f59e0b;">
+                        <strong style="color: #92400e;">⏳ Waiting for Attendance</strong>
+                        <p style="margin: 0.5rem 0 0 0; color: #b45309;">Scan the QR code to mark your attendance for today.</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading attendance:', error);
+            document.getElementById('todayAttendance').textContent = 'Error loading attendance status';
+        });
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadTodayAttendance();
+        document.getElementById('metadata').style.display = 'block';
+        showStatus('Click "Start Scanner" to begin', 'info');
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (isScanning) {
+            stopScanner();
+        }
+    });
+</script>
+
+</body>
+</html>

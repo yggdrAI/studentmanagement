@@ -2,54 +2,64 @@ package com.sms.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import com.sms.service.CustomUserDetailsService;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CustomUserDetailsService customUserDetailsService;
+
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                          CustomUserDetailsService customUserDetailsService) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.customUserDetailsService = customUserDetailsService;
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // ── In-Memory Users for Smart Working Project ── //
     @Bean
-    public UserDetailsService userDetailsService(PasswordEncoder encoder) {
-        UserDetails admin = User.withUsername("admin")
-                .password(encoder.encode("1234"))
-                .roles("ADMIN")
-                .build();
-        
-        UserDetails teacher = User.withUsername("teacher")
-                .password(encoder.encode("1234"))
-                .roles("TEACHER")
-                .build();
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(customUserDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder());
+        return authProvider;
+    }
 
-        UserDetails student = User.withUsername("student")
-                .password(encoder.encode("1234"))
-                .roles("STUDENT")
-                .build();
-
-        return new InMemoryUserDetailsManager(admin, teacher, student);
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
-            // Handle H2 Console properly
+            .authenticationProvider(authenticationProvider())
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()))
-            .csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**"))
-            
+            .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/css/**", "/js/**", "/images/**", "/h2-console/**").permitAll()
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/h2-console/**", "/api/auth/**", "/ws/**", "/topic/**", "/app/**").permitAll()
+                .requestMatchers("/api/student/**").hasRole("STUDENT")
+                .requestMatchers("/api/teacher/**").hasRole("TEACHER")
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/attendance/scanner").hasRole("STUDENT")
+                .requestMatchers("/attendance/teacher").hasRole("TEACHER")
+                .requestMatchers("/attendance/reports").hasRole("ADMIN")
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/teacher/**").hasRole("TEACHER")
                 .requestMatchers("/student/**").hasRole("STUDENT")
@@ -64,6 +74,8 @@ public class SecurityConfig {
                 .logoutSuccessUrl("/login?logout")
                 .permitAll()
             );
+
+        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

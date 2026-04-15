@@ -1,0 +1,193 @@
+package com.sms.service;
+
+import com.sms.model.Attendance;
+import com.sms.repository.AttendanceRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Service for managing attendance records
+ * Handles validation, duplicate checking, and reporting
+ */
+@Service
+public class AttendanceService {
+
+    @Autowired
+    private AttendanceRepository attendanceRepository;
+
+    /**
+     * Mark attendance for a student
+     * Includes duplicate checking and validation
+     */
+    @Transactional
+    public Attendance markAttendance(String studentId, Long subjectId, Long teacherId,
+                                    String status, String markingType, String deviceInfo,
+                                    String ipAddress, String tokenHash) throws Exception {
+        
+        LocalDate today = LocalDate.now();
+
+        // ✅ Check 1: Duplicate attendance check
+        if (attendanceRepository.existsByStudentAndSubjectAndDate(studentId, subjectId, today)) {
+            throw new RuntimeException("Attendance already marked for today");
+        }
+
+        // ✅ Check 2: Prevent reuse of same token on same day
+        if (tokenHash != null) {
+            if (attendanceRepository.existsByTokenHashAndStudentAndDate(tokenHash, studentId, today)) {
+                throw new RuntimeException("QR token already used");
+            }
+        }
+
+        // Create new attendance record
+        Attendance attendance = new Attendance(
+            studentId,
+            subjectId,
+            teacherId,
+            today,
+            status,
+            markingType
+        );
+        
+        attendance.setDeviceInfo(deviceInfo);
+        attendance.setIpAddress(ipAddress);
+        attendance.setQrTokenUsed(tokenHash);
+
+        return attendanceRepository.save(attendance);
+    }
+
+    /**
+     * Mark manual attendance for multiple students
+     */
+    @Transactional
+    public void markManualAttendance(Long subjectId, Long teacherId, LocalDate date,
+                                    List<ManualAttendanceRecord> records) throws Exception {
+        
+        for (ManualAttendanceRecord record : records) {
+            try {
+                // Check if already marked
+                if (!attendanceRepository.existsByStudentAndSubjectAndDate(
+                    record.getStudentId(), subjectId, date)) {
+                    
+                    Attendance attendance = new Attendance(
+                        record.getStudentId(),
+                        subjectId,
+                        teacherId,
+                        date,
+                        record.getStatus(),
+                        "MANUAL"
+                    );
+                    
+                    attendanceRepository.save(attendance);
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to mark attendance for " + record.getStudentId() + ": " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Get student attendance for a subject
+     */
+    public List<Attendance> getStudentAttendance(String studentId, Long subjectId) {
+        return attendanceRepository.findByStudentIdAndSubjectIdOrderByAttendanceDateDesc(studentId, subjectId);
+    }
+
+    /**
+     * Get attendance for a specific date
+     */
+    public List<Attendance> getAttendanceForDate(Long subjectId, LocalDate date) {
+        return attendanceRepository.findBySubjectAndDate(subjectId, date);
+    }
+
+    /**
+     * Calculate attendance percentage for student
+     */
+    public Double calculateAttendancePercentage(String studentId, Long subjectId) {
+        List<Attendance> records = attendanceRepository
+            .findByStudentIdAndSubjectIdOrderByAttendanceDateDesc(studentId, subjectId);
+        
+        if (records.isEmpty()) {
+            return 0.0;
+        }
+        
+        long presentCount = records.stream()
+            .filter(a -> "PRESENT".equals(a.getStatus()))
+            .count();
+        
+        return (presentCount * 100.0) / records.size();
+    }
+
+    /**
+     * Get attendance count for a date
+     */
+    public AttendanceStats getAttendanceStats(Long subjectId, LocalDate date) {
+        List<Attendance> records = attendanceRepository.findBySubjectAndDate(subjectId, date);
+        
+        long present = records.stream().filter(a -> "PRESENT".equals(a.getStatus())).count();
+        long absent = records.stream().filter(a -> "ABSENT".equals(a.getStatus())).count();
+        long late = records.stream().filter(a -> "LATE".equals(a.getStatus())).count();
+        
+        return new AttendanceStats(present, absent, late, records.size());
+    }
+
+    /**
+     * Update attendance status (for admin/teacher corrections)
+     */
+    @Transactional
+    public Attendance updateAttendanceStatus(Long attendanceId, String newStatus) throws Exception {
+        Optional<Attendance> record = attendanceRepository.findById(attendanceId);
+        
+        if (record.isEmpty()) {
+            throw new RuntimeException("Attendance record not found");
+        }
+        
+        Attendance attendance = record.get();
+        attendance.setStatus(newStatus);
+        
+        return attendanceRepository.save(attendance);
+    }
+
+    /**
+     * DTO for attendance statistics
+     */
+    public static class AttendanceStats {
+        private long present;
+        private long absent;
+        private long late;
+        private long total;
+
+        public AttendanceStats(long present, long absent, long late, long total) {
+            this.present = present;
+            this.absent = absent;
+            this.late = late;
+            this.total = total;
+        }
+
+        public long getPresent() { return present; }
+        public long getAbsent() { return absent; }
+        public long getLate() { return late; }
+        public long getTotal() { return total; }
+        public double getPercentage() { return (present * 100.0) / Math.max(total, 1); }
+    }
+
+    /**
+     * DTO for manual attendance records
+     */
+    public static class ManualAttendanceRecord {
+        private String studentId;
+        private String status;
+
+        public ManualAttendanceRecord(String studentId, String status) {
+            this.studentId = studentId;
+            this.status = status;
+        }
+
+        public String getStudentId() { return studentId; }
+        public String getStatus() { return status; }
+    }
+}

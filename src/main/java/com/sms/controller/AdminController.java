@@ -3,6 +3,7 @@ package com.sms.controller;
 import com.sms.model.Student;
 import com.sms.service.StudentService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.List;
 
 @Controller
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
     private final StudentService studentService;

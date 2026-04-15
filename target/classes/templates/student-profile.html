@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual ID Card - Student Profile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+</head>
+<body>
+
+<div th:replace="~{fragments/sidebar :: sidebar(activeTab='dashboard')}"></div>
+
+<main class="content-area" id="maincontent" tabindex="-1">
+    <div class="content-wrapper student-profile-page">
+        <header class="page-header profile-page-header">
+            <div>
+                <h1 class="page-title">Virtual ID Card</h1>
+                <p class="dashboard-subtitle">Secure digital identity and complete academic profile.</p>
+            </div>
+        </header>
+
+        <section class="profile-layout-grid">
+            <article class="digital-id-card" aria-labelledby="idCardTitle">
+                <div class="id-card-header">
+                    <h2 id="idCardTitle">Bennett University</h2>
+                    <span class="id-subtitle">Digital Student Identity</span>
+                </div>
+
+                <div class="id-photo-wrap">
+                    <img id="profileImage" class="id-photo" alt="Student profile" src="" style="display:none;">
+                    <div id="profilePhotoFallback" class="id-photo-fallback">ID</div>
+                </div>
+
+                <div class="id-main-info">
+                    <p id="idName" class="id-name">Loading...</p>
+                    <p id="idStudentCode" class="id-student-code">Student ID: -</p>
+                    <p id="idCourse" class="id-course">Course: -</p>
+                </div>
+
+                <div class="id-footer">
+                    <span id="idRoleBadge" class="id-role-badge">STUDENT</span>
+                    <div class="id-qr-placeholder" id="idQrText">QR: -</div>
+                </div>
+            </article>
+
+            <article class="profile-details-card" aria-labelledby="profileDetailsHeading">
+                <div class="details-head">
+                    <h2 id="profileDetailsHeading">Student Details</h2>
+                    <p id="profileLoadStatus" class="profile-load-status" style="display:none;"></p>
+                </div>
+
+                <div class="details-grid">
+                    <section class="details-section">
+                        <h3>Basic Info</h3>
+                        <div class="detail-item"><span>Full Name</span><strong id="fullName">-</strong></div>
+                        <div class="detail-item"><span>Student ID</span><strong id="studentId">-</strong></div>
+                        <div class="detail-item"><span>Email</span><strong id="email">-</strong></div>
+                        <div class="detail-item"><span>Phone</span><strong id="phone">-</strong></div>
+                    </section>
+
+                    <section class="details-section">
+                        <h3>Personal Info</h3>
+                        <div class="detail-item"><span>Gender</span><strong id="gender">-</strong></div>
+                        <div class="detail-item"><span>DOB</span><strong id="dob">-</strong></div>
+                        <div class="detail-item"><span>Address</span><strong id="address">-</strong></div>
+                    </section>
+
+                    <section class="details-section">
+                        <h3>Academic Info</h3>
+                        <div class="detail-item"><span>Course</span><strong id="course">-</strong></div>
+                        <div class="detail-item"><span>Department</span><strong id="department">-</strong></div>
+                        <div class="detail-item"><span>Semester</span><strong id="semester">-</strong></div>
+                        <div class="detail-item"><span>Roll No</span><strong id="rollNumber">-</strong></div>
+                        <div class="detail-item"><span>Enrollment Year</span><strong id="enrollmentYear">-</strong></div>
+                    </section>
+
+                    <section class="details-section">
+                        <h3>Role Info</h3>
+                        <div class="detail-item"><span>Role</span><strong id="role">-</strong></div>
+                    </section>
+                </div>
+            </article>
+        </section>
+    </div>
+</main>
+
+<div th:replace="~{fragments/sidebar :: floating-tools}"></div>
+
+<script>
+    function normalize(value) {
+        return value === null || value === undefined || String(value).trim() === '' ? '-' : String(value);
+    }
+
+    function setText(id, value) {
+        const el = document.getElementById(id);
+        if (!el) {
+            return;
+        }
+        el.textContent = normalize(value);
+    }
+
+    function setStatus(message, isError) {
+        const status = document.getElementById('profileLoadStatus');
+        status.textContent = message;
+        status.style.display = 'block';
+        status.style.color = isError ? '#b42318' : '#166534';
+    }
+
+    function renderProfile(profile) {
+        setText('fullName', profile.fullName);
+        setText('studentId', profile.studentId);
+        setText('email', profile.email);
+        setText('phone', profile.phone);
+
+        setText('gender', profile.gender);
+        setText('dob', profile.dob);
+        setText('address', profile.address);
+
+        setText('course', profile.course);
+        setText('department', profile.department);
+        setText('semester', profile.semester);
+        setText('rollNumber', profile.rollNumber);
+        setText('enrollmentYear', profile.enrollmentYear);
+
+        setText('role', profile.role);
+
+        setText('idName', profile.fullName);
+        setText('idStudentCode', 'Student ID: ' + normalize(profile.studentId));
+        setText('idCourse', 'Course: ' + normalize(profile.course));
+        setText('idRoleBadge', normalize(profile.role));
+        setText('idQrText', 'QR: ' + normalize(profile.studentId) + ' | ' + normalize(profile.fullName));
+
+        const imageEl = document.getElementById('profileImage');
+        const fallback = document.getElementById('profilePhotoFallback');
+
+        if (profile.profileImageUrl) {
+            imageEl.src = profile.profileImageUrl;
+            imageEl.style.display = 'block';
+            fallback.style.display = 'none';
+        } else {
+            imageEl.style.display = 'none';
+            fallback.style.display = 'flex';
+            fallback.textContent = normalize(profile.fullName).split(' ').map(part => part[0]).slice(0, 2).join('').toUpperCase();
+        }
+
+        setStatus('Profile loaded successfully.', false);
+    }
+
+    async function loadProfile() {
+        try {
+            const response = await fetch('/api/student/profile', {
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (!response.ok) {
+                setStatus('Unable to load profile details.', true);
+                return;
+            }
+
+            const profile = await response.json();
+            renderProfile(profile);
+        } catch (error) {
+            setStatus('Network error while loading profile.', true);
+        }
+    }
+
+    loadProfile();
+</script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+package com.sms.repository;
+
+import com.sms.model.Attendance;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Repository for Attendance entity
+ * Includes custom queries for attendance tracking and reporting
+ */
+@Repository
+public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
+
+    /**
+     * Check if student already has attendance for a specific subject on a date
+     */
+    @Query("SELECT COUNT(a) > 0 FROM Attendance a WHERE a.studentId = :studentId " +
+           "AND a.subjectId = :subjectId AND a.attendanceDate = :date")
+    boolean existsByStudentAndSubjectAndDate(
+        @Param("studentId") String studentId,
+        @Param("subjectId") Long subjectId,
+        @Param("date") LocalDate date
+    );
+
+    /**
+     * Get attendance record for a student on a specific date and subject
+     */
+    Optional<Attendance> findByStudentIdAndSubjectIdAndAttendanceDate(
+        String studentId, Long subjectId, LocalDate date
+    );
+
+    /**
+     * Get all attendance records for a student in a subject
+     */
+    List<Attendance> findByStudentIdAndSubjectIdOrderByAttendanceDateDesc(
+        String studentId, Long subjectId
+    );
+
+    /**
+     * Get attendance records for a subject on a specific date
+     */
+    @Query("SELECT a FROM Attendance a WHERE a.subjectId = :subjectId " +
+           "AND a.attendanceDate = :date ORDER BY a.markedTime ASC")
+    List<Attendance> findBySubjectAndDate(
+        @Param("subjectId") Long subjectId,
+        @Param("date") LocalDate date
+    );
+
+    /**
+     * Count students present for a subject on a date
+     */
+    @Query("SELECT COUNT(DISTINCT a.studentId) FROM Attendance a WHERE a.subjectId = :subjectId " +
+           "AND a.attendanceDate = :date AND a.status = 'PRESENT'")
+    Long countPresentBySubjectAndDate(
+        @Param("subjectId") Long subjectId,
+        @Param("date") LocalDate date
+    );
+
+    /**
+     * Get attendance for a date range
+     */
+    @Query("SELECT a FROM Attendance a WHERE a.studentId = :studentId " +
+           "AND a.subjectId = :subjectId AND a.attendanceDate BETWEEN :startDate AND :endDate " +
+           "ORDER BY a.attendanceDate ASC")
+    List<Attendance> findAttendanceRange(
+        @Param("studentId") String studentId,
+        @Param("subjectId") Long subjectId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
+
+    /**
+     * Get attendance statistics - present count
+     */
+    @Query("SELECT COUNT(a) FROM Attendance a WHERE a.studentId = :studentId " +
+           "AND a.subjectId = :subjectId AND a.status = 'PRESENT'")
+    Long countPresent(
+        @Param("studentId") String studentId,
+        @Param("subjectId") Long subjectId
+    );
+
+    /**
+     * Get all attendance for a teacher's subject
+     */
+    List<Attendance> findByTeacherIdAndSubjectIdOrderByAttendanceDateDesc(
+        Long teacherId, Long subjectId
+    );
+
+    /**
+     * Check duplicate using QR token (anti-cheating)
+     */
+    @Query("SELECT COUNT(a) > 0 FROM Attendance a WHERE a.qrTokenUsed = :tokenHash " +
+           "AND a.studentId = :studentId AND a.attendanceDate = :date")
+    boolean existsByTokenHashAndStudentAndDate(
+        @Param("tokenHash") String tokenHash,
+        @Param("studentId") String studentId,
+        @Param("date") LocalDate date
+    );
+}

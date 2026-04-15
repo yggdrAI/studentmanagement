@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Student Portal</title>
     <!-- Premium Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
     <!-- Global Dashboard CSS -->
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
 </head>
@@ -34,7 +34,7 @@
                 <div class="grid-info">
                     <div class="data-group"><span class="data-label">Roll No.</span><span class="data-value">S25CSEU1006</span></div>
                     <div class="data-group"><span class="data-label">Degree</span><span class="data-value">Undergraduate</span></div>
-                    <div class="data-group"><span class="data-label">Department</span><span class="data-value">School of Computer Science & Tech</span></div>
+                    <div class="data-group"><span class="data-label">Department</span><span class="data-value">School of Computer Science &amp; Tech</span></div>
                     <div class="data-group"><span class="data-label">Semester</span><span class="data-value">Semester - 2</span></div>
                     <div class="data-group"><span class="data-label">Course Name</span><span class="data-value">B.Tech (Computer Science)</span></div>
                     <div class="data-group"><span class="data-label">College</span><span class="data-value">Bennett University</span></div>
@@ -77,7 +77,7 @@
 
                 <!-- Add Student Form -->
                 <form th:action="@{/admin/students}" method="post" style="margin-bottom: 24px;">
-                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                     <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
                         <div>
                             <label for="sid" class="form-label">Student ID</label>

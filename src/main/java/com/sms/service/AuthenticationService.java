@@ -1,10 +1,10 @@
-package service;
-
-import model.LoginUser;
-import model.UserRole;
+package com.sms.service;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import com.sms.model.LoginUser;
+import com.sms.model.UserRole;
 
 public class AuthenticationService {
 
