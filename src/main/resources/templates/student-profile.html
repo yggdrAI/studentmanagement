@@ -346,6 +346,7 @@
             display: block;
         }
 
+
         .field-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -932,14 +933,21 @@
     }
 
     function toggleDarkMode() {
-        const enabled = document.body.classList.toggle('profile-dark');
-        localStorage.setItem('profileDarkMode', enabled ? '1' : '0');
+        if (window.SMSTheme && typeof window.SMSTheme.cycle === 'function') {
+            window.SMSTheme.cycle();
+        }
     }
 
     function initDarkMode() {
-        if (localStorage.getItem('profileDarkMode') === '1') {
-            document.body.classList.add('profile-dark');
+        const darkBtn = document.getElementById('darkModeBtn');
+        if (darkBtn) {
+            darkBtn.textContent = 'Switch Theme';
         }
+    }
+
+    function themedColor(token, fallback) {
+        const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+        return value || fallback;
     }
 
     function formatDate(value) {
@@ -1367,9 +1375,9 @@
             const heatmap = (summary.attendanceHeatmap || []).map((x) => Number(x.count || 0)).slice(-16);
             const behavior = (summary.behaviorTrend || []).map((x) => Number(x.value || 0)).slice(-16);
 
-            renderProfileMiniLine('profilePerformanceCanvas', performance, 'Performance', '#2563eb');
-            renderProfileMiniBars('profileHeatmapCanvas', heatmap, '#60a5fa');
-            renderProfileMiniLine('profileBehaviorCanvas', behavior, 'Behavior', '#f59e0b');
+            renderProfileMiniLine('profilePerformanceCanvas', performance, 'Performance', themedColor('--chart-accent-1', '#2563eb'));
+            renderProfileMiniBars('profileHeatmapCanvas', heatmap, themedColor('--chart-accent-2', '#60a5fa'));
+            renderProfileMiniLine('profileBehaviorCanvas', behavior, 'Behavior', themedColor('--chart-accent-4', '#f59e0b'));
         } catch (_error) {
             document.getElementById('profileAiSummaryText').textContent = 'AI summary could not be loaded right now.';
             toggleProfileMiniEmpty('profilePerformanceCanvas', true);
@@ -1644,6 +1652,9 @@
         initDarkMode();
         bindTabs();
         bindActions();
+        window.addEventListener('theme:changed', () => {
+            loadAiSummary();
+        });
         try {
             await loadProfile();
         } catch (error) {

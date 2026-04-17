@@ -2,8 +2,22 @@
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
 
+    <script>
+        (function () {
+            try {
+                var saved = localStorage.getItem('sms_theme');
+                var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var fallback = prefersDark ? 'dim' : 'light';
+                var theme = (saved === 'light' || saved === 'dim' || saved === 'dark' || saved === 'premium') ? saved : fallback;
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (_err) {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+
     <!-- Accessible Sidebar Navigation Fragment -->
-    <aside th:fragment="sidebar(activeTab)" class="sidebar" aria-label="Main Navigation">
+    <aside th:fragment="sidebar(activeTab)" id="sidebar" class="sidebar" aria-label="Main Navigation">
         <!-- Logo -->
         <div class="logo-container">
             <a href="/dashboard" class="logo-placeholder" aria-label="Bennett University Logo">
@@ -25,7 +39,7 @@
         <!-- Links (Highlight Active Tab Dynamically) -->
         <nav class="nav-links" aria-label="Sidebar Links">
             <a href="/dashboard" class="nav-item" th:classappend="${activeTab == 'dashboard'} ? 'active' : ''">Dashboard</a>
-            <a href="/students" class="nav-item" sec:authorize="hasRole('ADMIN')" th:classappend="${activeTab == 'students'} ? 'active' : ''">Manage Students</a>
+            <a href="/admin/students" class="nav-item" sec:authorize="hasRole('ADMIN')" th:classappend="${activeTab == 'students'} ? 'active' : ''">Manage Students</a>
             <a href="/teachers" class="nav-item" sec:authorize="hasRole('ADMIN')" th:classappend="${activeTab == 'teachers'} ? 'active' : ''">Manage Teachers</a>
             <a href="/ai-insights" class="nav-item" th:classappend="${activeTab == 'analytics'} ? 'active' : ''">AI Insights</a>
             <a href="/courses" class="nav-item" sec:authorize="hasRole('ADMIN')" th:classappend="${activeTab == 'courses'} ? 'active' : ''">Manage Courses</a>
@@ -48,12 +62,45 @@
         <a href="/student/profile" class="tool-btn" aria-label="Virtual ID Card" sec:authorize="hasRole('STUDENT')">🪪</a>
         <a href="/admin/profile" class="tool-btn" aria-label="Admin Profile" sec:authorize="hasRole('ADMIN')">🪪</a>
         <button type="button" class="tool-btn" aria-label="Application Menu">⋮⋮</button>
-        <button type="button" class="tool-btn" aria-label="User Settings">⚙</button>
+        <div class="settings-wrap">
+            <button type="button" id="userSettingsBtn" class="tool-btn" aria-label="User Settings" aria-expanded="false" aria-controls="userSettingsPanel">⚙</button>
+            <section id="userSettingsPanel" class="user-settings-panel" aria-label="User Settings" hidden>
+                <h3 class="user-settings-title">User Settings</h3>
+
+                <div class="user-settings-group">
+                    <label class="user-settings-label" for="sidebarThemeSelect">Theme</label>
+                    <select id="sidebarThemeSelect" class="user-settings-select" aria-label="Theme Preference">
+                        <option value="light">☀️ Light</option>
+                        <option value="dim">🌙 Dim</option>
+                        <option value="dark">🌌 Dark</option>
+                        <option value="premium">💎 Premium</option>
+                    </select>
+                </div>
+
+                <div class="user-settings-group">
+                    <label class="user-settings-label" for="sidebarDensitySelect">Interface Density</label>
+                    <select id="sidebarDensitySelect" class="user-settings-select" aria-label="Interface Density">
+                        <option value="comfortable">Comfortable</option>
+                        <option value="compact">Compact</option>
+                    </select>
+                </div>
+
+                <div class="user-settings-group">
+                    <label class="user-settings-label" for="sidebarMotionSelect">Motion</label>
+                    <select id="sidebarMotionSelect" class="user-settings-select" aria-label="Motion Preference">
+                        <option value="normal">Normal</option>
+                        <option value="reduced">Reduced</option>
+                    </select>
+                </div>
+            </section>
+        </div>
         <!-- Logout Form using Spring Security -->
         <form th:action="@{/logout}" method="post" style="margin-top: 24px;">
             <button type="submit" class="tool-btn" aria-label="Logout" style="color: #dc2626; width: 48px;">🚪</button>
         </form>
     </aside>
+
+    <script th:src="@{/js/theme-manager.js}"></script>
 
 </body>
 </html>

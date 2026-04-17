@@ -58,6 +58,26 @@
         charts: {}
     };
 
+    function cssVar(name, fallback) {
+        const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return value || fallback;
+    }
+
+    function chartPalette() {
+        return {
+            axis: cssVar("--chart-axis", "#475569"),
+            grid: cssVar("--chart-grid", "rgba(15, 23, 42, 0.12)"),
+            tooltipBg: cssVar("--chart-tooltip-bg", "#ffffff"),
+            tooltipText: cssVar("--chart-tooltip-text", "#0f172a"),
+            c1: cssVar("--chart-accent-1", "#3b82f6"),
+            c2: cssVar("--chart-accent-2", "#60a5fa"),
+            c3: cssVar("--chart-accent-3", "#22c55e"),
+            c4: cssVar("--chart-accent-4", "#f59e0b"),
+            c5: cssVar("--chart-accent-5", "#ef4444"),
+            accentRgb: cssVar("--accent-rgb", "59, 130, 246")
+        };
+    }
+
     const commands = [
         { label: "Go to Dashboard", action: () => (window.location.href = "/dashboard") },
         { label: "Go to Students", action: () => (window.location.href = "/admin/students") },
@@ -141,6 +161,14 @@
                 closeInsightModal();
                 refs.notificationPanel?.classList.remove("open");
             }
+        });
+
+        window.addEventListener("theme:changed", () => {
+            if (!state.summary) {
+                return;
+            }
+            renderCharts(state.summary.charts || {});
+            renderHeatmap((state.summary.charts || {}).weeklyHeatmap || []);
         });
     }
 
@@ -249,6 +277,7 @@
     }
 
     function renderLineChart(id, points) {
+        const palette = chartPalette();
         const labels = points.map((p) => p.date?.slice(5) || "");
         const values = points.map((p) => Number(p.value || 0));
         const ctx = document.getElementById(id);
@@ -270,8 +299,8 @@
                 datasets: [{
                     label: "Attendance %",
                     data: values,
-                    borderColor: "#2a6df6",
-                    backgroundColor: "rgba(42, 109, 246, 0.2)",
+                    borderColor: palette.c1,
+                    backgroundColor: `rgba(${palette.accentRgb}, 0.22)`,
                     tension: 0.35,
                     fill: true,
                     pointRadius: 2
@@ -280,12 +309,34 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
-                scales: { y: { suggestedMin: 0, suggestedMax: 100 } }
+                plugins: {
+                    legend: { labels: { color: palette.axis } },
+                    tooltip: {
+                        backgroundColor: palette.tooltipBg,
+                        titleColor: palette.tooltipText,
+                        bodyColor: palette.tooltipText,
+                        borderColor: palette.grid,
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: palette.axis },
+                        grid: { color: palette.grid }
+                    },
+                    y: {
+                        suggestedMin: 0,
+                        suggestedMax: 100,
+                        ticks: { color: palette.axis },
+                        grid: { color: palette.grid }
+                    }
+                }
             }
         });
     }
 
     function renderBarChart(id, buckets) {
+        const palette = chartPalette();
         const labels = buckets.map((b) => b.label || "");
         const values = buckets.map((b) => Number(b.value || 0));
         const ctx = document.getElementById(id);
@@ -307,17 +358,38 @@
                 datasets: [{
                     label: "Students",
                     data: values,
-                    backgroundColor: ["#bfdbfe", "#93c5fd", "#60a5fa", "#3b82f6", "#1d4ed8"]
+                    backgroundColor: [palette.c2, palette.c1, palette.c3, palette.c4, palette.c5]
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { labels: { color: palette.axis } },
+                    tooltip: {
+                        backgroundColor: palette.tooltipBg,
+                        titleColor: palette.tooltipText,
+                        bodyColor: palette.tooltipText,
+                        borderColor: palette.grid,
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: palette.axis },
+                        grid: { color: palette.grid }
+                    },
+                    y: {
+                        ticks: { color: palette.axis },
+                        grid: { color: palette.grid }
+                    }
+                }
             }
         });
     }
 
     function renderPieChart(id, entries) {
+        const palette = chartPalette();
         const labels = entries.map((e) => e.label || "N/A");
         const values = entries.map((e) => Number(e.value || 0));
         const ctx = document.getElementById(id);
@@ -338,12 +410,22 @@
                 labels,
                 datasets: [{
                     data: values,
-                    backgroundColor: ["#2a6df6", "#60a5fa", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6"]
+                    backgroundColor: [palette.c1, palette.c2, palette.c3, palette.c4, palette.c5, "#8b5cf6"]
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { labels: { color: palette.axis } },
+                    tooltip: {
+                        backgroundColor: palette.tooltipBg,
+                        titleColor: palette.tooltipText,
+                        bodyColor: palette.tooltipText,
+                        borderColor: palette.grid,
+                        borderWidth: 1
+                    }
+                }
             }
         });
     }
@@ -356,6 +438,7 @@
     }
 
     function renderHeatmap(cells) {
+        const palette = chartPalette();
         const heatmapEmpty = document.getElementById("heatmapEmpty");
         if (!cells.length) {
             refs.heatmapGrid.innerHTML = "";
@@ -367,7 +450,7 @@
         refs.heatmapGrid.innerHTML = cells.map((cell) => {
             const count = Number(cell.count || 0);
             const alpha = Math.min(0.95, 0.15 + count * 0.12);
-            return `<div class="heat-cell" title="Day ${cell.day}, ${cell.hour}:00 -> ${count}" style="background: rgba(42,109,246,${alpha});"></div>`;
+            return `<div class="heat-cell" title="Day ${cell.day}, ${cell.hour}:00 -> ${count}" style="background: rgba(${palette.accentRgb},${alpha});"></div>`;
         }).join("");
     }
 

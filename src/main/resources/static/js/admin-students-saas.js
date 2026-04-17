@@ -76,33 +76,33 @@
     }
 
     function bindEvents() {
-        refs.search.addEventListener("input", (event) => {
+        refs.search?.addEventListener("input", (event) => {
             state.search = event.target.value.trim();
             state.page = 0;
             debouncedFetch();
         });
 
-        refs.courseFilter.addEventListener("change", (event) => {
+        refs.courseFilter?.addEventListener("change", (event) => {
             state.course = event.target.value;
             state.page = 0;
             fetchStudents();
         });
 
-        refs.prevPageBtn.addEventListener("click", () => {
+        refs.prevPageBtn?.addEventListener("click", () => {
             if (state.page > 0) {
                 state.page -= 1;
                 fetchStudents();
             }
         });
 
-        refs.nextPageBtn.addEventListener("click", () => {
+        refs.nextPageBtn?.addEventListener("click", () => {
             if (state.page + 1 < state.totalPages) {
                 state.page += 1;
                 fetchStudents();
             }
         });
 
-        refs.selectAll.addEventListener("change", (event) => {
+        refs.selectAll?.addEventListener("change", (event) => {
             state.selected.clear();
             if (event.target.checked) {
                 state.items.forEach((item) => state.selected.add(item.id));
@@ -111,8 +111,8 @@
             syncBulkActions();
         });
 
-        refs.bulkDeleteBtn.addEventListener("click", onBulkDelete);
-        refs.exportBtn.addEventListener("click", onExport);
+        refs.bulkDeleteBtn?.addEventListener("click", onBulkDelete);
+        refs.exportBtn?.addEventListener("click", onExport);
 
         Array.from(document.querySelectorAll("[data-sort]"))
             .forEach((button) => {
@@ -128,7 +128,7 @@
                 });
             });
 
-        refs.form.addEventListener("input", (event) => {
+        refs.form?.addEventListener("input", (event) => {
             const field = event.target.name;
             if (!field) {
                 return;
@@ -137,7 +137,7 @@
             validateField(event.target);
         });
 
-        refs.stepNextBtn.addEventListener("click", () => {
+        refs.stepNextBtn?.addEventListener("click", () => {
             if (state.step === 1 && !validateStep1()) {
                 toast("Please complete required personal fields", "error");
                 return;
@@ -148,14 +148,14 @@
             }
         });
 
-        refs.stepPrevBtn.addEventListener("click", () => {
+        refs.stepPrevBtn?.addEventListener("click", () => {
             if (state.step > 1) {
                 state.step -= 1;
                 renderSteps();
             }
         });
 
-        refs.form.addEventListener("submit", async (event) => {
+        refs.form?.addEventListener("submit", async (event) => {
             event.preventDefault();
             if (!validateStep1()) {
                 toast("Student ID and Name are required", "error");
@@ -166,8 +166,8 @@
             await createStudent();
         });
 
-        refs.cancelDeleteBtn.addEventListener("click", closeDeleteModal);
-        refs.confirmDeleteBtn.addEventListener("click", confirmDelete);
+        refs.cancelDeleteBtn?.addEventListener("click", closeDeleteModal);
+        refs.confirmDeleteBtn?.addEventListener("click", confirmDelete);
 
         document.addEventListener("keydown", (event) => {
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
@@ -180,14 +180,14 @@
             }
         });
 
-        refs.commandInput.addEventListener("input", () => {
+        refs.commandInput?.addEventListener("input", () => {
             const token = refs.commandInput.value.toLowerCase();
             renderCommands(commands.filter((command) => command.label.toLowerCase().includes(token)));
         });
 
-        refs.sidebarToggle.addEventListener("click", toggleSidebar);
-        refs.themeToggle.addEventListener("click", toggleTheme);
-        refs.topSearch.addEventListener("focus", openCommandPalette);
+        refs.sidebarToggle?.addEventListener("click", toggleSidebar);
+        refs.themeToggle?.addEventListener("click", toggleTheme);
+        refs.topSearch?.addEventListener("focus", openCommandPalette);
     }
 
     async function fetchStudents() {
@@ -256,12 +256,12 @@
                     <td>
                         <div class="row-actions">
                             <span class="tooltip-wrap" data-tip="Edit profile">
-                                <button class="icon-btn" aria-label="Edit ${escapeHtml(item.name)}" data-edit="${escapeHtml(item.id)}">
+                                <button class="row-icon-btn" aria-label="Edit ${escapeHtml(item.name)}" data-edit="${escapeHtml(item.id)}">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
                                 </button>
                             </span>
                             <span class="tooltip-wrap" data-tip="Delete student">
-                                <button class="icon-btn" aria-label="Delete ${escapeHtml(item.name)}" data-delete="${escapeHtml(item.id)}">
+                                <button class="row-icon-btn danger" aria-label="Delete ${escapeHtml(item.name)}" data-delete="${escapeHtml(item.id)}">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
                                 </button>
                             </span>
@@ -299,17 +299,29 @@
     }
 
     function renderPagination() {
-        refs.pageLabel.textContent = state.totalPages ? `Page ${state.page + 1} / ${state.totalPages}` : "Page 0 / 0";
-        refs.totalLabel.textContent = `${state.totalElements} records`;
-        refs.prevPageBtn.disabled = state.page <= 0;
-        refs.nextPageBtn.disabled = state.page + 1 >= state.totalPages;
-        refs.selectAll.checked = false;
+        if (refs.pageLabel) {
+            refs.pageLabel.textContent = state.totalPages ? `Page ${state.page + 1} / ${state.totalPages}` : "Page 0 / 0";
+        }
+        if (refs.totalLabel) {
+            refs.totalLabel.textContent = `${state.totalElements} records`;
+        }
+        if (refs.prevPageBtn) {
+            refs.prevPageBtn.disabled = state.page <= 0;
+        }
+        if (refs.nextPageBtn) {
+            refs.nextPageBtn.disabled = state.page + 1 >= state.totalPages;
+        }
+        if (refs.selectAll) {
+            refs.selectAll.checked = false;
+        }
     }
 
     function syncBulkActions() {
         const count = state.selected.size;
-        refs.bulkDeleteBtn.disabled = count === 0;
-        refs.bulkDeleteBtn.textContent = count ? `Bulk Delete (${count})` : "Bulk Delete";
+        if (refs.bulkDeleteBtn) {
+            refs.bulkDeleteBtn.disabled = count === 0;
+            refs.bulkDeleteBtn.textContent = count ? `Bulk Delete (${count})` : "Bulk Delete";
+        }
     }
 
     function validateField(input) {
@@ -490,30 +502,34 @@
     }
 
     function setupTheme() {
-        const saved = localStorage.getItem("sms_theme");
-        if (saved === "light") {
-            document.body.classList.add("theme-light");
+        if (window.SMSTheme && typeof window.SMSTheme.get === "function") {
+            window.SMSTheme.set(window.SMSTheme.get());
         }
     }
 
     function toggleTheme() {
-        document.body.classList.toggle("theme-light");
-        const light = document.body.classList.contains("theme-light");
-        localStorage.setItem("sms_theme", light ? "light" : "dark");
+        if (window.SMSTheme && typeof window.SMSTheme.cycle === "function") {
+            window.SMSTheme.cycle();
+        }
     }
 
     function openCommandPalette() {
-        refs.commandPalette.classList.add("open");
-        refs.commandInput.value = "";
+        refs.commandPalette?.classList.add("open");
+        if (refs.commandInput) {
+            refs.commandInput.value = "";
+        }
         renderCommands(commands);
-        refs.commandInput.focus();
+        refs.commandInput?.focus();
     }
 
     function closeCommandPalette() {
-        refs.commandPalette.classList.remove("open");
+        refs.commandPalette?.classList.remove("open");
     }
 
     function renderCommands(list) {
+        if (!refs.commandList) {
+            return;
+        }
         refs.commandList.innerHTML = list.map((command, index) =>
             `<button type=\"button\" class=\"btn btn-outline\" data-command=\"${index}\" style=\"width:100%; text-align:left;\">${escapeHtml(command.label)}</button>`
         ).join("");

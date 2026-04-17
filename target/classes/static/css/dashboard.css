@@ -1,3 +1,5 @@
+@import url('/css/theme-system.css');
+
  /* ─── DESIGN TOKENS ─── */
  :root {
      /* Colors - Verified for WCAG AA Contrast */
@@ -627,6 +629,62 @@
     gap: 20px;
 }
 
+.user-settings-panel {
+    position: absolute;
+    right: 0;
+    top: 54px;
+    width: 230px;
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-light);
+    background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+    box-shadow: var(--shadow-md);
+    z-index: 200;
+}
+
+.settings-wrap {
+    position: relative;
+    display: grid;
+    justify-items: end;
+}
+
+.user-settings-title {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.user-settings-group {
+    display: grid;
+    gap: 6px;
+}
+
+.user-settings-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.user-settings-select {
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    padding: 7px 9px;
+    font: inherit;
+    font-size: 13px;
+}
+
+@media (max-width: 900px) {
+    .user-settings-panel {
+        right: 56px;
+        top: 0;
+    }
+}
+
 .dashboard-header {
     margin-bottom: 0;
 }
@@ -646,6 +704,118 @@
     display: flex;
     flex-direction: column;
     gap: 18px;
+}
+
+/* Unified product system overrides */
+html, body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+main.content-area {
+    background: var(--bg-primary);
+    padding: 24px;
+}
+
+main.content-area::before {
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.35) 0%, rgba(11, 17, 32, 0) 100%);
+}
+
+.content-wrapper {
+    max-width: 1280px;
+    padding: 0;
+    animation: unified-page-enter 200ms ease-out;
+}
+
+header.page-header {
+    margin-bottom: 24px;
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.dashboard-subtitle,
+.page-subtitle,
+.data-label,
+.field-label,
+.meta-line {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+section.info-card,
+section.generic-card,
+.student-info-card,
+.field-card,
+.glass-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    backdrop-filter: blur(16px);
+    box-shadow: var(--shadow-soft);
+}
+
+section.info-card,
+section.generic-card,
+.student-info-card {
+    padding: 20px;
+}
+
+.data-value,
+.field-value,
+.field-input,
+.page-title,
+h2,
+h3,
+h4 {
+    color: var(--text-primary);
+}
+
+.nav-item {
+    border-radius: 10px;
+}
+
+.nav-item.active {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent), 0 0 24px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.btn-primary {
+    background: var(--accent);
+}
+
+.btn-primary:hover {
+    background: var(--accent-strong);
+}
+
+.btn-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.24);
+}
+
+.btn-danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+
+.btn-outline {
+    background: color-mix(in srgb, var(--card-bg) 70%, transparent);
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+@keyframes unified-page-enter {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .student-info-title-wrap h2 {
