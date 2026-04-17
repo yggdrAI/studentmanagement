@@ -98,6 +98,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\util\CustomException.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\FaceRegistrationRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminStudentProfileApiController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\TaskDto.java
+F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminProfileController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\CourseRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\identity\DigitalIDCardDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\student\StudentProfileDTO.java

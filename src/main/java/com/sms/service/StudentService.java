@@ -1,22 +1,28 @@
 package com.sms.service;
 
 import com.sms.dto.student.StudentProfileDTO;
+import com.sms.model.Enrollment;
 import com.sms.model.Student;
+import com.sms.repository.EnrollmentRepository;
 import com.sms.repository.StudentRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
 public class StudentService {
 
     private final StudentRepository studentRepository;
+    private final EnrollmentRepository enrollmentRepository;
 
-    public StudentService(StudentRepository studentRepository) {
+    public StudentService(StudentRepository studentRepository, EnrollmentRepository enrollmentRepository) {
         this.studentRepository = studentRepository;
+        this.enrollmentRepository = enrollmentRepository;
     }
 
     public List<Student> getAllStudents() {
@@ -33,8 +39,24 @@ public class StudentService {
 
     public List<Student> getAllStudentsSortedByMarks() {
         List<Student> students = studentRepository.findAll();
-        students.sort(Comparator.comparingDouble(Student::calculateAverage));
+        Map<String, Double> averageMap = getAverageMarksMap(students);
+        students.sort(Comparator.comparingDouble(student -> averageMap.getOrDefault(student.getId(), 0.0)));
         return students;
+    }
+
+    public Map<String, Double> getAverageMarksMap(List<Student> students) {
+        Map<String, Double> averages = new HashMap<>();
+        for (Student student : students) {
+            List<Enrollment> enrollments = enrollmentRepository.findByStudentId(student.getId());
+            double avg = enrollments.stream()
+                    .map(Enrollment::getMarks)
+                    .filter(java.util.Objects::nonNull)
+                    .mapToDouble(Double::doubleValue)
+                    .average()
+                    .orElse(0.0);
+            averages.put(student.getId(), avg);
+        }
+        return averages;
     }
 
     public Optional<Student> findById(String id) {

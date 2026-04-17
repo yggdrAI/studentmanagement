@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Students</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+</head>
+<body>
+<div th:replace="~{fragments/sidebar :: sidebar(activeTab='students')}"></div>
+
+<main class="content-area" id="maincontent" tabindex="-1">
+    <div class="content-wrapper">
+        <header class="page-header">
+            <div>
+                <h1 class="page-title">Manage Students</h1>
+                <p class="page-subtitle">All students are loaded from database. Open profile editor to update any details.</p>
+            </div>
+        </header>
+
+        <section class="generic-card">
+            <header class="page-header">
+                <div>
+                    <h2 class="page-title">Create Student</h2>
+                </div>
+            </header>
+
+            <form th:action="@{/admin/students}" method="post" style="margin-bottom: 24px;">
+                <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                    <div>
+                        <label for="sid" class="form-label">Student ID</label>
+                        <input id="sid" name="id" class="form-input" placeholder="e.g. S001" required>
+                    </div>
+                    <div>
+                        <label for="sname" class="form-label">Name</label>
+                        <input id="sname" name="name" class="form-input" placeholder="Student Name" required>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary">Add Student</button>
+                    </div>
+                </div>
+            </form>
+
+            <div style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <span style="font-weight: 500;">Sort by:</span>
+                <a class="btn btn-outline" th:href="@{/admin/students(sort='id')}">ID</a>
+                <a class="btn btn-outline" th:href="@{/admin/students(sort='name')}">Name</a>
+                <a class="btn btn-outline" th:href="@{/admin/students(sort='marks')}">Average Marks</a>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table class="table table-striped">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Enrollment</th>
+                        <th>Email</th>
+                        <th>Course</th>
+                        <th>Average Marks</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:if="${students == null or #lists.isEmpty(students)}">
+                        <td colspan="7">No students found in database.</td>
+                    </tr>
+                    <tr th:each="student : ${students}" th:with="profile=${profileMap != null ? profileMap.get(student.id) : null}">
+                        <td th:text="${student.id}">ID</td>
+                        <td th:text="${student.name}">Name</td>
+                        <td th:text="${profile != null ? profile.enrollmentNumber : student.id}">Enrollment</td>
+                        <td th:text="${profile != null ? profile.email : student.email}">Email</td>
+                        <td th:text="${profile != null ? profile.course : student.course}">Course</td>
+                        <td th:text="${averageMap != null ? #numbers.formatDecimal(averageMap.get(student.id), 1, 2) : '0.00'}">0.00</td>
+                        <td style="display:flex; gap: 8px; flex-wrap: wrap;">
+                            <a class="btn btn-outline" th:href="@{/admin/students/{id}/profile(id=${student.id})}">Edit Full Profile</a>
+                            <a class="btn btn-danger" th:href="@{'/admin/students/delete/' + ${student.id}}" onclick="return confirm('Delete this student?');">Delete</a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</main>
+
+<div th:replace="~{fragments/sidebar :: floating-tools}"></div>
+</body>
+</html>

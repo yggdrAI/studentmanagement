@@ -44,7 +44,8 @@
 
     <!-- Side tools Fragment -->
     <aside th:fragment="floating-tools" class="floating-tools" aria-label="Quick Tools">
-        <a href="/student/profile" class="tool-btn" aria-label="Virtual ID Card">🪪</a>
+        <a href="/student/profile" class="tool-btn" aria-label="Virtual ID Card" sec:authorize="hasRole('STUDENT')">🪪</a>
+        <a href="/admin/profile" class="tool-btn" aria-label="Admin Profile" sec:authorize="hasRole('ADMIN')">🪪</a>
         <button type="button" class="tool-btn" aria-label="Application Menu">⋮⋮</button>
         <button type="button" class="tool-btn" aria-label="User Settings">⚙</button>
         <!-- Logout Form using Spring Security -->

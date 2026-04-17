@@ -28,108 +28,26 @@
                 </div>
             </header>
 
-            <!-- Top Academic Info Region -->
-            <section class="info-card" aria-labelledby="academicInfoHeading">
-                <h2 id="academicInfoHeading" class="sr-only">Academic Information</h2>
+            <section class="info-card" aria-labelledby="adminOverviewHeading">
+                <h2 id="adminOverviewHeading" class="sr-only">Admin Overview</h2>
                 <div class="grid-info">
-                    <div class="data-group"><span class="data-label">Roll No.</span><span class="data-value">S25CSEU1006</span></div>
-                    <div class="data-group"><span class="data-label">Degree</span><span class="data-value">Undergraduate</span></div>
-                    <div class="data-group"><span class="data-label">Department</span><span class="data-value">School of Computer Science &amp; Tech</span></div>
-                    <div class="data-group"><span class="data-label">Semester</span><span class="data-value">Semester - 2</span></div>
-                    <div class="data-group"><span class="data-label">Course Name</span><span class="data-value">B.Tech (Computer Science)</span></div>
-                    <div class="data-group"><span class="data-label">College</span><span class="data-value">Bennett University</span></div>
-                    <div class="data-group"><span class="data-label">Curriculum Plan</span><span class="data-value">B.TECH. CSE 2025-29-V1</span></div>
-                    <div class="data-group"><span class="data-label">Program Validity</span><span class="data-value">30-06-2029</span></div>
+                    <div class="data-group"><span class="data-label">Profile</span><span class="data-value">The Creator, Bhavya Jain</span></div>
+                    <div class="data-group"><span class="data-label">Role</span><span class="data-value">ADMIN</span></div>
+                    <div class="data-group"><span class="data-label">Students in Database</span><span class="data-value" th:text="${studentCount}">0</span></div>
+                    <div class="data-group"><span class="data-label">Dashboard Type</span><span class="data-value">Administrator Console</span></div>
                 </div>
             </section>
 
-            <!-- Interactive Profile Card -->
-            <section class="profile-card" aria-labelledby="profileHeading">
-                <header class="profile-header">
-                    <h2 id="profileHeading" class="profile-title">Profile</h2>
-                    
-                    <div class="btn-group" aria-label="Profile Actions">
-                        <button type="button" class="btn btn-outline" aria-label="Change your password">Change password</button>
-                        <button type="button" class="btn btn-outline" aria-label="View more information">More Info</button>
-                        <button type="button" class="btn btn-outline" aria-label="Manage your accounts">Manage accounts</button>
-                    </div>
-                </header>
-
-                <div class="profile-body">
-                    <div class="detail-row"><span class="d-label">Title</span><span class="d-val">Mr.</span></div>
-                    <div class="detail-row"><span class="d-label">First Name</span><span class="d-val">Bhavya</span></div>
-                    <div class="detail-row"><span class="d-label">Last Name</span><span class="d-val">Jain</span></div>
-                    <div class="detail-row"><span class="d-label">DOB</span><span class="d-val">15-03-2007</span></div>
-                    <div class="detail-row"><span class="d-label">Age</span><span class="d-val">18</span></div>
-                    <div class="detail-row"><span class="d-label">Gender</span><span class="d-val">Male</span></div>
-                    <div class="detail-row"><span class="d-label">Father's Name</span><span class="d-val">Ashok Kumar Jain</span></div>
-                </div>
-            </section>
-
-            <!-- Student Management Table -->
-            <section class="generic-card" style="margin-top: 32px;">
+            <section class="generic-card" style="margin-top: 24px;">
                 <header class="page-header">
                     <div>
-                        <h2 class="page-title">Student Management</h2>
-                        <p class="page-subtitle">Add, view, sort and delete students stored in the system.</p>
+                        <h2 class="page-title">Quick Actions</h2>
+                        <p class="page-subtitle">Manage student records and open your admin profile.</p>
                     </div>
                 </header>
-
-                <!-- Add Student Form -->
-                <form th:action="@{/admin/students}" method="post" style="margin-bottom: 24px;">
-                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
-                        <div>
-                            <label for="sid" class="form-label">Student ID</label>
-                            <input id="sid" name="id" class="form-input" placeholder="e.g. S001" required>
-                        </div>
-                        <div>
-                            <label for="sname" class="form-label">Name</label>
-                            <input id="sname" name="name" class="form-input" placeholder="Student Name" required>
-                        </div>
-                        <div>
-                            <button type="submit" class="btn btn-primary">Add Student</button>
-                        </div>
-                    </div>
-                </form>
-
-                <!-- Sort Controls -->
-                <div style="margin-bottom: 12px;">
-                    <span style="margin-right: 8px; font-weight: 500;">Sort by:</span>
-                    <a class="btn btn-outline" th:href="@{/admin/students(sort='id')}">ID</a>
-                    <a class="btn btn-outline" th:href="@{/admin/students(sort='name')}">Name</a>
-                    <a class="btn btn-outline" th:href="@{/admin/students(sort='marks')}">Average Marks</a>
-                </div>
-
-                <!-- Students Table -->
-                <div style="overflow-x:auto;">
-                    <table class="table table-striped">
-                        <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Average Marks</th>
-                            <th>Actions</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <tr th:if="${students == null or #lists.isEmpty(students)}">
-                            <td colspan="4">No students added yet.</td>
-                        </tr>
-                        <tr th:each="student : ${students}">
-                            <td th:text="${student.id}">ID</td>
-                            <td th:text="${student.name}">Name</td>
-                            <td th:text="${student.calculateAverage()}">0.0</td>
-                            <td>
-                                <a class="btn btn-danger"
-                                   th:href="@{'/admin/students/delete/' + ${student.id}}"
-                                   onclick="return confirm('Delete this student?');">
-                                    Delete
-                                </a>
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <a class="btn btn-primary" th:href="@{/admin/students}">Open Manage Students</a>
+                    <a class="btn btn-outline" th:href="@{/admin/profile}">Open Admin Profile</a>
                 </div>
             </section>
 
