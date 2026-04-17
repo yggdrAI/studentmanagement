@@ -34,17 +34,23 @@ public class StudentService {
     private final StudentProfileRepository studentProfileRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AnalyticsRealtimeNotifier analyticsRealtimeNotifier;
+    private final AnalyticsCacheService analyticsCacheService;
 
     public StudentService(StudentRepository studentRepository,
                           EnrollmentRepository enrollmentRepository,
                           StudentProfileRepository studentProfileRepository,
                           UserRepository userRepository,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          AnalyticsRealtimeNotifier analyticsRealtimeNotifier,
+                          AnalyticsCacheService analyticsCacheService) {
         this.studentRepository = studentRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.analyticsRealtimeNotifier = analyticsRealtimeNotifier;
+        this.analyticsCacheService = analyticsCacheService;
     }
 
     public List<Student> getAllStudents() {
@@ -145,6 +151,8 @@ public class StudentService {
 
         Student savedStudent = java.util.Objects.requireNonNull(studentRepository.save(studentToSave), "Saved student must not be null");
         upsertStudentProfile(savedStudent);
+        analyticsRealtimeNotifier.notifyStudentAdded(savedStudent.getId(), savedStudent.getName());
+        analyticsCacheService.evictAnalyticsCaches();
         return savedStudent;
     }
 
@@ -157,6 +165,7 @@ public class StudentService {
             }
         });
         studentRepository.deleteById(studentId);
+        analyticsCacheService.evictAnalyticsCaches();
     }
 
     public int deleteByIds(List<String> ids) {

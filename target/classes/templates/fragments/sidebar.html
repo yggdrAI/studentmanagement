@@ -27,6 +27,7 @@
             <a href="/dashboard" class="nav-item" th:classappend="${activeTab == 'dashboard'} ? 'active' : ''">Dashboard</a>
             <a href="/students" class="nav-item" sec:authorize="hasRole('ADMIN')" th:classappend="${activeTab == 'students'} ? 'active' : ''">Manage Students</a>
             <a href="/teachers" class="nav-item" sec:authorize="hasRole('ADMIN')" th:classappend="${activeTab == 'teachers'} ? 'active' : ''">Manage Teachers</a>
+            <a href="/ai-insights" class="nav-item" th:classappend="${activeTab == 'analytics'} ? 'active' : ''">AI Insights</a>
             <a href="/courses" class="nav-item" sec:authorize="hasRole('ADMIN')" th:classappend="${activeTab == 'courses'} ? 'active' : ''">Manage Courses</a>
             <a href="/attendance/scanner" class="nav-item" sec:authorize="hasRole('STUDENT')" th:classappend="${activeTab == 'attendance'} ? 'active' : ''">📱 Scan Attendance</a>
             <a href="/student/timetable" class="nav-item" sec:authorize="hasRole('STUDENT')" th:classappend="${activeTab == 'timetable'} ? 'active' : ''">🗓 Timetable & Attendance</a>

@@ -7,8 +7,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <style>
         :root {
+            --space-1: 4px;
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-5: 20px;
+            --space-6: 24px;
             --profile-bg: radial-gradient(circle at 15% 20%, #d8ecff 0, #eff4ff 25%, #f9fbff 60%, #eef5ff 100%);
             --card-bg: rgba(255, 255, 255, 0.72);
             --card-border: rgba(148, 163, 184, 0.35);
@@ -32,48 +39,67 @@
 
         .student-profile-page {
             background: var(--profile-bg);
-            min-height: calc(100vh - 40px);
-            border-radius: 24px;
-            padding: 1.25rem;
+            min-height: calc(100vh - 32px);
+            border-radius: 16px;
+            padding: var(--space-6);
+            width: min(1280px, 100%);
+            margin: 0 auto;
         }
 
         .hero-bar {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1.25rem;
+            align-items: flex-start;
+            gap: var(--space-4);
+            margin-bottom: var(--space-5);
             color: var(--text-primary);
         }
 
         .hero-actions {
             display: flex;
-            gap: 0.6rem;
+            gap: var(--space-2);
             flex-wrap: wrap;
         }
 
+        .hero-title {
+            margin: 0;
+            font-size: 1.5rem;
+            line-height: 1.2;
+            font-weight: 600;
+        }
+
+        .hero-subtitle {
+            margin-top: var(--space-1);
+            font-size: 0.875rem;
+            line-height: 1.4;
+            color: var(--text-secondary);
+        }
+
         .glass-card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
+            background: rgba(255, 255, 255, 0.56);
+            border: 1px solid rgba(255, 255, 255, 0.62);
             backdrop-filter: blur(16px);
-            border-radius: 20px;
-            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+            border-radius: 12px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
         }
 
         .top-layout {
             display: grid;
             grid-template-columns: 340px 1fr;
-            gap: 1rem;
-            margin-bottom: 1rem;
+            gap: var(--space-4);
+            margin-bottom: var(--space-4);
+            align-items: start;
         }
 
         .id-card {
             position: relative;
             overflow: hidden;
-            padding: 1rem;
+            padding: var(--space-5);
             color: #fff;
             background: linear-gradient(160deg, #0d2d66 0%, #12458f 48%, #0f2c5f 100%);
-            min-height: 470px;
+            display: grid;
+            gap: var(--space-3);
+            min-height: 0;
         }
 
         .id-card::before {
@@ -88,23 +114,22 @@
 
         .id-card h2 {
             margin: 0;
-            font-size: 1.15rem;
+            font-size: 1.125rem;
             font-weight: 800;
             letter-spacing: 0.04em;
         }
 
         .id-card-sub {
-            margin-top: 0.25rem;
+            margin-top: var(--space-1);
             color: rgba(226, 232, 240, 0.9);
-            font-size: 0.82rem;
+            font-size: 0.875rem;
         }
 
         .id-avatar {
-            width: 108px;
-            height: 108px;
+            width: 96px;
+            height: 96px;
             border-radius: 16px;
             border: 2px solid rgba(255, 255, 255, 0.72);
-            margin-top: 1rem;
             object-fit: cover;
             background: rgba(255,255,255,0.08);
         }
@@ -182,13 +207,12 @@
         }
 
         .id-main {
-            margin-top: 0.8rem;
             display: grid;
-            gap: 0.28rem;
+            gap: var(--space-1);
         }
 
         .id-name {
-            font-size: 1.2rem;
+            font-size: 1rem;
             margin: 0;
             font-weight: 700;
         }
@@ -196,24 +220,27 @@
         .id-line {
             margin: 0;
             color: rgba(226, 232, 240, 0.92);
-            font-size: 0.85rem;
+            font-size: 0.875rem;
         }
 
         .id-qr-shell {
-            margin-top: 0.95rem;
             background: rgba(255,255,255,0.92);
-            border-radius: 16px;
-            padding: 0.65rem;
+            border-radius: 12px;
+            padding: var(--space-2);
             width: fit-content;
         }
 
+        #idQrCanvas {
+            width: 96px;
+            height: 96px;
+        }
+
         .id-footer {
-            margin-top: 0.8rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 0.8rem;
-            font-size: 0.82rem;
+            gap: var(--space-2);
+            font-size: 0.875rem;
         }
 
         .badge {
@@ -231,29 +258,41 @@
         }
 
         .panel {
-            padding: 1rem;
+            padding: var(--space-5);
             color: var(--text-primary);
         }
 
         .panel-top {
             display: flex;
             justify-content: space-between;
-            gap: 1rem;
-            align-items: center;
-            margin-bottom: 0.8rem;
+            gap: var(--space-4);
+            align-items: flex-start;
+            margin-bottom: var(--space-3);
+        }
+
+        .summary-stack {
+            display: grid;
+            gap: var(--space-4);
+        }
+
+        .summary-stack h2 {
+            margin: 0;
+            font-size: 1.125rem;
+            font-weight: 500;
+            line-height: 1.25;
         }
 
         .meta-line {
             color: var(--text-secondary);
-            margin: 0.2rem 0 0;
-            font-size: 0.92rem;
+            margin: var(--space-1) 0 0;
+            font-size: 0.875rem;
         }
 
         .completion-row {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            margin-top: 0.45rem;
+            gap: var(--space-3);
+            margin-top: var(--space-2);
         }
 
         .progress-track {
@@ -274,9 +313,9 @@
         .tabs {
             display: flex;
             flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-top: 0.8rem;
-            margin-bottom: 0.8rem;
+            gap: var(--space-2);
+            margin-top: var(--space-4);
+            margin-bottom: var(--space-4);
         }
 
         .tab-btn {
@@ -310,14 +349,14 @@
         .field-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.75rem;
+            gap: var(--space-3);
         }
 
         .field-card {
-            background: rgba(255, 255, 255, 0.58);
-            border: 1px solid var(--card-border);
-            border-radius: 14px;
-            padding: 0.7rem;
+            background: rgba(255, 255, 255, 0.52);
+            border: 1px solid rgba(255, 255, 255, 0.62);
+            border-radius: 12px;
+            padding: var(--space-3);
         }
 
         body.profile-dark .field-card {
@@ -330,8 +369,8 @@
 
         .field-label {
             color: var(--text-secondary);
-            font-size: 0.78rem;
-            margin-bottom: 0.2rem;
+            font-size: 0.875rem;
+            margin-bottom: var(--space-1);
             display: block;
         }
 
@@ -342,9 +381,10 @@
             background: transparent;
             color: var(--text-primary);
             font-weight: 600;
-            font-size: 0.95rem;
+            font-size: 1rem;
             outline: none;
             padding: 0;
+            line-height: 1.35;
         }
 
         .field-input[disabled] {
@@ -371,24 +411,24 @@
         }
 
         .smart-hints {
-            margin-top: 0.65rem;
+            margin-top: var(--space-3);
             border: 1px dashed var(--card-border);
             border-radius: 12px;
-            padding: 0.65rem;
+            padding: var(--space-3);
             color: var(--text-secondary);
-            font-size: 0.82rem;
+            font-size: 0.875rem;
         }
 
         .strength-pill {
             display: inline-flex;
             align-items: center;
-            gap: 0.35rem;
-            padding: 0.25rem 0.55rem;
+            gap: var(--space-1);
+            padding: var(--space-1) var(--space-2);
             border-radius: 999px;
             border: 1px solid var(--card-border);
-            font-size: 0.8rem;
+            font-size: 0.875rem;
             font-weight: 700;
-            margin-top: 0.45rem;
+            margin-top: var(--space-2);
         }
 
         .documents-table {
@@ -471,9 +511,104 @@
             margin-top: 0.35rem;
         }
 
+        .ai-summary-card {
+            margin-top: var(--space-4);
+            border: 1px solid rgba(255, 255, 255, 0.62);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.52);
+            padding: var(--space-5);
+        }
+
+        .ai-summary-title {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+            font-size: 1.125rem;
+            font-weight: 500;
+            letter-spacing: 0.03em;
+            color: #1d4ed8;
+            text-transform: none;
+        }
+
+        .ai-summary-text {
+            margin-top: var(--space-2);
+            font-size: 1rem;
+            color: var(--text-primary);
+            font-weight: 600;
+            line-height: 1.35;
+        }
+
+        .mini-analytics-grid {
+            margin-top: var(--space-3);
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: var(--space-4);
+        }
+
+        .mini-chart-card {
+            border: 1px solid rgba(255, 255, 255, 0.62);
+            background: rgba(255, 255, 255, 0.52);
+            border-radius: 12px;
+            padding: var(--space-3);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+            height: 240px;
+        }
+
+        .mini-chart-card h4 {
+            margin: 0;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .mini-chart-viewport {
+            position: relative;
+            width: 100%;
+            height: 176px;
+            border-radius: 10px;
+            border: 1px solid var(--card-border);
+            background: rgba(255, 255, 255, 0.34);
+            overflow: hidden;
+        }
+
+        .mini-chart-card canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        body.profile-dark .mini-chart-viewport {
+            background: rgba(15, 23, 42, 0.42);
+        }
+
+        .mini-chart-empty {
+            position: absolute;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.74);
+        }
+
+        body.profile-dark .mini-chart-empty {
+            background: rgba(2, 6, 23, 0.74);
+        }
+
+        .mini-chart-empty.show {
+            display: flex;
+        }
+
         @media (max-width: 1024px) {
             .top-layout {
                 grid-template-columns: 1fr;
+            }
+
+            .mini-analytics-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
             .field-grid {
@@ -482,6 +617,12 @@
 
             .progress-track {
                 width: 100%;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .mini-analytics-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -494,8 +635,8 @@
     <div class="content-wrapper student-profile-page">
         <div class="hero-bar">
             <div>
-                <h1 class="page-title" style="margin:0;">Student Profile System</h1>
-                <p class="dashboard-subtitle" style="margin-top:0.35rem;">University ERP identity, academics, guardians, and metadata.</p>
+                <h1 class="hero-title">Student Profile System</h1>
+                <p class="hero-subtitle">University ERP identity, academics, guardians, and metadata.</p>
             </div>
             <div class="hero-actions">
                 <button class="btn btn-outline" type="button" id="darkModeBtn">Dark Mode</button>
@@ -530,7 +671,7 @@
                 </div>
 
                 <div class="id-qr-shell">
-                    <canvas id="idQrCanvas" width="104" height="104"></canvas>
+                    <canvas id="idQrCanvas" width="96" height="96"></canvas>
                 </div>
 
                 <div class="id-footer">
@@ -541,7 +682,7 @@
 
             <article class="panel glass-card">
                 <div class="panel-top">
-                    <div>
+                    <div class="summary-stack">
                         <h2 style="margin:0;">Profile Summary</h2>
                         <p class="meta-line" id="activityLine">Last updated by System</p>
                         <div class="completion-row">
@@ -551,6 +692,33 @@
                         </div>
                         <div class="strength-pill" id="strengthPill">Strength: Weak</div>
                         <div class="smart-hints" id="suggestionBox">Suggestions will appear here.</div>
+                        <div class="ai-summary-card" id="profileAiSummaryCard">
+                            <div class="ai-summary-title">AI Summary</div>
+                            <div class="ai-summary-text" id="profileAiSummaryText">Generating personalized insights...</div>
+                            <div class="mini-analytics-grid">
+                                <div class="mini-chart-card">
+                                    <h4>Performance Graph</h4>
+                                    <div class="mini-chart-viewport">
+                                        <canvas id="profilePerformanceCanvas"></canvas>
+                                        <div class="mini-chart-empty" id="profilePerformanceCanvasEmpty">No Data Available</div>
+                                    </div>
+                                </div>
+                                <div class="mini-chart-card">
+                                    <h4>Attendance Heatmap</h4>
+                                    <div class="mini-chart-viewport">
+                                        <canvas id="profileHeatmapCanvas"></canvas>
+                                        <div class="mini-chart-empty" id="profileHeatmapCanvasEmpty">No Data Available</div>
+                                    </div>
+                                </div>
+                                <div class="mini-chart-card">
+                                    <h4>Behavior Trend</h4>
+                                    <div class="mini-chart-viewport">
+                                        <canvas id="profileBehaviorCanvas"></canvas>
+                                        <div class="mini-chart-empty" id="profileBehaviorCanvasEmpty">No Data Available</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <span class="status-pill" id="viewerRolePill">Viewer: STUDENT</span>
                 </div>
@@ -621,6 +789,7 @@
     let originalProfileSnapshot = null;
     let editEnabled = false;
     let autoSaveTimer = null;
+    const profileCharts = {};
 
     const PROFILE_SCHEMA = [
         { key: 'fullName', label: 'Full Name', section: 'personal', type: 'text', required: true },
@@ -1050,7 +1219,7 @@
         }
 
         const qrValue = `${window.location.origin}${currentProfile.profileQrUrl || '/student/profile'}`;
-        new QRious({ element: document.getElementById('idQrCanvas'), value: qrValue, size: 104, level: 'H' });
+        new QRious({ element: document.getElementById('idQrCanvas'), value: qrValue, size: 96, level: 'H' });
     }
 
     function renderProfile() {
@@ -1083,6 +1252,130 @@
         avatarPlus.style.display = PROFILE_MODE === 'ADMIN' ? 'inline-flex' : 'none';
 
         bindFieldEvents();
+    }
+
+    function destroyProfileChart(id) {
+        if (profileCharts[id]) {
+            profileCharts[id].destroy();
+            delete profileCharts[id];
+        }
+    }
+
+    function renderProfileMiniLine(canvasId, values, label, color) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || !window.Chart) {
+            return;
+        }
+
+        if (!values.length) {
+            destroyProfileChart(canvasId);
+            toggleProfileMiniEmpty(canvasId, true);
+            return;
+        }
+
+        toggleProfileMiniEmpty(canvasId, false);
+        destroyProfileChart(canvasId);
+        profileCharts[canvasId] = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: values.map((_, idx) => idx + 1),
+                datasets: [{
+                    label,
+                    data: values,
+                    borderColor: color,
+                    backgroundColor: color + '22',
+                    tension: 0.35,
+                    fill: true,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    x: { display: false },
+                    y: { display: false }
+                }
+            }
+        });
+    }
+
+    function renderProfileMiniBars(canvasId, values, color) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || !window.Chart) {
+            return;
+        }
+
+        if (!values.length) {
+            destroyProfileChart(canvasId);
+            toggleProfileMiniEmpty(canvasId, true);
+            return;
+        }
+
+        toggleProfileMiniEmpty(canvasId, false);
+        destroyProfileChart(canvasId);
+        profileCharts[canvasId] = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: values.map((_, idx) => idx + 1),
+                datasets: [{ data: values, backgroundColor: color }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    x: { display: false },
+                    y: { display: false }
+                }
+            }
+        });
+    }
+
+    function toggleProfileMiniEmpty(canvasId, show) {
+        const empty = document.getElementById(`${canvasId}Empty`);
+        const canvas = document.getElementById(canvasId);
+        if (!empty || !canvas) {
+            return;
+        }
+        empty.classList.toggle('show', show);
+        canvas.style.visibility = show ? 'hidden' : 'visible';
+    }
+
+    async function loadAiSummary() {
+        if (!currentProfile) {
+            return;
+        }
+
+        const sid = normalize(currentProfile.studentId || currentProfile.enrollmentNumber || TARGET_STUDENT_ID);
+        if (!sid) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/analytics/student-summary/${encodeURIComponent(sid)}`, {
+                headers: { Accept: 'application/json' }
+            });
+            if (!response.ok) {
+                throw new Error('AI summary unavailable');
+            }
+            const summary = await response.json();
+            document.getElementById('profileAiSummaryText').textContent = summary.aiSummary || 'AI summary generated.';
+
+            const performance = (summary.performanceSeries || []).map((x) => Number(x.performance || 0)).slice(-16);
+            const heatmap = (summary.attendanceHeatmap || []).map((x) => Number(x.count || 0)).slice(-16);
+            const behavior = (summary.behaviorTrend || []).map((x) => Number(x.value || 0)).slice(-16);
+
+            renderProfileMiniLine('profilePerformanceCanvas', performance, 'Performance', '#2563eb');
+            renderProfileMiniBars('profileHeatmapCanvas', heatmap, '#60a5fa');
+            renderProfileMiniLine('profileBehaviorCanvas', behavior, 'Behavior', '#f59e0b');
+        } catch (_error) {
+            document.getElementById('profileAiSummaryText').textContent = 'AI summary could not be loaded right now.';
+            toggleProfileMiniEmpty('profilePerformanceCanvas', true);
+            toggleProfileMiniEmpty('profileHeatmapCanvas', true);
+            toggleProfileMiniEmpty('profileBehaviorCanvas', true);
+        }
     }
 
     function bindFieldEvents() {
@@ -1221,6 +1514,7 @@
         currentProfile = await response.json();
         originalProfileSnapshot = JSON.parse(JSON.stringify(currentProfile));
         renderProfile();
+        await loadAiSummary();
     }
 
     function bindTabs() {

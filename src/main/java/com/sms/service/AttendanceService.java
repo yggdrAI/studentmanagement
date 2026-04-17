@@ -20,6 +20,12 @@ public class AttendanceService {
     @Autowired
     private AttendanceRepository attendanceRepository;
 
+    @Autowired
+    private AnalyticsRealtimeNotifier analyticsRealtimeNotifier;
+
+    @Autowired
+    private AnalyticsCacheService analyticsCacheService;
+
     /**
      * Mark attendance for a student
      * Includes duplicate checking and validation
@@ -75,7 +81,10 @@ public class AttendanceService {
         attendance.setCampusLocationId(campusLocationId);
         attendance.setQrTokenUsed(tokenHash);
 
-        return attendanceRepository.save(attendance);
+        Attendance saved = attendanceRepository.save(attendance);
+        analyticsRealtimeNotifier.notifyAttendanceEvent(studentId, status);
+        analyticsCacheService.evictAnalyticsCaches();
+        return saved;
     }
 
     /**
@@ -100,7 +109,9 @@ public class AttendanceService {
                         "MANUAL"
                     );
                     
-                    attendanceRepository.save(attendance);
+                    Attendance saved = attendanceRepository.save(attendance);
+                    analyticsRealtimeNotifier.notifyAttendanceEvent(saved.getStudentId(), saved.getStatus());
+                    analyticsCacheService.evictAnalyticsCaches();
                 }
             } catch (Exception e) {
                 System.err.println("Failed to mark attendance for " + record.getStudentId() + ": " + e.getMessage());
@@ -167,7 +178,10 @@ public class AttendanceService {
         Attendance attendance = record.get();
         attendance.setStatus(newStatus);
         
-        return attendanceRepository.save(attendance);
+        Attendance saved = attendanceRepository.save(attendance);
+        analyticsRealtimeNotifier.notifyAttendanceEvent(saved.getStudentId(), saved.getStatus());
+        analyticsCacheService.evictAnalyticsCaches();
+        return saved;
     }
 
     /**
