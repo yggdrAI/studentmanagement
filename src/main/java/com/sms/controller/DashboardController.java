@@ -12,7 +12,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 import com.sms.dto.dashboard.DashboardDTO;
+import com.sms.dto.dashboard.UpcomingClassDto;
 import com.sms.model.Student;
 import com.sms.service.DashboardService;
 
@@ -35,6 +38,13 @@ public class DashboardController {
     public ResponseEntity<DashboardDTO> getDashboard(Authentication authentication) {
         Student student = dashboardService.resolveStudentByUsername(authentication.getName());
         return ResponseEntity.ok(dashboardService.buildDashboard(student.getId()));
+    }
+
+    @GetMapping("/timetable")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<List<UpcomingClassDto>> getTimetable(Authentication authentication) {
+        Student student = dashboardService.resolveStudentByUsername(authentication.getName());
+        return ResponseEntity.ok(dashboardService.getUpcomingClasses(student.getId()));
     }
 
     @PostMapping("/task/{taskId}/complete")

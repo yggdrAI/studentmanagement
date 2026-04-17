@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public class UpcomingClassDto {
 
     private Long sessionId;
+    private Long courseId;
     private String title;
     private String courseCode;
     private String facultyName;
@@ -18,6 +19,14 @@ public class UpcomingClassDto {
 
     public void setSessionId(Long sessionId) {
         this.sessionId = sessionId;
+    }
+
+    public Long getCourseId() {
+        return courseId;
+    }
+
+    public void setCourseId(Long courseId) {
+        this.courseId = courseId;
     }
 
     public String getTitle() {

@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -239,7 +240,7 @@ public class StudentProfileService {
         int filled = 0;
         int total = 22;
 
-        List<Object> fields = List.of(
+        List<Object> fields = Arrays.asList(
             dto.getFullName(), dto.getEnrollmentNumber(), dto.getProfileImage(),
             dto.getDob(), dto.getGender(), dto.getBloodGroup(),
             dto.getPhone(), dto.getEmail(), dto.getAddress(),

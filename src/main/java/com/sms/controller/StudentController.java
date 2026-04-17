@@ -14,6 +14,11 @@ public class StudentController {
         return "student-dashboard";
     }
 
+    @GetMapping("/student/timetable")
+    public String studentTimetable() {
+        return "student-timetable";
+    }
+
     @GetMapping("/student/profile")
     public String studentProfile(Model model) {
         model.addAttribute("profileMode", "STUDENT");

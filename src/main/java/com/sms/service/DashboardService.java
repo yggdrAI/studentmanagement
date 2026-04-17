@@ -226,6 +226,7 @@ public class DashboardService {
                 .map(session -> {
                     UpcomingClassDto dto = new UpcomingClassDto();
                     dto.setSessionId(session.getId());
+                    dto.setCourseId(session.getCourse() != null ? session.getCourse().getId() : null);
                     dto.setTitle(session.getTitle());
                     dto.setRoom(session.getRoom());
                     dto.setStartsAt(session.getStartsAt());
