@@ -2,15 +2,24 @@ package com.sms.controller;
 
 import com.sms.dto.attendance.MarkAttendanceRequest;
 import com.sms.dto.attendance.MarkAttendanceResponse;
+import com.sms.dto.attendance.FaceRegistrationRequest;
+import com.sms.model.CampusLocation;
 import com.sms.service.AttendanceQRTokenService;
 import com.sms.service.AttendanceService;
+import com.sms.service.AntiCheatingService;
+import com.sms.service.CampusTrackingService;
+import com.sms.service.FraudDetectionService;
+import com.sms.service.FaceVerificationService;
+import com.sms.service.GeolocationService;
 import com.sms.model.Attendance;
+import com.sms.repository.CampusLocationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -29,6 +38,24 @@ public class StudentAttendanceController {
     @Autowired
     private AttendanceService attendanceService;
 
+    @Autowired
+    private CampusLocationRepository campusLocationRepository;
+
+    @Autowired
+    private GeolocationService geolocationService;
+
+    @Autowired
+    private AntiCheatingService antiCheatingService;
+
+    @Autowired
+    private FaceVerificationService faceVerificationService;
+
+    @Autowired
+    private CampusTrackingService campusTrackingService;
+
+    @Autowired
+    private FraudDetectionService fraudDetectionService;
+
     /**
      * Mark attendance by scanning QR code
      * Student scans teacher's QR and attendance is marked
@@ -43,17 +70,17 @@ public class StudentAttendanceController {
      */
     @PostMapping("/mark")
     public ResponseEntity<MarkAttendanceResponse> markAttendanceByQR(
-            @RequestBody MarkAttendanceRequest request,
+            @RequestBody MarkAttendanceRequest markRequest,
             Authentication auth,
+            HttpServletRequest httpRequest,
             @RequestHeader(value = "User-Agent", required = false) String userAgent) {
         try {
-            // Get student ID from authentication
-            String studentId = auth.getName(); // TODO: Extract actual student ID
-            
+            String studentId = auth.getName();
+
             // ✅ STEP 1: Validate QR token
             AttendanceQRTokenService.AttendanceTokenClaims claims;
             try {
-                claims = qrTokenService.validateAttendanceToken(request.getQrToken());
+                claims = qrTokenService.validateAttendanceToken(markRequest.getQrToken());
             } catch (Exception e) {
                 return ResponseEntity.ok(new MarkAttendanceResponse(
                     false,
@@ -72,31 +99,310 @@ public class StudentAttendanceController {
             }
 
             // ✅ STEP 3: Hash token for duplicate checking
-            String tokenHash = qrTokenService.hashToken(request.getQrToken());
+            String tokenHash = qrTokenService.hashToken(markRequest.getQrToken());
+
+            Double latitude = markRequest.getLatitude();
+            Double longitude = markRequest.getLongitude();
+            if (latitude == null || longitude == null) {
+                return ResponseEntity.ok(new MarkAttendanceResponse(
+                    false,
+                    "Location access is required to mark attendance",
+                    "LOCATION_REQUIRED"
+                ));
+            }
 
             // ✅ STEP 4: Get request info for audit
-            String deviceId = request.getDeviceId() != null ? request.getDeviceId() : "UNKNOWN";
-            String deviceInfo = userAgent != null ? userAgent : "UNKNOWN";
-            
-            // ✅ STEP 5: Mark attendance with all validations
+            String clientIp = extractClientIp(httpRequest);
+            String clientDeviceId = markRequest.getDeviceId() != null ? markRequest.getDeviceId() : "UNKNOWN";
+            String deviceInfo = (userAgent != null ? userAgent : "UNKNOWN") + " | clientDeviceId=" + clientDeviceId;
+            String deviceFingerprint = antiCheatingService.generateDeviceFingerprint(deviceInfo, clientIp);
+
+            // ✅ STEP 4.5: Face verification before any geolocation decision
+            FaceVerificationService.FaceVerificationResult faceResult;
+            try {
+                faceResult = faceVerificationService.verifyFace(
+                    studentId,
+                    markRequest.getFaceEmbedding(),
+                    markRequest.getLivenessVerified(),
+                    markRequest.getLivenessPrompt()
+                );
+            } catch (RuntimeException faceError) {
+                antiCheatingService.logViolation(
+                    studentId,
+                    "FACE_MISMATCH",
+                    faceError.getMessage(),
+                    deviceFingerprint,
+                    clientIp,
+                    latitude,
+                    longitude,
+                    null,
+                    null,
+                    "HIGH"
+                );
+                return ResponseEntity.ok(new MarkAttendanceResponse(
+                    false,
+                    faceError.getMessage(),
+                    "FACE_MISMATCH"
+                ));
+            }
+
+            // ✅ STEP 5: Check if student is blocked
+            if (antiCheatingService.isStudentBlocked(studentId)) {
+                antiCheatingService.logViolation(
+                    studentId,
+                    "STUDENT_BLOCKED",
+                    "Student has accumulated too many recent violations",
+                    deviceFingerprint,
+                    clientIp,
+                    latitude,
+                    longitude,
+                    null,
+                    null,
+                    "CRITICAL"
+                );
+                return ResponseEntity.ok(new MarkAttendanceResponse(
+                    false,
+                    "Your account is temporarily blocked due to repeated suspicious activity",
+                    "BLOCKED"
+                ));
+            }
+
+            // ✅ STEP 6: Rate-limit rapid attempts
+            if (antiCheatingService.detectRapidAttempts(studentId)) {
+                antiCheatingService.logViolation(
+                    studentId,
+                    "RAPID_ATTEMPTS",
+                    "Attendance attempts exceeded the allowed rate",
+                    deviceFingerprint,
+                    clientIp,
+                    latitude,
+                    longitude,
+                    null,
+                    null,
+                    "HIGH"
+                );
+                return ResponseEntity.ok(new MarkAttendanceResponse(
+                    false,
+                    "Please wait a moment before trying again",
+                    "RATE_LIMITED"
+                ));
+            }
+
+            // ✅ STEP 7: Validate campus geofence
+            List<CampusLocation> activeLocations = campusLocationRepository.findAllActive();
+            if (activeLocations.isEmpty()) {
+                return ResponseEntity.ok(new MarkAttendanceResponse(
+                    false,
+                    "Campus attendance zones are not configured yet",
+                    "CONFIG_ERROR"
+                ));
+            }
+
+            CampusLocation closestLocation = geolocationService.findClosestLocation(latitude, longitude, activeLocations);
+            if (closestLocation == null) {
+                return ResponseEntity.ok(new MarkAttendanceResponse(
+                    false,
+                    "Unable to validate location against campus zones",
+                    "CONFIG_ERROR"
+                ));
+            }
+
+            boolean locationVerified = geolocationService.isInsideGeofence(latitude, longitude, closestLocation);
+            if (!locationVerified) {
+                double distanceMeters = geolocationService.calculateDistanceMeters(
+                    latitude,
+                    longitude,
+                    closestLocation.getLatitude(),
+                    closestLocation.getLongitude()
+                );
+
+                antiCheatingService.logViolation(
+                    studentId,
+                    "LOCATION_OUTSIDE_GEOFENCE",
+                    String.format("Student was %.0f meters outside %s", distanceMeters, closestLocation.getName()),
+                    deviceFingerprint,
+                    clientIp,
+                    latitude,
+                    longitude,
+                    closestLocation.getLatitude(),
+                    closestLocation.getLongitude(),
+                    "HIGH"
+                );
+
+                return ResponseEntity.ok(new MarkAttendanceResponse(
+                    false,
+                    String.format("You are outside the allowed attendance area for %s", closestLocation.getName()),
+                    "LOCATION_INVALID"
+                ));
+            }
+
+            // ✅ STEP 8: Check VPN/proxy mismatch
+            AntiCheatingService.VPNDetectionResult vpnResult = antiCheatingService.detectVPN(
+                latitude,
+                longitude,
+                clientIp,
+                geolocationService
+            );
+
+            if (vpnResult.isVPNDetected) {
+                antiCheatingService.logViolation(
+                    studentId,
+                    "VPN_DETECTED",
+                    vpnResult.reason,
+                    deviceFingerprint,
+                    clientIp,
+                    latitude,
+                    longitude,
+                    closestLocation.getLatitude(),
+                    closestLocation.getLongitude(),
+                    "CRITICAL"
+                );
+
+                return ResponseEntity.ok(new MarkAttendanceResponse(
+                    false,
+                    "VPN or proxy use was detected. Please use your direct device connection.",
+                    "VPN_BLOCKED"
+                ));
+            }
+
+            // ✅ STEP 9: Detect impossible movement / spoofing
+            AntiCheatingService.ImpossibleMovementResult movementResult = antiCheatingService.detectImpossibleMovement(
+                deviceFingerprint,
+                latitude,
+                longitude,
+                System.currentTimeMillis()
+            );
+
+            if (movementResult.isImpossible) {
+                antiCheatingService.logViolation(
+                    studentId,
+                    "IMPOSSIBLE_MOVEMENT",
+                    movementResult.reason,
+                    deviceFingerprint,
+                    clientIp,
+                    latitude,
+                    longitude,
+                    closestLocation.getLatitude(),
+                    closestLocation.getLongitude(),
+                    "CRITICAL"
+                );
+
+                return ResponseEntity.ok(new MarkAttendanceResponse(
+                    false,
+                    "Suspicious movement pattern detected. Attendance was not marked.",
+                    "IMPOSSIBLE_MOVEMENT"
+                ));
+            }
+
+            int confidenceScore = geolocationService.getConfidenceScore(latitude, longitude, closestLocation);
+
+            FraudDetectionService.FraudAssessment fraudAssessment = fraudDetectionService.assess(
+                studentId,
+                claims.getSubjectId(),
+                claims.getSessionId(),
+                deviceFingerprint,
+                clientIp,
+                clientDeviceId,
+                latitude,
+                longitude,
+                markRequest.getAccuracy(),
+                closestLocation,
+                confidenceScore,
+                markRequest.getQrDetectedAtEpochMs(),
+                true,
+                faceResult.getSimilarity(),
+                locationVerified,
+                vpnResult,
+                movementResult
+            );
+
+            if (fraudAssessment.isRejected()) {
+                fraudDetectionService.recordDecision(
+                    studentId,
+                    claims.getSubjectId(),
+                    null,
+                    fraudAssessment.getFraudScore(),
+                    fraudAssessment.getDecision(),
+                    fraudAssessment.getReasons(),
+                    clientDeviceId,
+                    clientIp,
+                    latitude,
+                    longitude,
+                    true
+                );
+
+                return ResponseEntity.ok(new MarkAttendanceResponse(
+                    false,
+                    "Fraud score too high: " + String.join(" | ", fraudAssessment.getReasons()),
+                    "REJECTED"
+                ));
+            }
+
+            String attendanceStatus = fraudAssessment.isSuspicious() ? "PRESENT" : "PRESENT";
+            String markingType = fraudAssessment.isSuspicious() ? "QR_FACE_GEO_AI_SUSPICIOUS" : "QR_FACE_GEO_AI_APPROVED";
+
+            // ✅ STEP 10: Mark attendance with all validations
             try {
                 Attendance attendance = attendanceService.markAttendance(
                     studentId,
                     claims.getSubjectId(),
                     claims.getTeacherId(),
-                    "PRESENT",
-                    "QR_SCANNED",
+                    attendanceStatus,
+                    markingType,
                     deviceInfo,
-                    deviceId, // Using device ID as IP placeholder
+                    clientIp,
+                    latitude,
+                    longitude,
+                    true,
+                    deviceFingerprint,
+                    closestLocation.getId(),
                     tokenHash
                 );
 
-                return ResponseEntity.ok(new MarkAttendanceResponse(
+                fraudDetectionService.recordDecision(
+                    studentId,
+                    claims.getSubjectId(),
+                    attendance.getId(),
+                    fraudAssessment.getFraudScore(),
+                    fraudAssessment.getDecision(),
+                    fraudAssessment.getReasons(),
+                    clientDeviceId,
+                    clientIp,
+                    latitude,
+                    longitude,
+                    true
+                );
+
+                campusTrackingService.recordLocation(
+                    studentId,
+                    claims.getSubjectId(),
+                    claims.getSessionId(),
+                    attendance.getId(),
+                    latitude,
+                    longitude,
                     true,
-                    "✅ Attendance marked successfully!",
-                    "MARKED",
+                    false,
+                    faceResult.getSimilarity(),
+                    confidenceScore
+                );
+
+                MarkAttendanceResponse response = new MarkAttendanceResponse(
+                    true,
+                    fraudAssessment.isSuspicious()
+                        ? "Attendance marked with suspicious activity flagged"
+                        : "Attendance marked successfully and all checks passed",
+                    fraudAssessment.isSuspicious() ? "SUSPICIOUS" : "MARKED",
                     attendance.getId().toString()
-                ));
+                );
+                response.setConfidenceScore(confidenceScore);
+                response.setFaceVerified(true);
+                response.setFaceSimilarity(faceResult.getSimilarity());
+                response.setLocationVerified(locationVerified);
+                response.setFraudScore(fraudAssessment.getFraudScore());
+                response.setDecision(fraudAssessment.getDecision());
+                response.setRiskLevel(fraudAssessment.getRiskLevel());
+
+                return ResponseEntity.ok(response);
             } catch (RuntimeException e) {
                 String status = e.getMessage().contains("already marked") ? "ALREADY_MARKED" : "ERROR";
                 return ResponseEntity.ok(new MarkAttendanceResponse(
@@ -112,6 +418,57 @@ public class StudentAttendanceController {
                 "ERROR"
             ));
         }
+    }
+
+    @PostMapping("/register-face")
+    public ResponseEntity<Map<String, Object>> registerFace(
+            @RequestBody FaceRegistrationRequest request,
+            Authentication auth) {
+        try {
+            String studentId = auth.getName();
+            FaceVerificationService.FaceVerificationResult result = faceVerificationService.registerFace(
+                studentId,
+                request.getFaceEmbedding(),
+                request.getLivenessVerified(),
+                request.getLivenessPrompt()
+            );
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", result.getMessage());
+            response.put("studentId", studentId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    @GetMapping("/face-status")
+    public ResponseEntity<Map<String, Object>> faceStatus(Authentication auth) {
+        String studentId = auth.getName();
+        boolean registered = faceVerificationService.hasRegisteredFace(studentId);
+        Map<String, Object> response = new HashMap<>();
+        response.put("studentId", studentId);
+        response.put("registered", registered);
+        response.put("message", registered ? "Face registered" : "Face not registered");
+        return ResponseEntity.ok(response);
+    }
+
+    private String extractClientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
+        }
+
+        return request.getRemoteAddr();
     }
 
     /**

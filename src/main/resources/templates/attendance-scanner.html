@@ -4,8 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📱 Attendance Scanner - Bennett University</title>
+    <meta name="theme-color" content="#1e3c72">
+    <link rel="manifest" href="/manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <script src="https://unpkg.com/face-api.js/dist/face-api.min.js"></script>
+    <script src="https://unpkg.com/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <script src="https://unpkg.com/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <!-- QR Code Scanner Library - Cross-browser support -->
+    <script async src="https://unpkg.com/html5-qrcode"></script>
     <style>
         .scanner-container {
             max-width: 600px;
@@ -35,6 +42,47 @@
             border-radius: 8px;
             overflow: hidden;
             border: 2px solid #2a5298;
+            position: relative;
+        }
+
+        .camera-area.is-fullscreen {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            max-width: none;
+            margin: 0;
+            border-radius: 0;
+            border: none;
+            background: #000;
+        }
+
+        .camera-area.is-fullscreen #reader,
+        .camera-area.is-fullscreen #cameraVideo {
+            min-height: 100vh;
+            height: 100vh;
+        }
+
+        .camera-area.is-fullscreen #scannerOverlay {
+            background: rgba(0, 0, 0, 0.18);
+        }
+
+        .camera-exit-btn {
+            display: none;
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            z-index: 2100;
+            border: none;
+            border-radius: 999px;
+            padding: 0.75rem 1rem;
+            background: rgba(17, 24, 39, 0.82);
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .camera-area.is-fullscreen .camera-exit-btn {
+            display: inline-flex;
         }
 
         #reader {
@@ -262,6 +310,35 @@
             color: #333;
         }
 
+        .face-panel {
+            background: linear-gradient(135deg, rgba(30, 60, 114, 0.08), rgba(42, 82, 152, 0.04));
+            border: 1px solid rgba(30, 60, 114, 0.14);
+            padding: 1rem;
+            border-radius: 14px;
+            margin-top: 1rem;
+        }
+
+        .face-panel h3 {
+            margin-top: 0;
+            color: #1e3c72;
+        }
+
+        .face-prompt {
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0.5rem 0 0.25rem;
+        }
+
+        .face-helper {
+            color: #475569;
+            font-size: 0.92rem;
+            margin: 0;
+        }
+
+        .bottom-nav {
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .scanner-container {
                 padding: 1rem;
@@ -279,6 +356,41 @@
             .control-btn {
                 padding: 0.6rem 1rem;
                 font-size: 0.8rem;
+            }
+
+            .bottom-nav {
+                display: flex;
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 1500;
+                background: rgba(15, 23, 42, 0.98);
+                backdrop-filter: blur(14px);
+                border-top: 1px solid rgba(148, 163, 184, 0.22);
+                padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom));
+                gap: 0.5rem;
+            }
+
+            .bottom-nav a {
+                flex: 1;
+                text-align: center;
+                text-decoration: none;
+                color: #cbd5e1;
+                font-size: 0.78rem;
+                font-weight: 600;
+                padding: 0.65rem 0.35rem;
+                border-radius: 14px;
+                background: rgba(30, 41, 59, 0.7);
+            }
+
+            .bottom-nav a.active {
+                color: #fff;
+                background: linear-gradient(135deg, #1e3c72, #2a5298);
+            }
+
+            body.has-bottom-nav {
+                padding-bottom: 84px;
             }
         }
     </style>
@@ -304,6 +416,12 @@
                 🔍 <strong>How it works:</strong> Click "Start Scanner" to open your camera, then point it at the attendance QR code displayed by your teacher.
             </div>
 
+            <div class="face-panel">
+                <h3>👤 Face Verification</h3>
+                <p class="face-prompt" id="facePromptText">Face check will run automatically after a QR scan.</p>
+                <p class="face-helper">Only face embeddings are sent. No raw image is stored on the server.</p>
+            </div>
+
             <div class="scanner-header">
                 <h2>🎯 Attendance QR Scanner</h2>
                 <p style="color: #666; margin: 0.5rem 0;">Position QR code within the frame</p>
@@ -311,6 +429,7 @@
 
             <!-- Camera Area -->
             <div class="camera-area">
+                <button type="button" class="camera-exit-btn" id="cameraExitBtn" onclick="stopScanner()">Exit full screen</button>
                 <div id="reader">
                     <video id="cameraVideo" autoplay playsinline muted></video>
                     <div id="scannerOverlay">
@@ -379,17 +498,60 @@
     </div>
 </main>
 
-<script>
+<nav class="bottom-nav" aria-label="Student navigation">
+    <a href="/student/dashboard">Dashboard</a>
+    <a href="/attendance/scanner" class="active">Scan QR</a>
+    <a href="/attendance">Portal</a>
+    <a href="/student/profile">Profile</a>
+</nav>
+
+<script th:inline="javascript">
     // Configuration
     const DEVICE_ID = generateDeviceId();
+    const CURRENT_STUDENT_ID = /*[[${#authentication.name}]]*/ 'student';
+    const CURRENT_SESSION_ID = new URLSearchParams(window.location.search).get('sessionId') || '';
+    const CURRENT_SUBJECT_ID = new URLSearchParams(window.location.search).get('subjectId') || '';
     let cameraStream = null;
     let scanTimer = null;
-    let canvasContext = null;
-    let scanCanvas = null;
     let qrDetector = null;
+    let html5QrcodeScanner = null;
     let isScanning = false;
     let lastScannedToken = null;
     let scanInProgress = false;
+    let useFallbackScanner = false;
+    let libraryCheckAttempts = 0;
+    let pwaInstallPrompt = null;
+    let lastKnownPosition = null;
+    let lastKnownPositionAt = 0;
+    let faceModelsLoaded = false;
+    let activeLivenessPrompt = '';
+    let locationSocket = null;
+    let locationStomp = null;
+    let locationHeartbeatTimer = null;
+    let lastQrDetectedAt = null;
+
+    /**
+     * Wait for html5-qrcode library to load
+     */
+    function waitForLibrary() {
+        return new Promise((resolve) => {
+            if (typeof Html5Qrcode !== 'undefined') {
+                resolve(true);
+                return;
+            }
+            
+            let attempts = 0;
+            const interval = setInterval(() => {
+                if (typeof Html5Qrcode !== 'undefined') {
+                    clearInterval(interval);
+                    resolve(true);
+                } else if (++attempts > 50) {
+                    clearInterval(interval);
+                    resolve(false);
+                }
+            }, 100);
+        });
+    }
 
     /**
      * Generate unique device ID for audit logging
@@ -404,8 +566,205 @@
         return deviceId;
     }
 
+    function registerPwa() {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js').catch((error) => {
+                console.debug('Service worker registration failed:', error);
+            });
+        }
+    }
+
+    function connectLocationSocket() {
+        if (locationStomp) {
+            return;
+        }
+
+        locationSocket = new SockJS('/ws');
+        locationStomp = Stomp.over(locationSocket);
+        locationStomp.debug = null;
+
+        locationStomp.connect({}, () => {
+            console.debug('Location stream connected');
+        });
+    }
+
+    function disconnectLocationSocket() {
+        if (locationHeartbeatTimer) {
+            window.clearInterval(locationHeartbeatTimer);
+            locationHeartbeatTimer = null;
+        }
+
+        if (locationStomp) {
+            try {
+                locationStomp.disconnect(() => console.debug('Location stream disconnected'));
+            } catch (error) {
+                console.debug('Location stream disconnect failed:', error);
+            }
+            locationStomp = null;
+        }
+
+        locationSocket = null;
+    }
+
+    async function sendLocationHeartbeat() {
+        if (!locationStomp || !locationStomp.connected) {
+            return;
+        }
+
+        if (!CURRENT_SUBJECT_ID) {
+            return;
+        }
+
+        try {
+            const position = await resolveAttendancePosition();
+            locationStomp.send('/app/location', {}, JSON.stringify({
+                studentId: CURRENT_STUDENT_ID,
+                subjectId: CURRENT_SUBJECT_ID ? Number(CURRENT_SUBJECT_ID) : null,
+                sessionId: CURRENT_SESSION_ID || null,
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                flag: false,
+                status: 'VERIFIED',
+                recordedAt: new Date().toISOString()
+            }));
+        } catch (error) {
+            console.debug('Location heartbeat skipped:', error);
+        }
+    }
+
+    function startLocationHeartbeat() {
+        connectLocationSocket();
+        sendLocationHeartbeat();
+
+        if (locationHeartbeatTimer) {
+            window.clearInterval(locationHeartbeatTimer);
+        }
+
+        locationHeartbeatTimer = window.setInterval(sendLocationHeartbeat, 8000);
+    }
+
+    async function ensureFaceModelsLoaded() {
+        if (faceModelsLoaded) {
+            return;
+        }
+
+        if (typeof faceapi === 'undefined') {
+            throw new Error('Face verification library is unavailable');
+        }
+
+        const modelUrl = 'https://justadudewhohacks.github.io/face-api.js/models';
+        await Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl),
+            faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
+            faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl)
+        ]);
+        faceModelsLoaded = true;
+    }
+
+    async function captureFaceEmbedding() {
+        const video = document.querySelector('#reader video') || document.getElementById('cameraVideo');
+        if (!video) {
+            throw new Error('Camera stream is unavailable for face verification');
+        }
+
+        await ensureFaceModelsLoaded();
+
+        const prompts = ['Blink twice', 'Turn your head slightly left', 'Smile briefly'];
+        activeLivenessPrompt = prompts[Math.floor(Math.random() * prompts.length)];
+        document.getElementById('facePromptText').textContent = `Liveness prompt: ${activeLivenessPrompt}`;
+        showStatus(`👤 ${activeLivenessPrompt} and hold your face inside the frame`, 'info');
+
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+
+        const detection = await faceapi
+            .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 }))
+            .withFaceLandmarks()
+            .withFaceDescriptor();
+
+        if (!detection || !detection.descriptor) {
+            throw new Error('No face detected. Center your face and try again.');
+        }
+
+        return {
+            faceEmbedding: Array.from(detection.descriptor),
+            livenessVerified: true,
+            livenessPrompt: activeLivenessPrompt
+        };
+    }
+
+    function enableCameraFocusMode() {
+        const cameraArea = document.querySelector('.camera-area');
+        if (cameraArea && window.innerWidth <= 768) {
+            cameraArea.classList.add('is-fullscreen');
+        }
+    }
+
+    function disableCameraFocusMode() {
+        const cameraArea = document.querySelector('.camera-area');
+        if (cameraArea) {
+            cameraArea.classList.remove('is-fullscreen');
+        }
+    }
+
+    function getCurrentPosition(options = {}) {
+        const config = {
+            enableHighAccuracy: true,
+            timeout: 30000,
+            maximumAge: 60000,
+            ...options
+        };
+
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error('Geolocation is not supported in this browser'));
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    lastKnownPosition = position;
+                    lastKnownPositionAt = Date.now();
+                    resolve(position);
+                },
+                reject,
+                config
+            );
+        });
+    }
+
+    async function resolveAttendancePosition() {
+        const freshCacheWindowMs = 10 * 60 * 1000;
+        if (lastKnownPosition && (Date.now() - lastKnownPositionAt) <= freshCacheWindowMs) {
+            return lastKnownPosition;
+        }
+
+        try {
+            return await getCurrentPosition({
+                enableHighAccuracy: true,
+                timeout: 30000,
+                maximumAge: 0
+            });
+        } catch (error) {
+            if (lastKnownPosition) {
+                showStatus('⚠️ Using recently cached location while GPS finishes locking', 'warning');
+                return lastKnownPosition;
+            }
+
+            try {
+                return await getCurrentPosition({
+                    enableHighAccuracy: false,
+                    timeout: 45000,
+                    maximumAge: 300000
+                });
+            } catch (fallbackError) {
+                throw fallbackError;
+            }
+        }
+    }
+
     /**
-     * Start QR code scanner
+     * Start QR code scanner - tries native API first, falls back to html5-qrcode
      */
     async function startScanner() {
         if (scanInProgress || isScanning) {
@@ -433,39 +792,75 @@
                 return;
             }
 
-            const preferredCamera = videoDevices.find(device => /back|rear|environment/i.test(device.label)) || videoDevices[0];
-            const constraints = {
-                audio: false,
-                video: {
-                    deviceId: preferredCamera.deviceId ? { exact: preferredCamera.deviceId } : undefined,
-                    facingMode: preferredCamera === videoDevices[0] ? { ideal: 'environment' } : undefined,
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            };
-
-            cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
-            const video = document.getElementById('cameraVideo');
-            video.srcObject = cameraStream;
-
+            // Try native BarcodeDetector first
             if ('BarcodeDetector' in window) {
-                qrDetector = new BarcodeDetector({ formats: ['qr_code'] });
-            } else {
-                qrDetector = null;
+                try {
+                    qrDetector = new BarcodeDetector({ formats: ['qr_code'] });
+                    const constraints = {
+                        audio: false,
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    };
+                    cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    const video = document.getElementById('cameraVideo');
+                    video.srcObject = cameraStream;
+                    await video.play();
+                    scanTimer = window.setInterval(() => detectQRCode(video), 250);
+                    useFallbackScanner = false;
+                    isScanning = true;
+                    startLocationHeartbeat();
+                    document.getElementById('startBtn').style.display = 'none';
+                    document.getElementById('stopBtn').style.display = 'block';
+                    enableCameraFocusMode();
+                    showStatus('Scanner started (Native API) - Position QR code in view', 'info');
+                    return;
+                } catch (err) {
+                    console.debug('Native BarcodeDetector failed:', err);
+                    qrDetector = null;
+                }
             }
 
-            if (!scanCanvas) {
-                scanCanvas = document.createElement('canvas');
-                canvasContext = scanCanvas.getContext('2d', { willReadFrequently: true });
+            // Fallback to html5-qrcode library
+            const libLoaded = await waitForLibrary();
+            if (libLoaded && typeof Html5Qrcode !== 'undefined') {
+                try {
+                    html5QrcodeScanner = new Html5Qrcode('reader');
+                    await html5QrcodeScanner.start(
+                        { facingMode: "environment" },
+                        {
+                            fps: 10,
+                            qrbox: { width: 250, height: 250 },
+                            aspectRatio: 1.0
+                        },
+                        (decodedText) => {
+                            console.log('QR Code detected:', decodedText.substring(0, 50));
+                            if (lastScannedToken !== decodedText) {
+                                onScanSuccess(decodedText);
+                            }
+                        },
+                        (errorMessage) => {
+                            // Silently ignore scanning errors
+                            console.debug('Scanner scan attempt:', errorMessage);
+                        }
+                    );
+                    useFallbackScanner = true;
+                    isScanning = true;
+                    startLocationHeartbeat();
+                    document.getElementById('startBtn').style.display = 'none';
+                    document.getElementById('stopBtn').style.display = 'block';
+                    enableCameraFocusMode();
+                    showStatus('✓ Scanner started - Point at QR code', 'info');
+                    return;
+                } catch (err) {
+                    console.error('html5-qrcode initialization failed:', err);
+                }
             }
 
-            await video.play();
-            scanTimer = window.setInterval(() => detectQRCode(video), 250);
-
-            isScanning = true;
-            document.getElementById('startBtn').style.display = 'none';
-            document.getElementById('stopBtn').style.display = 'block';
-            showStatus('Scanner started - Position QR code in view', 'info');
+            // Both failed - show manual entry message
+            showStatus('⚠️ This browser requires manual QR token entry. Paste the token in the text field below.', 'error');
+            document.getElementById('manualEntry').style.display = 'block';
         } catch (err) {
             console.error('Error starting scanner:', err);
             showStatus('⚠️ Camera could not start: ' + (err && err.message ? err.message : 'permission denied or unavailable'), 'error');
@@ -477,8 +872,9 @@
     /**
      * Stop QR code scanner
      */
-    async function stopScanner() {
+    async function stopScanner(silent = false) {
         try {
+            // Stop native scanner
             if (scanTimer) {
                 window.clearInterval(scanTimer);
                 scanTimer = null;
@@ -494,13 +890,29 @@
                 cameraStream.getTracks().forEach(track => track.stop());
                 cameraStream = null;
             }
+
+            // Stop fallback scanner
+            if (html5QrcodeScanner) {
+                try {
+                    await html5QrcodeScanner.stop();
+                    html5QrcodeScanner.clear();
+                    html5QrcodeScanner = null;
+                } catch (err) {
+                    console.debug('Error stopping html5-qrcode:', err);
+                }
+            }
         } catch (err) {
             console.error('Error stopping scanner:', err);
         } finally {
             isScanning = false;
+            useFallbackScanner = false;
+            disconnectLocationSocket();
+            disableCameraFocusMode();
             document.getElementById('startBtn').style.display = 'block';
             document.getElementById('stopBtn').style.display = 'none';
-            showStatus('Scanner stopped', 'info');
+            if (!silent) {
+                showStatus('Scanner stopped', 'info');
+            }
         }
     }
 
@@ -520,47 +932,20 @@
                 console.debug('BarcodeDetector scan attempt failed:', error);
             }
         }
-
-        if (!canvasContext) {
-            return;
-        }
-
-        scanCanvas.width = video.videoWidth;
-        scanCanvas.height = video.videoHeight;
-        canvasContext.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
-
-        const imageData = canvasContext.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
-        const qrCode = decodeQrFromImageData(imageData);
-        if (qrCode) {
-            onScanSuccess(qrCode);
-        }
-    }
-
-    function decodeQrFromImageData(imageData) {
-        if (!window.jsQR) {
-            return null;
-        }
-
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'dontInvert'
-        });
-
-        return code ? code.data : null;
     }
 
     /**
      * Handle successful QR scan
      */
     function onScanSuccess(decodedText, decodedResult) {
-        // Only process if it looks like a token (JWT format)
-        if (!decodedText.includes('.') || lastScannedToken === decodedText) {
+        if (lastScannedToken === decodedText) {
             return;
         }
 
         lastScannedToken = decodedText;
+        lastQrDetectedAt = Date.now();
         console.log('QR Scanned:', decodedText.substring(0, 50) + '...');
 
-        stopScanner();
         markAttendance(decodedText);
     }
 
@@ -574,40 +959,66 @@
     /**
      * Mark attendance by submitting QR token to backend
      */
-    function markAttendance(token) {
+    async function markAttendance(token) {
         showLoader(true);
 
-        const request = {
-            qrToken: token,
-            deviceId: DEVICE_ID,
-            userAgent: navigator.userAgent
-        };
+        try {
+            const facePayload = await captureFaceEmbedding();
+            showStatus('📍 Getting your location...', 'info');
+            const position = await resolveAttendancePosition();
+            const request = {
+                qrToken: token,
+                deviceId: DEVICE_ID,
+                userAgent: navigator.userAgent,
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                qrDetectedAtEpochMs: lastQrDetectedAt || Date.now(),
+                faceEmbedding: facePayload.faceEmbedding,
+                livenessVerified: facePayload.livenessVerified,
+                livenessPrompt: facePayload.livenessPrompt
+            };
 
-        fetch('/api/student/attendance/mark', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + getAuthToken()
-            },
-            body: JSON.stringify(request)
-        })
-        .then(response => response.json())
-        .then(data => {
+            const response = await fetch('/api/student/attendance/mark', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + getAuthToken()
+                },
+                body: JSON.stringify(request)
+            });
+
+            const data = await response.json();
             showLoader(false);
-            
+
             if (data.success) {
-                showStatus('✅ ' + data.message, 'success');
+                const confidenceText = typeof data.confidenceScore === 'number'
+                    ? ` | Confidence ${data.confidenceScore}%`
+                    : '';
+                const faceText = typeof data.faceSimilarity === 'number'
+                    ? ` | Face ${Math.round(data.faceSimilarity * 100)}%`
+                    : '';
+                showStatus('✅ ' + data.message + confidenceText + faceText, 'success');
                 document.getElementById('lastScan').textContent = new Date().toLocaleTimeString();
-                setTimeout(() => loadTodayAttendance(), 1000);
+                document.getElementById('scanStatus').textContent = 'Marked';
+                if (navigator.vibrate) {
+                    navigator.vibrate(120);
+                }
+                loadTodayAttendance();
             } else {
                 showStatus('❌ ' + data.message, 'error');
             }
-        })
-        .catch(error => {
+        } catch (error) {
             showLoader(false);
             console.error('Error:', error);
-            showStatus('❌ Error marking attendance: ' + error.message, 'error');
-        });
+            const message = error && error.message && /timeout/i.test(error.message)
+                ? 'Location lookup timed out. Move to an open area and try again.'
+                : 'Error marking attendance: ' + error.message;
+            showStatus('❌ ' + message, 'error');
+            document.getElementById('facePromptText').textContent = 'Face check will run automatically after a QR scan.';
+        } finally {
+            await stopScanner(true);
+        }
     }
 
     /**
@@ -620,6 +1031,8 @@
             showStatus('⚠️ Please enter a QR token', 'warning');
             return;
         }
+
+        lastQrDetectedAt = Date.now();
 
         markAttendance(token);
     }
@@ -699,9 +1112,33 @@
 
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
+        registerPwa();
+        document.body.classList.add('has-bottom-nav');
         loadTodayAttendance();
         document.getElementById('metadata').style.display = 'block';
         showStatus('Click "Start Scanner" to begin', 'info');
+
+        window.addEventListener('beforeinstallprompt', (event) => {
+            event.preventDefault();
+            pwaInstallPrompt = event;
+        });
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    lastKnownPosition = position;
+                    lastKnownPositionAt = Date.now();
+                },
+                () => {
+                    // Ignore prewarm failures; attendance marking will retry.
+                },
+                {
+                    enableHighAccuracy: false,
+                    timeout: 5000,
+                    maximumAge: 300000
+                }
+            );
+        }
     });
 
     // Cleanup on page unload

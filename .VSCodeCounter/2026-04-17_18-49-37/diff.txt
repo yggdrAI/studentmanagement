@@ -1,0 +1,82 @@
+Date : 2026-04-17 18:49:37
+Directory : f:\Coding\studentmanagement
+Total : 31 files,  1763 codes, 19 comments, 254 blanks, all 2036 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| Java     |         25 |        929 |         19 |        116 |      1,064 |
+| HTML     |          6 |        834 |          0 |        138 |        972 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++-----------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                            | files      | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                               |         31 |      1,763 |         19 |        254 |      2,036 |
+| src                                                                                                             |         15 |      1,015 |         19 |        184 |      1,218 |
+| src\main                                                                                                        |         15 |      1,015 |         19 |        184 |      1,218 |
+| src\main\java                                                                                                   |         12 |        598 |         19 |        115 |        732 |
+| src\main\java\com                                                                                               |         12 |        598 |         19 |        115 |        732 |
+| src\main\java\com\sms                                                                                           |         12 |        598 |         19 |        115 |        732 |
+| src\main\java\com\sms\controller                                                                                |          2 |        127 |          1 |         15 |        143 |
+| src\main\java\com\sms\dto                                                                                       |          4 |        108 |          6 |         24 |        138 |
+| src\main\java\com\sms\dto\attendance                                                                            |          3 |         68 |          3 |         21 |         92 |
+| src\main\java\com\sms\dto\campus                                                                                |          1 |         40 |          3 |          3 |         46 |
+| src\main\java\com\sms\model                                                                                     |          2 |        126 |          6 |         29 |        161 |
+| src\main\java\com\sms\repository                                                                                |          2 |         23 |          0 |          6 |         29 |
+| src\main\java\com\sms\service                                                                                   |          2 |        214 |          6 |         41 |        261 |
+| src\main\resources                                                                                              |          3 |        417 |          0 |         69 |        486 |
+| src\main\resources\templates                                                                                    |          3 |        417 |          0 |         69 |        486 |
+| target                                                                                                          |         16 |        748 |          0 |         70 |        818 |
+| target\classes                                                                                                  |         16 |        748 |          0 |         70 |        818 |
+| target\classes\com                                                                                              |         13 |        331 |          0 |          1 |        332 |
+| target\classes\com\sms                                                                                          |         13 |        331 |          0 |          1 |        332 |
+| target\classes\com\sms\controller                                                                               |          2 |         46 |          0 |          1 |         47 |
+| target\classes\com\sms\dto                                                                                      |          4 |         60 |          0 |          0 |         60 |
+| target\classes\com\sms\dto\attendance                                                                           |          3 |         35 |          0 |          0 |         35 |
+| target\classes\com\sms\dto\campus                                                                               |          1 |         25 |          0 |          0 |         25 |
+| target\classes\com\sms\model                                                                                    |          2 |         43 |          0 |          0 |         43 |
+| target\classes\com\sms\repository                                                                               |          2 |          9 |          0 |          0 |          9 |
+| target\classes\com\sms\service                                                                                  |          3 |        173 |          0 |          0 |        173 |
+| target\classes\templates                                                                                        |          3 |        417 |          0 |         69 |        486 |
++-----------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-----------------------------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                                                                        | language | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| f:\Coding\studentmanagement\src\main\java\com\sms\controller\CampusTrackingController.java                      | Java     |         44 |          0 |          8 |         52 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\controller\StudentAttendanceController.java                   | Java     |         83 |          1 |          7 |         91 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\FaceRegistrationRequest.java                   | Java     |         25 |          3 |          8 |         36 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\MarkAttendanceRequest.java                     | Java     |         22 |          0 |          7 |         29 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\MarkAttendanceResponse.java                    | Java     |         21 |          0 |          6 |         27 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\dto\campus\CampusLocationUpdateDTO.java                       | Java     |         40 |          3 |          3 |         46 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\FaceData.java                                           | Java     |         53 |          3 |         12 |         68 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\StudentLocation.java                                    | Java     |         73 |          3 |         17 |         93 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\repository\FaceDataRepository.java                            | Java     |         10 |          0 |          3 |         13 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\repository\StudentLocationRepository.java                     | Java     |         13 |          0 |          3 |         16 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\CampusTrackingService.java                            | Java     |         88 |          3 |         11 |        102 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\FaceVerificationService.java                          | Java     |        126 |          3 |         30 |        159 |
+| f:\Coding\studentmanagement\src\main\resources\templates\attendance-scanner.html                                | HTML     |        135 |          0 |         20 |        155 |
+| f:\Coding\studentmanagement\src\main\resources\templates\student-profile.html                                   | HTML     |        100 |          0 |         15 |        115 |
+| f:\Coding\studentmanagement\src\main\resources\templates\teacher-dashboard.html                                 | HTML     |        182 |          0 |         34 |        216 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\CampusTrackingController.class                    | Java     |         29 |          0 |          0 |         29 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\StudentAttendanceController.class                 | Java     |         17 |          0 |          1 |         18 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\FaceRegistrationRequest.class                 | Java     |         12 |          0 |          0 |         12 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\MarkAttendanceRequest.class                   | Java     |         16 |          0 |          0 |         16 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\MarkAttendanceResponse.class                  | Java     |          7 |          0 |          0 |          7 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\campus\CampusLocationUpdateDTO.class                     | Java     |         25 |          0 |          0 |         25 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\FaceData.class                                         | Java     |         20 |          0 |          0 |         20 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\StudentLocation.class                                  | Java     |         23 |          0 |          0 |         23 |
+| f:\Coding\studentmanagement\target\classes\com\sms\repository\FaceDataRepository.class                          | Java     |          4 |          0 |          0 |          4 |
+| f:\Coding\studentmanagement\target\classes\com\sms\repository\StudentLocationRepository.class                   | Java     |          5 |          0 |          0 |          5 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\CampusTrackingService.class                          | Java     |         88 |          0 |          0 |         88 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\FaceVerificationService$FaceVerificationResult.class | Java     |         13 |          0 |          0 |         13 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\FaceVerificationService.class                        | Java     |         72 |          0 |          0 |         72 |
+| f:\Coding\studentmanagement\target\classes\templates\attendance-scanner.html                                    | HTML     |        135 |          0 |         20 |        155 |
+| f:\Coding\studentmanagement\target\classes\templates\student-profile.html                                       | HTML     |        100 |          0 |         15 |        115 |
+| f:\Coding\studentmanagement\target\classes\templates\teacher-dashboard.html                                     | HTML     |        182 |          0 |         34 |        216 |
+| Total                                                                                                           |          |      1,763 |         19 |        254 |      2,036 |
++-----------------------------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+

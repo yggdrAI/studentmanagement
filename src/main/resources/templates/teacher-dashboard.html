@@ -4,8 +4,176 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teacher Dashboard - Smart Portal</title>
+    <meta name="theme-color" content="#1e3c72">
+    <link rel="manifest" href="/manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css">
+    <script src="https://unpkg.com/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <script src="https://unpkg.com/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
+    <style>
+        .live-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 1rem;
+            margin-top: 1.25rem;
+        }
+
+        .live-card {
+            background: linear-gradient(180deg, #ffffff, #f8fbff);
+            border: 1px solid rgba(30, 60, 114, 0.12);
+            border-radius: 18px;
+            padding: 1.1rem 1.2rem;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+        }
+
+        .live-label {
+            display: block;
+            color: #64748b;
+            font-size: 0.82rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .live-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1e3c72;
+        }
+
+        .live-meta {
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .live-toolbar {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 1rem;
+        }
+
+        .live-input {
+            min-width: 220px;
+            padding: 0.85rem 1rem;
+            border-radius: 12px;
+            border: 1px solid #cbd5e1;
+            font: inherit;
+        }
+
+        .live-status {
+            color: #475569;
+            font-size: 0.92rem;
+        }
+
+        .campus-map-shell {
+            margin-top: 1.5rem;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(30, 60, 114, 0.12);
+            box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+            background: #fff;
+        }
+
+        #campusMap {
+            width: 100%;
+            height: 520px;
+        }
+
+        .fraud-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1rem;
+            margin-top: 1.25rem;
+        }
+
+        .fraud-summary-card {
+            background: linear-gradient(180deg, #ffffff, #f8fbff);
+            border: 1px solid rgba(30, 60, 114, 0.12);
+            border-radius: 18px;
+            padding: 1.1rem 1.2rem;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+        }
+
+        .fraud-alerts-list {
+            list-style: none;
+            padding: 0;
+            margin: 1rem 0 0;
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .fraud-alert-item {
+            border-radius: 16px;
+            border: 1px solid rgba(30, 60, 114, 0.12);
+            background: #fff;
+            padding: 0.9rem 1rem;
+        }
+
+        .fraud-alert-item.rejected {
+            border-left: 4px solid #dc2626;
+        }
+
+        .fraud-alert-item.suspicious {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .fraud-alert-item.approved {
+            border-left: 4px solid #16a34a;
+        }
+
+        .fraud-alert-title {
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 0.25rem;
+        }
+
+        .fraud-alert-meta {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .map-legend {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            padding: 1rem 1.25rem;
+            border-top: 1px solid rgba(30, 60, 114, 0.08);
+            color: #475569;
+            font-size: 0.9rem;
+        }
+
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .legend-swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            display: inline-block;
+        }
+
+        @media (max-width: 960px) {
+            .live-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .live-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .fraud-summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -30,10 +198,398 @@
                     <button type="button" class="btn btn-outline">Add Attendance</button>
                 </div>
             </section>
+
+            <section class="generic-card" style="margin-top: 1.5rem;">
+                <h2>Live Attendance Stats</h2>
+                <p>Real-time counts update automatically every few seconds for the selected subject.</p>
+
+                <div class="live-toolbar">
+                    <input type="number" id="subjectIdInput" class="live-input" min="1" placeholder="Subject ID (required)" />
+                    <input type="text" id="sessionIdInput" class="live-input" placeholder="Session ID (optional)" />
+                    <select id="statusFilter" class="live-input">
+                        <option value="">All statuses</option>
+                        <option value="verified">Verified</option>
+                        <option value="suspicious">Suspicious</option>
+                        <option value="outside">Outside geofence</option>
+                    </select>
+                    <button type="button" class="btn btn-primary" id="loadStatsBtn">Load live stats</button>
+                    <span class="live-status" id="liveStatus">Waiting for subject selection.</span>
+                </div>
+
+                <div class="live-grid">
+                    <div class="live-card">
+                        <span class="live-label">Present</span>
+                        <div class="live-value" id="presentCount">0</div>
+                        <div class="live-meta" id="presentMeta">Checked in today</div>
+                    </div>
+                    <div class="live-card">
+                        <span class="live-label">Verified</span>
+                        <div class="live-value" id="verifiedCount">0</div>
+                        <div class="live-meta" id="verifiedMeta">Location verified scans</div>
+                    </div>
+                    <div class="live-card">
+                        <span class="live-label">Attendance %</span>
+                        <div class="live-value" id="attendancePercent">0%</div>
+                        <div class="live-meta" id="attendanceMeta">Overall session coverage</div>
+                    </div>
+                    <div class="live-card">
+                        <span class="live-label">Session Total</span>
+                        <div class="live-value" id="totalExpected">0</div>
+                        <div class="live-meta" id="totalMeta">Expected students</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="generic-card" style="margin-top: 1.5rem;">
+                <h2>Live Campus Map</h2>
+                <p>Verified student markers stream in real time for the selected subject/session.</p>
+
+                <div class="campus-map-shell">
+                    <div id="campusMap"></div>
+                    <div class="map-legend">
+                        <span class="legend-item"><span class="legend-swatch" style="background:#16a34a;"></span> Verified</span>
+                        <span class="legend-item"><span class="legend-swatch" style="background:#f59e0b;"></span> Suspicious</span>
+                        <span class="legend-item"><span class="legend-swatch" style="background:#2563eb;"></span> Live scan</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="generic-card" style="margin-top: 1.5rem;">
+                <h2>Fraud Detection Alerts</h2>
+                <p>Real-time risk events generated by the scoring engine.</p>
+
+                <div class="fraud-summary-grid">
+                    <div class="fraud-summary-card">
+                        <span class="live-label">Approved</span>
+                        <div class="live-value" id="fraudApprovedCount">0</div>
+                        <div class="live-meta">Attendance decisions cleared</div>
+                    </div>
+                    <div class="fraud-summary-card">
+                        <span class="live-label">Suspicious</span>
+                        <div class="live-value" id="fraudSuspiciousCount">0</div>
+                        <div class="live-meta">Flags needing attention</div>
+                    </div>
+                    <div class="fraud-summary-card">
+                        <span class="live-label">Blocked</span>
+                        <div class="live-value" id="fraudRejectedCount">0</div>
+                        <div class="live-meta">Rejected attempts</div>
+                    </div>
+                </div>
+
+                <ul id="fraudAlertsList" class="fraud-alerts-list"></ul>
+            </section>
         </div>
     </main>
 
     <div th:replace="~{fragments/sidebar :: floating-tools}"></div>
+
+    <script th:inline="javascript">
+        const MAPBOX_ACCESS_TOKEN = /*[[${mapboxAccessToken}]]*/ '';
+        const liveStatsState = {
+            timer: null,
+            subjectId: null,
+            socket: null,
+            stomp: null,
+            map: null,
+            markers: new Map(),
+            mapReady: false,
+            fraudSocket: null,
+            fraudStomp: null,
+            alertItems: []
+        };
+
+        function registerDashboardPwa() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/service-worker.js').catch((error) => {
+                    console.debug('Service worker registration failed:', error);
+                });
+            }
+        }
+
+        function getLiveSubjectId() {
+            const inputValue = document.getElementById('subjectIdInput').value.trim();
+            if (inputValue) {
+                return inputValue;
+            }
+
+            const fromQuery = new URLSearchParams(window.location.search).get('subjectId');
+            return fromQuery || '';
+        }
+
+        function getSessionId() {
+            const value = document.getElementById('sessionIdInput').value.trim();
+            return value || new URLSearchParams(window.location.search).get('sessionId') || '';
+        }
+
+        function getStatusFilter() {
+            return document.getElementById('statusFilter').value.trim();
+        }
+
+        function initializeMapbox() {
+            if (liveStatsState.mapReady) {
+                return;
+            }
+
+            if (!MAPBOX_ACCESS_TOKEN) {
+                document.getElementById('liveStatus').textContent = 'Mapbox token is missing. Set MAPBOX_ACCESS_TOKEN to enable the live map.';
+                return;
+            }
+
+            mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
+            liveStatsState.map = new mapboxgl.Map({
+                container: 'campusMap',
+                style: 'mapbox://styles/mapbox/dark-v11',
+                center: [77.5845, 28.4506],
+                zoom: 15.2
+            });
+
+            liveStatsState.map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+            liveStatsState.mapReady = true;
+        }
+
+        function mapReadyOrSkip() {
+            initializeMapbox();
+            return Boolean(liveStatsState.mapReady && liveStatsState.map);
+        }
+
+        async function fetchLiveStats() {
+            const subjectId = getLiveSubjectId();
+            const sessionId = getSessionId();
+            const statusFilter = getStatusFilter();
+            const status = document.getElementById('liveStatus');
+
+            if (!subjectId) {
+                status.textContent = 'Enter a subject ID to start live tracking.';
+                return;
+            }
+
+            try {
+                liveStatsState.subjectId = subjectId;
+                const response = await fetch(`/api/teacher/attendance/session-stats?subjectId=${encodeURIComponent(subjectId)}`,
+                    { headers: { 'Accept': 'application/json' } });
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || 'Failed to load live stats');
+                }
+
+                document.getElementById('presentCount').textContent = data.presentCount ?? 0;
+                document.getElementById('verifiedCount').textContent = data.locationVerifiedCount ?? 0;
+                document.getElementById('attendancePercent').textContent = data.percentage ?? '0%';
+                document.getElementById('totalExpected').textContent = data.totalExpected ?? 0;
+                document.getElementById('presentMeta').textContent = `Absent: ${data.absentCount ?? 0} | Late: ${data.lateCount ?? 0}`;
+                document.getElementById('verifiedMeta').textContent = `Verified rate: ${data.locationVerificationRate ?? '0%'}`;
+                document.getElementById('attendanceMeta').textContent = `As of ${new Date().toLocaleTimeString()}`;
+                document.getElementById('totalMeta').textContent = `Live subject ${subjectId}`;
+                status.textContent = `Last updated ${new Date().toLocaleTimeString()}`;
+
+                await refreshCampusMap(subjectId, sessionId, statusFilter);
+                await refreshFraudSummary();
+            } catch (error) {
+                status.textContent = error.message;
+            }
+        }
+
+        function markerColor(location) {
+            if (location.suspicious) {
+                return '#f59e0b';
+            }
+            if (location.locationVerified) {
+                return '#16a34a';
+            }
+            return '#2563eb';
+        }
+
+        function upsertMarker(location) {
+            if (!location || location.latitude === null || location.longitude === null || !mapReadyOrSkip()) {
+                return;
+            }
+
+            const key = `${location.studentId}-${location.sessionId || location.attendanceId || location.locationId}`;
+            const existing = liveStatsState.markers.get(key);
+            const lngLat = [location.longitude, location.latitude];
+
+            if (existing) {
+                existing.setLngLat(lngLat);
+                existing.getPopup().setText(renderPopup(location));
+                return;
+            }
+
+            const popup = new mapboxgl.Popup({ offset: 25 }).setText(renderPopup(location));
+            const marker = new mapboxgl.Marker({ color: markerColor(location) })
+                .setLngLat(lngLat)
+                .setPopup(popup)
+                .addTo(liveStatsState.map);
+
+            liveStatsState.markers.set(key, marker);
+        }
+
+        function renderPopup(location) {
+            return [
+                `Student: ${location.studentId || 'Student'}`,
+                `Subject: ${location.subjectId || '-'}`,
+                `Session: ${location.sessionId || '-'}`,
+                `Status: ${location.suspicious ? 'Suspicious' : (location.locationVerified ? 'Verified' : 'Pending')}`,
+                `Face: ${typeof location.faceSimilarity === 'number' ? Math.round(location.faceSimilarity * 100) + '%' : '-'}`,
+                `Time: ${location.recordedAt ? new Date(location.recordedAt).toLocaleTimeString() : '-'}`
+            ].join('\n');
+        }
+
+        async function refreshCampusMap(subjectId, sessionId, statusFilter) {
+            if (!mapReadyOrSkip()) {
+                return;
+            }
+
+            const params = new URLSearchParams();
+            if (subjectId) {
+                params.set('subjectId', subjectId);
+            }
+            if (sessionId) {
+                params.set('sessionId', sessionId);
+            }
+            if (statusFilter) {
+                params.set('status', statusFilter);
+            }
+            params.set('limit', '200');
+
+            const response = await fetch(`/api/campus/live?${params.toString()}`, {
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const locations = await response.json();
+            liveStatsState.markers.forEach((marker) => marker.remove());
+            liveStatsState.markers.clear();
+            locations.forEach(upsertMarker);
+        }
+
+        function renderFraudAlert(alert) {
+            const item = document.createElement('li');
+            const decision = (alert.decision || 'SUSPICIOUS').toLowerCase();
+            item.className = `fraud-alert-item ${decision}`;
+
+            const reasonText = Array.isArray(alert.reasons) && alert.reasons.length ? alert.reasons.join(' | ') : 'No reason supplied';
+            item.innerHTML = `
+                <div class="fraud-alert-title">${alert.studentId || 'Student'} - ${alert.decision || 'SUSPICIOUS'} (${Math.round(alert.fraudScore || 0)})</div>
+                <div class="fraud-alert-meta">Subject ${alert.subjectId || '-'} | ${reasonText}</div>
+            `;
+
+            const list = document.getElementById('fraudAlertsList');
+            list.prepend(item);
+            while (list.children.length > 8) {
+                list.removeChild(list.lastElementChild);
+            }
+        }
+
+        async function refreshFraudSummary() {
+            try {
+                const response = await fetch('/api/teacher/fraud/summary', {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const data = await response.json();
+                document.getElementById('fraudApprovedCount').textContent = data.approved ?? 0;
+                document.getElementById('fraudSuspiciousCount').textContent = data.suspicious ?? 0;
+                document.getElementById('fraudRejectedCount').textContent = data.rejected ?? 0;
+            } catch (error) {
+                console.debug('Fraud summary refresh failed:', error);
+            }
+        }
+
+        function connectCampusUpdates() {
+            if (liveStatsState.stomp) {
+                return;
+            }
+
+            liveStatsState.socket = new SockJS('/ws');
+            liveStatsState.stomp = Stomp.over(liveStatsState.socket);
+            liveStatsState.stomp.debug = null;
+
+            liveStatsState.stomp.connect({}, () => {
+                liveStatsState.stomp.subscribe('/topic/locations', (frame) => {
+                    const location = JSON.parse(frame.body);
+                    const subjectId = getLiveSubjectId();
+                    const sessionId = getSessionId();
+                    const statusFilter = getStatusFilter();
+
+                    if (subjectId && String(location.subjectId) !== String(subjectId)) {
+                        return;
+                    }
+
+                    if (sessionId && String(location.sessionId || '') !== String(sessionId)) {
+                        return;
+                    }
+
+                    if (statusFilter === 'verified' && !location.locationVerified) {
+                        return;
+                    }
+
+                    if (statusFilter === 'suspicious' && !location.suspicious) {
+                        return;
+                    }
+
+                    if (statusFilter === 'outside' && location.locationVerified) {
+                        return;
+                    }
+
+                    upsertMarker(location);
+                });
+            });
+        }
+
+        function connectFraudUpdates() {
+            if (liveStatsState.fraudStomp) {
+                return;
+            }
+
+            liveStatsState.fraudSocket = new SockJS('/ws');
+            liveStatsState.fraudStomp = Stomp.over(liveStatsState.fraudSocket);
+            liveStatsState.fraudStomp.debug = null;
+
+            liveStatsState.fraudStomp.connect({}, () => {
+                liveStatsState.fraudStomp.subscribe('/topic/alerts', (frame) => {
+                    const alert = JSON.parse(frame.body);
+                    renderFraudAlert(alert);
+                    refreshFraudSummary();
+                });
+            });
+        }
+
+        function startLivePolling() {
+            if (liveStatsState.timer) {
+                clearInterval(liveStatsState.timer);
+            }
+
+            fetchLiveStats();
+            liveStatsState.timer = setInterval(fetchLiveStats, 5000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            registerDashboardPwa();
+            document.getElementById('loadStatsBtn').addEventListener('click', startLivePolling);
+            connectCampusUpdates();
+            connectFraudUpdates();
+            refreshFraudSummary();
+
+            const querySubjectId = new URLSearchParams(window.location.search).get('subjectId');
+            if (querySubjectId) {
+                document.getElementById('subjectIdInput').value = querySubjectId;
+                startLivePolling();
+            } else {
+                initializeMapbox();
+            }
+
+            document.getElementById('sessionIdInput').addEventListener('change', startLivePolling);
+            document.getElementById('statusFilter').addEventListener('change', startLivePolling);
+        });
+    </script>
 
 </body>
 </html>

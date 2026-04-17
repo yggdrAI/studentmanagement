@@ -1,0 +1,185 @@
+Date : 2026-04-17 18:40:22
+Directory : f:\Coding\studentmanagement
+Total : 113 files,  2123 codes, 156 comments, 376 blanks, all 2655 lines
+
+Languages
++-----------------+------------+------------+------------+------------+------------+
+| language        | files      | code       | comment    | blank      | total      |
++-----------------+------------+------------+------------+------------+------------+
+| Java            |         97 |        728 |        126 |        175 |      1,029 |
+| HTML            |          4 |        586 |          0 |         86 |        672 |
+| Markdown        |          1 |        456 |          2 |         90 |        548 |
+| JavaScript      |          2 |        230 |         28 |         24 |        282 |
+| JSON            |          2 |        110 |          0 |          2 |        112 |
+| MS SQL          |          2 |          8 |          0 |          0 |          8 |
+| Java Properties |          5 |          5 |          0 |         -1 |          4 |
++-----------------+------------+------------+------------+------------+------------+
+
+Directories
++-------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                                    | files      | code       | comment    | blank      | total      |
++-------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                                       |        113 |      2,123 |        156 |        376 |      2,655 |
+| . (Files)                                                                                                               |          1 |        456 |          2 |         90 |        548 |
+| src                                                                                                                     |         19 |      1,133 |        144 |        233 |      1,510 |
+| src\main                                                                                                                |         19 |      1,133 |        144 |        233 |      1,510 |
+| src\main\java                                                                                                           |         12 |        662 |        130 |        177 |        969 |
+| src\main\java\com                                                                                                       |         12 |        662 |        130 |        177 |        969 |
+| src\main\java\com\sms                                                                                                   |         12 |        662 |        130 |        177 |        969 |
+| src\main\java\com\sms\controller                                                                                        |          2 |        177 |          4 |         23 |        204 |
+| src\main\java\com\sms\dto                                                                                               |          2 |         30 |          0 |          6 |         36 |
+| src\main\java\com\sms\dto\attendance                                                                                    |          2 |         30 |          0 |          6 |         36 |
+| src\main\java\com\sms\model                                                                                             |          3 |        170 |         10 |         66 |        246 |
+| src\main\java\com\sms\repository                                                                                        |          2 |         31 |         27 |         15 |         73 |
+| src\main\java\com\sms\service                                                                                           |          3 |        254 |         89 |         67 |        410 |
+| src\main\resources                                                                                                      |          7 |        471 |         14 |         56 |        541 |
+| src\main\resources (Files)                                                                                              |          3 |          8 |          0 |          0 |          8 |
+| src\main\resources\public                                                                                               |          2 |        170 |         14 |         13 |        197 |
+| src\main\resources\templates                                                                                            |          2 |        293 |          0 |         43 |        336 |
+| target                                                                                                                  |         93 |        534 |         10 |         53 |        597 |
+| target\classes                                                                                                          |         90 |        604 |         10 |         54 |        668 |
+| target\classes (Files)                                                                                                  |          3 |          8 |          0 |          0 |          8 |
+| target\classes\com                                                                                                      |         83 |        133 |         -4 |         -2 |        127 |
+| target\classes\com\sms                                                                                                  |         83 |        133 |         -4 |         -2 |        127 |
+| target\classes\com\sms (Files)                                                                                          |          1 |         -1 |          0 |          0 |         -1 |
+| target\classes\com\sms\config                                                                                           |          3 |          2 |         -2 |          0 |          0 |
+| target\classes\com\sms\controller                                                                                       |         16 |          4 |          0 |         -3 |          1 |
+| target\classes\com\sms\dto                                                                                              |         22 |       -110 |         -2 |          0 |       -112 |
+| target\classes\com\sms\dto\attendance                                                                                   |          5 |        -28 |          0 |          0 |        -28 |
+| target\classes\com\sms\dto\auth                                                                                         |          2 |         -7 |          0 |          0 |         -7 |
+| target\classes\com\sms\dto\dashboard                                                                                    |         12 |        -59 |          0 |          0 |        -59 |
+| target\classes\com\sms\dto\identity                                                                                     |          2 |        -11 |         -2 |          0 |        -13 |
+| target\classes\com\sms\dto\student                                                                                      |          1 |         -5 |          0 |          0 |         -5 |
+| target\classes\com\sms\model                                                                                            |         16 |         67 |          0 |          0 |         67 |
+| target\classes\com\sms\repository                                                                                       |          5 |         20 |          0 |          0 |         20 |
+| target\classes\com\sms\service                                                                                          |         16 |        156 |          0 |          1 |        157 |
+| target\classes\com\sms\util                                                                                             |          4 |         -5 |          0 |          0 |         -5 |
+| target\classes\public                                                                                                   |          2 |        170 |         14 |         13 |        197 |
+| target\classes\templates                                                                                                |          2 |        293 |          0 |         43 |        336 |
+| target\maven-archiver                                                                                                   |          1 |         -3 |          0 |         -1 |         -4 |
+| target\test-classes                                                                                                     |          2 |        -67 |          0 |          0 |        -67 |
+| target\test-classes\com                                                                                                 |          2 |        -67 |          0 |          0 |        -67 |
+| target\test-classes\com\sms                                                                                             |          2 |        -67 |          0 |          0 |        -67 |
+| target\test-classes\com\sms\controller                                                                                  |          1 |        -40 |          0 |          0 |        -40 |
+| target\test-classes\com\sms\service                                                                                     |          1 |        -27 |          0 |          0 |        -27 |
++-------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-------------------------------------------------------------------------------------------------------------------------+-----------------+------------+------------+------------+------------+
+| filename                                                                                                                | language        | code       | comment    | blank      | total      |
++-------------------------------------------------------------------------------------------------------------------------+-----------------+------------+------------+------------+------------+
+| f:\Coding\studentmanagement\PWA_GEOLOCATION_IMPLEMENTATION.md                                                           | Markdown        |        456 |          2 |         90 |        548 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\controller\StudentAttendanceController.java                           | Java            |        171 |          4 |         22 |        197 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\controller\TeacherAttendanceController.java                           | Java            |          6 |          0 |          1 |          7 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\MarkAttendanceRequest.java                             | Java            |         15 |          0 |          3 |         18 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\MarkAttendanceResponse.java                            | Java            |         15 |          0 |          3 |         18 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\Attendance.java                                                 | Java            |         48 |          0 |         15 |         63 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\CampusLocation.java                                             | Java            |         52 |          5 |         19 |         76 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\model\SecurityAudit.java                                              | Java            |         70 |          5 |         32 |        107 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\repository\CampusLocationRepository.java                              | Java            |         12 |          9 |          6 |         27 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\repository\SecurityAuditRepository.java                               | Java            |         19 |         18 |          9 |         46 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\AntiCheatingService.java                                      | Java            |        153 |         44 |         43 |        240 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\AttendanceService.java                                        | Java            |         14 |          3 |          1 |         18 |
+| f:\Coding\studentmanagement\src\main\java\com\sms\service\GeolocationService.java                                       | Java            |         87 |         42 |         23 |        152 |
+| f:\Coding\studentmanagement\src\main\resources\application-postgres.properties                                          | Java Properties |          2 |          0 |          0 |          2 |
+| f:\Coding\studentmanagement\src\main\resources\application.properties                                                   | Java Properties |          2 |          0 |          0 |          2 |
+| f:\Coding\studentmanagement\src\main\resources\data.sql                                                                 | MS SQL          |          4 |          0 |          0 |          4 |
+| f:\Coding\studentmanagement\src\main\resources\public\manifest.json                                                     | JSON            |         55 |          0 |          1 |         56 |
+| f:\Coding\studentmanagement\src\main\resources\public\service-worker.js                                                 | JavaScript      |        115 |         14 |         12 |        141 |
+| f:\Coding\studentmanagement\src\main\resources\templates\attendance-scanner.html                                        | HTML            |        136 |          0 |         18 |        154 |
+| f:\Coding\studentmanagement\src\main\resources\templates\teacher-dashboard.html                                         | HTML            |        157 |          0 |         25 |        182 |
+| f:\Coding\studentmanagement\target\classes\application-postgres.properties                                              | Java Properties |          2 |          0 |          0 |          2 |
+| f:\Coding\studentmanagement\target\classes\application.properties                                                       | Java Properties |          2 |          0 |          0 |          2 |
+| f:\Coding\studentmanagement\target\classes\com\sms\StudentManagementApplication.class                                   | Java            |         -1 |          0 |          0 |         -1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\config\JwtAuthenticationFilter.class                                 | Java            |          1 |          0 |          0 |          1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\config\SecurityConfig.class                                          | Java            |          3 |         -2 |          0 |          1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\config\WebSocketConfig.class                                         | Java            |         -2 |          0 |          0 |         -2 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\AdminApiController.class                                  | Java            |         -2 |          0 |          0 |         -2 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\AdminController.class                                     | Java            |         -4 |          0 |          0 |         -4 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\ApiAuthController.class                                   | Java            |          1 |          0 |          0 |          1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\ApiExceptionHandler.class                                 | Java            |        -17 |          0 |          0 |        -17 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\AttendanceViewController.class                            | Java            |         -6 |          0 |          0 |         -6 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\AuthController.class                                      | Java            |         -7 |          0 |          0 |         -7 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\DashboardController.class                                 | Java            |          1 |          0 |          0 |          1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\DigitalIDApi.class                                        | Java            |         -2 |          0 |         -1 |         -3 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\PortalController.class                                    | Java            |         -7 |          0 |          0 |         -7 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\StudentAttendanceController.class                         | Java            |         45 |          0 |         -1 |         44 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\StudentController.class                                   | Java            |         -2 |          0 |          0 |         -2 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\StudentProfileApiController.class                         | Java            |         -1 |          0 |          0 |         -1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\StudentViewController.class                               | Java            |         -1 |          0 |          0 |         -1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\TeacherApiController.class                                | Java            |         -1 |          0 |          0 |         -1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\TeacherAttendanceController.class                         | Java            |          8 |          0 |         -1 |          7 |
+| f:\Coding\studentmanagement\target\classes\com\sms\controller\TeacherController.class                                   | Java            |         -1 |          0 |          0 |         -1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\AttendanceQRResponse.class                            | Java            |         -6 |          0 |          0 |         -6 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\GenerateAttendanceQRRequest.class                     | Java            |         -8 |          0 |          0 |         -8 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\ManualAttendanceRequest$StudentAttendanceRecord.class | Java            |         -8 |          0 |          0 |         -8 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\ManualAttendanceRequest.class                         | Java            |         -3 |          0 |          0 |         -3 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\MarkAttendanceRequest.class                           | Java            |         -3 |          0 |          0 |         -3 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\auth\LoginRequest.class                                          | Java            |         -6 |          0 |          0 |         -6 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\auth\LoginResponse.class                                         | Java            |         -1 |          0 |          0 |         -1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\AssignTeacherRequest.class                             | Java            |         -6 |          0 |          0 |         -6 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\ClassDTO.class                                         | Java            |         -7 |          0 |          0 |         -7 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\CourseProgressDto.class                                | Java            |         -5 |          0 |          0 |         -5 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\CreateSubjectRequest.class                             | Java            |         -2 |          0 |          0 |         -2 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\CreateTaskRequest.class                                | Java            |         -5 |          0 |          0 |         -5 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\DashboardDTO.class                                     | Java            |         -4 |          0 |          0 |         -4 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\DashboardResponse.class                                | Java            |         -6 |          0 |          0 |         -6 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\EnrollStudentRequest.class                             | Java            |         -3 |          0 |          0 |         -3 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\ScheduleClassRequest.class                             | Java            |         -5 |          0 |          0 |         -5 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\SubjectDTO.class                                       | Java            |         -5 |          0 |          0 |         -5 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\TaskDto.class                                          | Java            |         -4 |          0 |          0 |         -4 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\dashboard\UpcomingClassDto.class                                 | Java            |         -7 |          0 |          0 |         -7 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\identity\DigitalIDCardDTO.class                                  | Java            |         -4 |         -2 |          0 |         -6 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\identity\VerificationResponseDTO.class                           | Java            |         -7 |          0 |          0 |         -7 |
+| f:\Coding\studentmanagement\target\classes\com\sms\dto\student\StudentProfileDTO.class                                  | Java            |         -5 |          0 |          0 |         -5 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\Attendance.class                                               | Java            |          8 |          0 |          0 |          8 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\CampusLocation.class                                           | Java            |         17 |          0 |          0 |         17 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\ClassSession.class                                             | Java            |          1 |          0 |          0 |          1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\Course.class                                                   | Java            |          3 |          0 |          0 |          3 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\Enrollment.class                                               | Java            |          1 |          0 |          0 |          1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\LoginUser.class                                                | Java            |         -3 |          0 |          0 |         -3 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\Person.class                                                   | Java            |          1 |          0 |          0 |          1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\Role.class                                                     | Java            |          2 |          0 |          0 |          2 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\SecurityAudit.class                                            | Java            |         22 |          0 |          0 |         22 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\Student.class                                                  | Java            |          2 |          0 |          0 |          2 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\StudentTask.class                                              | Java            |          1 |          0 |          0 |          1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\TaskItem.class                                                 | Java            |          1 |          0 |          0 |          1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\TaskStatus.class                                               | Java            |          7 |          0 |          0 |          7 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\Teacher.class                                                  | Java            |          1 |          0 |          0 |          1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\User.class                                                     | Java            |          1 |          0 |          0 |          1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\model\UserRole.class                                                 | Java            |          2 |          0 |          0 |          2 |
+| f:\Coding\studentmanagement\target\classes\com\sms\repository\AttendanceRepository.class                                | Java            |          5 |          0 |          0 |          5 |
+| f:\Coding\studentmanagement\target\classes\com\sms\repository\CampusLocationRepository.class                            | Java            |          6 |          0 |          0 |          6 |
+| f:\Coding\studentmanagement\target\classes\com\sms\repository\EnrollmentRepository.class                                | Java            |          1 |          0 |          0 |          1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\repository\SecurityAuditRepository.class                             | Java            |          7 |          0 |          0 |          7 |
+| f:\Coding\studentmanagement\target\classes\com\sms\repository\TaskItemRepository.class                                  | Java            |          1 |          0 |          0 |          1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\AntiCheatingService$ImpossibleMovementResult.class           | Java            |          6 |          0 |          0 |          6 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\AntiCheatingService$LocationTimestamp.class                  | Java            |          7 |          0 |          1 |          8 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\AntiCheatingService$VPNDetectionResult.class                 | Java            |          7 |          0 |          0 |          7 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\AntiCheatingService.class                                    | Java            |        100 |          0 |          0 |        100 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\AttendanceQRTokenService$AttendanceTokenClaims.class         | Java            |         -3 |          0 |          0 |         -3 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\AttendanceQRTokenService.class                               | Java            |          3 |          0 |          0 |          3 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\AttendanceService$ManualAttendanceRecord.class               | Java            |         -1 |          0 |          0 |         -1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\AttendanceService.class                                      | Java            |          6 |          0 |          0 |          6 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\AuthenticationService.class                                  | Java            |          2 |          0 |          0 |          2 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\CustomUserDetailsService.class                               | Java            |         -1 |          0 |          0 |         -1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\DashboardService.class                                       | Java            |         -5 |          0 |          0 |         -5 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\FileService.class                                            | Java            |         -5 |          0 |          0 |         -5 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\GeolocationService.class                                     | Java            |         52 |          0 |          0 |         52 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\QRService$IDTokenClaims.class                                | Java            |         -3 |          0 |          0 |         -3 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\QRService.class                                              | Java            |          2 |          0 |          0 |          2 |
+| f:\Coding\studentmanagement\target\classes\com\sms\service\StudentService.class                                         | Java            |        -11 |          0 |          0 |        -11 |
+| f:\Coding\studentmanagement\target\classes\com\sms\util\GradeUtil.class                                                 | Java            |         -1 |          0 |          0 |         -1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\util\InputValidator.class                                            | Java            |         -1 |          0 |          0 |         -1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\util\LoggerUtil.class                                                | Java            |         -1 |          0 |          0 |         -1 |
+| f:\Coding\studentmanagement\target\classes\com\sms\util\StudentComparators.class                                        | Java            |         -2 |          0 |          0 |         -2 |
+| f:\Coding\studentmanagement\target\classes\data.sql                                                                     | MS SQL          |          4 |          0 |          0 |          4 |
+| f:\Coding\studentmanagement\target\classes\public\manifest.json                                                         | JSON            |         55 |          0 |          1 |         56 |
+| f:\Coding\studentmanagement\target\classes\public\service-worker.js                                                     | JavaScript      |        115 |         14 |         12 |        141 |
+| f:\Coding\studentmanagement\target\classes\templates\attendance-scanner.html                                            | HTML            |        136 |          0 |         18 |        154 |
+| f:\Coding\studentmanagement\target\classes\templates\teacher-dashboard.html                                             | HTML            |        157 |          0 |         25 |        182 |
+| f:\Coding\studentmanagement\target\maven-archiver\pom.properties                                                        | Java Properties |         -3 |          0 |         -1 |         -4 |
+| f:\Coding\studentmanagement\target\test-classes\com\sms\controller\DashboardControllerTest.class                        | Java            |        -40 |          0 |          0 |        -40 |
+| f:\Coding\studentmanagement\target\test-classes\com\sms\service\DashboardServiceTest.class                              | Java            |        -27 |          0 |          0 |        -27 |
+| Total                                                                                                                   |                 |      2,123 |        156 |        376 |      2,655 |
++-------------------------------------------------------------------------------------------------------------------------+-----------------+------------+------------+------------+------------+

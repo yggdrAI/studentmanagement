@@ -9,10 +9,18 @@ import java.time.LocalTime;
  * Tracks attendance with security audit information
  */
 @Entity
-@Table(name = "attendance", uniqueConstraints = {
+@Table(name = "attendance", 
+    uniqueConstraints = {
         @UniqueConstraint(name = "uk_attendance_unique_daily", 
             columnNames = {"student_id", "subject_id", "attendance_date"})
-})
+    },
+    indexes = {
+        @Index(name = "idx_student_subject_date", columnList = "student_id,subject_id,attendance_date"),
+        @Index(name = "idx_subject_date", columnList = "subject_id,attendance_date"),
+        @Index(name = "idx_student_date", columnList = "student_id,attendance_date"),
+        @Index(name = "idx_subject_marking_type", columnList = "subject_id,marking_type"),
+        @Index(name = "idx_attendance_date", columnList = "attendance_date")
+    })
 public class Attendance {
 
     @Id
@@ -48,6 +56,21 @@ public class Attendance {
 
     @Column(name = "qr_token_used")
     private String qrTokenUsed; // Hash of JWT token for audit
+
+    @Column(name = "student_latitude")
+    private Double studentLatitude; // GPS location where attendance was marked
+
+    @Column(name = "student_longitude")
+    private Double studentLongitude;
+
+    @Column(name = "location_verified", nullable = false)
+    private Boolean locationVerified = false; // Whether location check passed
+
+    @Column(name = "device_id")
+    private String deviceId; // Device fingerprint
+
+    @Column(name = "campus_location_id")
+    private Long campusLocationId; // Which campus location
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private java.time.LocalDateTime createdAt;
@@ -160,6 +183,46 @@ public class Attendance {
 
     public void setQrTokenUsed(String qrTokenUsed) {
         this.qrTokenUsed = qrTokenUsed;
+    }
+
+    public Double getStudentLatitude() {
+        return studentLatitude;
+    }
+
+    public void setStudentLatitude(Double studentLatitude) {
+        this.studentLatitude = studentLatitude;
+    }
+
+    public Double getStudentLongitude() {
+        return studentLongitude;
+    }
+
+    public void setStudentLongitude(Double studentLongitude) {
+        this.studentLongitude = studentLongitude;
+    }
+
+    public Boolean getLocationVerified() {
+        return locationVerified;
+    }
+
+    public void setLocationVerified(Boolean locationVerified) {
+        this.locationVerified = locationVerified;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
+    }
+
+    public Long getCampusLocationId() {
+        return campusLocationId;
+    }
+
+    public void setCampusLocationId(Long campusLocationId) {
+        this.campusLocationId = campusLocationId;
     }
 
     public java.time.LocalDateTime getCreatedAt() {

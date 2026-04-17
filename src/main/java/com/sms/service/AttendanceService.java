@@ -28,6 +28,19 @@ public class AttendanceService {
     public Attendance markAttendance(String studentId, Long subjectId, Long teacherId,
                                     String status, String markingType, String deviceInfo,
                                     String ipAddress, String tokenHash) throws Exception {
+        return markAttendance(studentId, subjectId, teacherId, status, markingType, deviceInfo, ipAddress,
+            null, null, false, null, null, tokenHash);
+        }
+
+        /**
+         * Mark attendance for a student with geolocation audit data
+         */
+        @Transactional
+        public Attendance markAttendance(String studentId, Long subjectId, Long teacherId,
+                        String status, String markingType, String deviceInfo,
+                        String ipAddress, Double studentLatitude, Double studentLongitude,
+                        Boolean locationVerified, String deviceId, Long campusLocationId,
+                        String tokenHash) throws Exception {
         
         LocalDate today = LocalDate.now();
 
@@ -55,6 +68,11 @@ public class AttendanceService {
         
         attendance.setDeviceInfo(deviceInfo);
         attendance.setIpAddress(ipAddress);
+        attendance.setStudentLatitude(studentLatitude);
+        attendance.setStudentLongitude(studentLongitude);
+        attendance.setLocationVerified(Boolean.TRUE.equals(locationVerified));
+        attendance.setDeviceId(deviceId);
+        attendance.setCampusLocationId(campusLocationId);
         attendance.setQrTokenUsed(tokenHash);
 
         return attendanceRepository.save(attendance);

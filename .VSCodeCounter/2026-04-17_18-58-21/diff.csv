@@ -1,0 +1,44 @@
+"filename", "language", "HTML", "Java Properties", "Java", "comment", "blank", "total"
+"f:\Coding\studentmanagement\src\main\java\com\sms\controller\CampusLocationWebSocketController.java", "Java", 0, 0, 37, 0, 6, 43
+"f:\Coding\studentmanagement\src\main\java\com\sms\controller\StudentAttendanceController.java", "Java", 0, 0, 63, 0, 6, 69
+"f:\Coding\studentmanagement\src\main\java\com\sms\controller\TeacherController.java", "Java", 0, 0, 5, 0, 1, 6
+"f:\Coding\studentmanagement\src\main\java\com\sms\controller\TeacherFraudController.java", "Java", 0, 0, 28, 0, 6, 34
+"f:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\FraudAlertDTO.java", "Java", 0, 0, 35, 3, 3, 41
+"f:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\MarkAttendanceRequest.java", "Java", 0, 0, 7, 0, 2, 9
+"f:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\MarkAttendanceResponse.java", "Java", 0, 0, 21, 0, 6, 27
+"f:\Coding\studentmanagement\src\main\java\com\sms\dto\campus\LocationDTO.java", "Java", 0, 0, 34, 3, 3, 40
+"f:\Coding\studentmanagement\src\main\java\com\sms\model\FraudLog.java", "Java", 0, 0, 75, 0, 17, 92
+"f:\Coding\studentmanagement\src\main\java\com\sms\repository\FraudLogRepository.java", "Java", 0, 0, 19, 0, 5, 24
+"f:\Coding\studentmanagement\src\main\java\com\sms\repository\SecurityAuditRepository.java", "Java", 0, 0, 4, 0, 1, 5
+"f:\Coding\studentmanagement\src\main\java\com\sms\service\CampusTrackingService.java", "Java", 0, 0, 1, 0, 0, 1
+"f:\Coding\studentmanagement\src\main\java\com\sms\service\FraudDetectionService.java", "Java", 0, 0, 245, 0, 40, 285
+"f:\Coding\studentmanagement\src\main\resources\application.properties", "Java Properties", 0, 1, 0, 1, 1, 3
+"f:\Coding\studentmanagement\src\main\resources\templates\attendance-scanner.html", "HTML", 73, 0, 0, 0, 13, 86
+"f:\Coding\studentmanagement\src\main\resources\templates\teacher-dashboard.html", "HTML", 133, 0, 0, 0, 25, 158
+"f:\Coding\studentmanagement\target\classes\application.properties", "Java Properties", 0, 1, 0, 1, 1, 3
+"f:\Coding\studentmanagement\target\classes\com\sms\controller\CampusLocationWebSocketController.class", "Java", 0, 0, 42, 0, 0, 42
+"f:\Coding\studentmanagement\target\classes\com\sms\controller\CampusTrackingController.class", "Java", 0, 0, -1, 0, 0, -1
+"f:\Coding\studentmanagement\target\classes\com\sms\controller\StudentAttendanceController.class", "Java", 0, 0, 28, 0, 0, 28
+"f:\Coding\studentmanagement\target\classes\com\sms\controller\TeacherController.class", "Java", 0, 0, 2, 0, 0, 2
+"f:\Coding\studentmanagement\target\classes\com\sms\controller\TeacherFraudController.class", "Java", 0, 0, 20, 0, 0, 20
+"f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\FaceRegistrationRequest.class", "Java", 0, 0, -2, 0, 0, -2
+"f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\FraudAlertDTO.class", "Java", 0, 0, 18, 0, 0, 18
+"f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\MarkAttendanceRequest.class", "Java", 0, 0, -10, 0, 0, -10
+"f:\Coding\studentmanagement\target\classes\com\sms\dto\attendance\MarkAttendanceResponse.class", "Java", 0, 0, 2, 0, 0, 2
+"f:\Coding\studentmanagement\target\classes\com\sms\dto\campus\CampusLocationUpdateDTO.class", "Java", 0, 0, -10, 0, 0, -10
+"f:\Coding\studentmanagement\target\classes\com\sms\dto\campus\LocationDTO.class", "Java", 0, 0, 10, 0, 0, 10
+"f:\Coding\studentmanagement\target\classes\com\sms\model\FaceData.class", "Java", 0, 0, -1, 0, 0, -1
+"f:\Coding\studentmanagement\target\classes\com\sms\model\FraudLog.class", "Java", 0, 0, 18, 0, 0, 18
+"f:\Coding\studentmanagement\target\classes\com\sms\model\StudentLocation.class", "Java", 0, 0, -1, 0, 0, -1
+"f:\Coding\studentmanagement\target\classes\com\sms\repository\FaceDataRepository.class", "Java", 0, 0, 1, 0, 0, 1
+"f:\Coding\studentmanagement\target\classes\com\sms\repository\FraudLogRepository.class", "Java", 0, 0, 7, 0, 0, 7
+"f:\Coding\studentmanagement\target\classes\com\sms\repository\SecurityAuditRepository.class", "Java", 0, 0, 3, 0, 0, 3
+"f:\Coding\studentmanagement\target\classes\com\sms\repository\StudentLocationRepository.class", "Java", 0, 0, 1, 0, 0, 1
+"f:\Coding\studentmanagement\target\classes\com\sms\service\CampusTrackingService.class", "Java", 0, 0, 5, 0, 0, 5
+"f:\Coding\studentmanagement\target\classes\com\sms\service\FaceVerificationService$FaceVerificationResult.class", "Java", 0, 0, -2, 0, 0, -2
+"f:\Coding\studentmanagement\target\classes\com\sms\service\FraudDetectionService$FraudAssessment.class", "Java", 0, 0, 20, 0, 0, 20
+"f:\Coding\studentmanagement\target\classes\com\sms\service\FraudDetectionService$FraudSummary.class", "Java", 0, 0, 10, 0, 0, 10
+"f:\Coding\studentmanagement\target\classes\com\sms\service\FraudDetectionService.class", "Java", 0, 0, 128, 0, 1, 129
+"f:\Coding\studentmanagement\target\classes\templates\attendance-scanner.html", "HTML", 73, 0, 0, 0, 13, 86
+"f:\Coding\studentmanagement\target\classes\templates\teacher-dashboard.html", "HTML", 133, 0, 0, 0, 25, 158
+"Total", "-", 412, 2, 862, 8, 175, 1459

@@ -11,14 +11,20 @@ import com.sms.model.ClassSession;
 import com.sms.model.Course;
 import com.sms.model.Enrollment;
 import com.sms.model.Role;
+import com.sms.model.AcademicRecord;
 import com.sms.model.Student;
+import com.sms.model.StudentDocument;
+import com.sms.model.StudentProfile;
 import com.sms.model.StudentTask;
 import com.sms.model.TaskItem;
 import com.sms.model.Teacher;
 import com.sms.model.User;
+import com.sms.repository.AcademicRecordRepository;
 import com.sms.repository.ClassSessionRepository;
 import com.sms.repository.CourseRepository;
 import com.sms.repository.EnrollmentRepository;
+import com.sms.repository.StudentDocumentRepository;
+import com.sms.repository.StudentProfileRepository;
 import com.sms.repository.StudentRepository;
 import com.sms.repository.StudentTaskRepository;
 import com.sms.repository.TaskItemRepository;
@@ -30,6 +36,9 @@ public class DemoDataLoader implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
+    private final StudentProfileRepository studentProfileRepository;
+    private final StudentDocumentRepository studentDocumentRepository;
+    private final AcademicRecordRepository academicRecordRepository;
     private final TeacherRepository teacherRepository;
     private final CourseRepository courseRepository;
     private final EnrollmentRepository enrollmentRepository;
@@ -40,6 +49,9 @@ public class DemoDataLoader implements CommandLineRunner {
 
     public DemoDataLoader(UserRepository userRepository,
                           StudentRepository studentRepository,
+                          StudentProfileRepository studentProfileRepository,
+                          StudentDocumentRepository studentDocumentRepository,
+                          AcademicRecordRepository academicRecordRepository,
                           TeacherRepository teacherRepository,
                           CourseRepository courseRepository,
                           EnrollmentRepository enrollmentRepository,
@@ -49,6 +61,9 @@ public class DemoDataLoader implements CommandLineRunner {
                           PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
+        this.studentProfileRepository = studentProfileRepository;
+        this.studentDocumentRepository = studentDocumentRepository;
+        this.academicRecordRepository = academicRecordRepository;
         this.teacherRepository = teacherRepository;
         this.courseRepository = courseRepository;
         this.enrollmentRepository = enrollmentRepository;
@@ -78,20 +93,70 @@ public class DemoDataLoader implements CommandLineRunner {
         teacher.setUser(teacherUser);
         teacher = teacherRepository.save(teacher);
 
-        Student student = new Student("S-1001", "Aarav Patel");
+        Student student = new Student("S25CSEU1006", "Bhavya Jain");
         student.setUser(studentUser);
-        student.setEmail("aarav.patel@bennett.edu.in");
-        student.setPhone("+91-9876543210");
-        student.setGender("Male");
-        student.setDob(LocalDate.of(2005, 7, 14));
-        student.setAddress("Noida, Uttar Pradesh, India");
-        student.setCourse("B.Tech Computer Science and Engineering");
-        student.setDepartment("Computer Science");
-        student.setSemester("Semester 4");
-        student.setRollNumber("CSE24-1107");
-        student.setEnrollmentYear("2024");
+        student.setEmail("bhavya.jain@bennett.edu.in");
+        student.setPhone("+91-7668464847");
+        student.setGender("Female");
+        student.setDob(LocalDate.of(2007, 3, 15));
+        student.setAddress("Delhi Road, Meerut");
+        student.setCourse("Bachelor of Technology (Computer Science and Engineering)");
+        student.setDepartment("CSE");
+        student.setSemester("Semester 2");
+        student.setRollNumber("S25CSEU1006");
+        student.setEnrollmentYear("2025");
         student.setProfileImageUrl(null);
         student = studentRepository.save(student);
+
+        StudentProfile profile = new StudentProfile();
+        profile.setStudentId(student.getId());
+        profile.setFullName("Bhavya Jain");
+        profile.setEnrollmentNumber("S25CSEU1006");
+        profile.setCollege("Bennett University");
+        profile.setCourse("Bachelor of Technology (Computer Science and Engineering)");
+        profile.setDepartment("CSE");
+        profile.setSemester("Semester 2");
+        profile.setSection("A");
+        profile.setPhone("+91-7668464847");
+        profile.setEmail("bhavya.jain@bennett.edu.in");
+        profile.setBloodGroup("O+ve");
+        profile.setDob(LocalDate.of(2007, 3, 15));
+        profile.setGender("Female");
+        profile.setGuardianName("Ashok Kumar Jain");
+        profile.setGuardianPhone("+91-9999988888");
+        profile.setAddress("Delhi Road, Meerut");
+        profile.setAdmissionYear(2025);
+        profile.setPassingYear(2029);
+        profile.setValidUpto(LocalDate.of(2029, 6, 30));
+        profile.setIdCardNumber("BU-2025-S25CSEU1006");
+        profile.setUpdatedBy("System Seed");
+        studentProfileRepository.save(profile);
+
+        StudentDocument aadhaar = new StudentDocument();
+        aadhaar.setStudentId(student.getId());
+        aadhaar.setDocumentType("Aadhaar");
+        aadhaar.setFileUrl("https://example.edu/docs/bhavya-jain-aadhaar.pdf");
+        studentDocumentRepository.save(aadhaar);
+
+        StudentDocument marksheet = new StudentDocument();
+        marksheet.setStudentId(student.getId());
+        marksheet.setDocumentType("Marksheet");
+        marksheet.setFileUrl("https://example.edu/docs/bhavya-jain-marksheet.pdf");
+        studentDocumentRepository.save(marksheet);
+
+        AcademicRecord dsRecord = new AcademicRecord();
+        dsRecord.setStudentId(student.getId());
+        dsRecord.setSubject("Data Structures");
+        dsRecord.setGrade(9.1);
+        dsRecord.setAttendance(92.0);
+        academicRecordRepository.save(dsRecord);
+
+        AcademicRecord mathRecord = new AcademicRecord();
+        mathRecord.setStudentId(student.getId());
+        mathRecord.setSubject("Discrete Mathematics");
+        mathRecord.setGrade(8.8);
+        mathRecord.setAttendance(89.0);
+        academicRecordRepository.save(mathRecord);
 
         Course algo = new Course();
         algo.setCode("CS301");

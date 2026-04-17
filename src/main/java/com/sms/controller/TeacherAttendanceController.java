@@ -140,8 +140,13 @@ public class TeacherAttendanceController {
                 LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE) : 
                 LocalDate.now();
 
+            List<Attendance> records = attendanceService.getAttendanceForDate(subjectId, attendanceDate);
             AttendanceService.AttendanceStats stats = 
                 attendanceService.getAttendanceStats(subjectId, attendanceDate);
+
+            long locationVerifiedCount = records.stream()
+                .filter(record -> Boolean.TRUE.equals(record.getLocationVerified()))
+                .count();
 
             Map<String, Object> response = new HashMap<>();
             response.put("date", attendanceDate);
@@ -151,6 +156,8 @@ public class TeacherAttendanceController {
             response.put("lateCount", stats.getLate());
             response.put("totalExpected", stats.getTotal());
             response.put("percentage", String.format("%.2f%%", stats.getPercentage()));
+            response.put("locationVerifiedCount", locationVerifiedCount);
+            response.put("locationVerificationRate", String.format("%.2f%%", (locationVerifiedCount * 100.0) / Math.max(records.size(), 1)));
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {

@@ -11,6 +11,13 @@ public class MarkAttendanceResponse {
     private String status; // MARKED, ALREADY_MARKED, EXPIRED, INVALID
     private LocalTime markedAt;
     private String attendanceId;
+    private Integer confidenceScore;
+    private Boolean faceVerified;
+    private Double faceSimilarity;
+    private Boolean locationVerified;
+    private Double fraudScore;
+    private String decision;
+    private String riskLevel;
 
     public MarkAttendanceResponse(Boolean success, String message, String status) {
         this.success = success;
@@ -24,6 +31,15 @@ public class MarkAttendanceResponse {
         this.message = message;
         this.status = status;
         this.attendanceId = attendanceId;
+        this.markedAt = LocalTime.now();
+    }
+
+    public MarkAttendanceResponse(Boolean success, String message, String status, String attendanceId, Integer confidenceScore) {
+        this.success = success;
+        this.message = message;
+        this.status = status;
+        this.attendanceId = attendanceId;
+        this.confidenceScore = confidenceScore;
         this.markedAt = LocalTime.now();
     }
 
@@ -65,5 +81,61 @@ public class MarkAttendanceResponse {
 
     public void setAttendanceId(String attendanceId) {
         this.attendanceId = attendanceId;
+    }
+
+    public Integer getConfidenceScore() {
+        return confidenceScore;
+    }
+
+    public void setConfidenceScore(Integer confidenceScore) {
+        this.confidenceScore = confidenceScore;
+    }
+
+    public Boolean getFaceVerified() {
+        return faceVerified;
+    }
+
+    public void setFaceVerified(Boolean faceVerified) {
+        this.faceVerified = faceVerified;
+    }
+
+    public Double getFaceSimilarity() {
+        return faceSimilarity;
+    }
+
+    public void setFaceSimilarity(Double faceSimilarity) {
+        this.faceSimilarity = faceSimilarity;
+    }
+
+    public Boolean getLocationVerified() {
+        return locationVerified;
+    }
+
+    public void setLocationVerified(Boolean locationVerified) {
+        this.locationVerified = locationVerified;
+    }
+
+    public Double getFraudScore() {
+        return fraudScore;
+    }
+
+    public void setFraudScore(Double fraudScore) {
+        this.fraudScore = fraudScore;
+    }
+
+    public String getDecision() {
+        return decision;
+    }
+
+    public void setDecision(String decision) {
+        this.decision = decision;
+    }
+
+    public String getRiskLevel() {
+        return riskLevel;
+    }
+
+    public void setRiskLevel(String riskLevel) {
+        this.riskLevel = riskLevel;
     }
 }

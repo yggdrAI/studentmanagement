@@ -3,9 +3,386 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Virtual ID Card - Student Profile</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    <title>Student Profile ERP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <style>
+        :root {
+            --profile-bg: radial-gradient(circle at 15% 20%, #d8ecff 0, #eff4ff 25%, #f9fbff 60%, #eef5ff 100%);
+            --card-bg: rgba(255, 255, 255, 0.72);
+            --card-border: rgba(148, 163, 184, 0.35);
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --accent: #0f4da8;
+            --success: #16a34a;
+            --danger: #dc2626;
+        }
+
+        body.profile-dark {
+            --profile-bg: radial-gradient(circle at 15% 20%, #0f172a 0, #0b1020 28%, #060b16 70%, #040913 100%);
+            --card-bg: rgba(10, 16, 32, 0.72);
+            --card-border: rgba(71, 85, 105, 0.4);
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --accent: #60a5fa;
+            --success: #22c55e;
+            --danger: #f87171;
+        }
+
+        .student-profile-page {
+            background: var(--profile-bg);
+            min-height: calc(100vh - 40px);
+            border-radius: 24px;
+            padding: 1.25rem;
+        }
+
+        .hero-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+            color: var(--text-primary);
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            backdrop-filter: blur(16px);
+            border-radius: 20px;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+        }
+
+        .top-layout {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .id-card {
+            position: relative;
+            overflow: hidden;
+            padding: 1rem;
+            color: #fff;
+            background: linear-gradient(160deg, #0d2d66 0%, #12458f 48%, #0f2c5f 100%);
+            min-height: 470px;
+        }
+
+        .id-card::before {
+            content: "";
+            position: absolute;
+            right: -40px;
+            top: -40px;
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(255,255,255,0.2), rgba(255,255,255,0));
+        }
+
+        .id-card h2 {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+        }
+
+        .id-card-sub {
+            margin-top: 0.25rem;
+            color: rgba(226, 232, 240, 0.9);
+            font-size: 0.82rem;
+        }
+
+        .id-avatar {
+            width: 108px;
+            height: 108px;
+            border-radius: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.72);
+            margin-top: 1rem;
+            object-fit: cover;
+            background: rgba(255,255,255,0.08);
+        }
+
+        .id-fallback {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #dbeafe;
+        }
+
+        .id-main {
+            margin-top: 0.8rem;
+            display: grid;
+            gap: 0.28rem;
+        }
+
+        .id-name {
+            font-size: 1.2rem;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .id-line {
+            margin: 0;
+            color: rgba(226, 232, 240, 0.92);
+            font-size: 0.85rem;
+        }
+
+        .id-qr-shell {
+            margin-top: 0.95rem;
+            background: rgba(255,255,255,0.92);
+            border-radius: 16px;
+            padding: 0.65rem;
+            width: fit-content;
+        }
+
+        .id-footer {
+            margin-top: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.8rem;
+            font-size: 0.82rem;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.3rem 0.65rem;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            background: rgba(255,255,255,0.12);
+            color: #e2e8f0;
+            font-size: 0.72rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .panel {
+            padding: 1rem;
+            color: var(--text-primary);
+        }
+
+        .panel-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 0.8rem;
+        }
+
+        .meta-line {
+            color: var(--text-secondary);
+            margin: 0.2rem 0 0;
+            font-size: 0.92rem;
+        }
+
+        .completion-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 0.45rem;
+        }
+
+        .progress-track {
+            width: 210px;
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.25);
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, #2563eb, #22c55e);
+            transition: width 0.45s ease;
+        }
+
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.8rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .tab-btn {
+            border: 1px solid var(--card-border);
+            background: rgba(255,255,255,0.56);
+            color: var(--text-primary);
+            border-radius: 999px;
+            padding: 0.48rem 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        body.profile-dark .tab-btn {
+            background: rgba(30, 41, 59, 0.55);
+        }
+
+        .tab-btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+
+        .field-card {
+            background: rgba(255, 255, 255, 0.58);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 0.7rem;
+        }
+
+        body.profile-dark .field-card {
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        .field-card.full {
+            grid-column: 1 / -1;
+        }
+
+        .field-label {
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            margin-bottom: 0.2rem;
+            display: block;
+        }
+
+        .field-value,
+        .field-input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.95rem;
+            outline: none;
+            padding: 0;
+        }
+
+        .field-input[disabled] {
+            opacity: 0.95;
+            cursor: default;
+        }
+
+        .field-input.editable {
+            border-bottom: 1px dashed rgba(59, 130, 246, 0.65);
+            padding-bottom: 0.2rem;
+            cursor: text;
+        }
+
+        .documents-table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 14px;
+            border: 1px solid var(--card-border);
+        }
+
+        .documents-table th,
+        .documents-table td {
+            text-align: left;
+            padding: 0.7rem;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .documents-table th {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .skeleton-wrap {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .skeleton {
+            height: 64px;
+            border-radius: 14px;
+            background: linear-gradient(90deg, rgba(148,163,184,0.18), rgba(226,232,240,0.55), rgba(148,163,184,0.18));
+            background-size: 220% 100%;
+            animation: shimmer 1.2s infinite;
+        }
+
+        @keyframes shimmer {
+            from { background-position: 200% 0; }
+            to { background-position: -20% 0; }
+        }
+
+        .status-pill {
+            margin-top: 0.65rem;
+            display: inline-flex;
+            padding: 0.35rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            border: 1px solid var(--card-border);
+            color: var(--text-secondary);
+        }
+
+        .toast {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            background: #052e16;
+            color: #dcfce7;
+            border: 1px solid #15803d;
+            border-radius: 12px;
+            padding: 0.7rem 0.9rem;
+            font-weight: 600;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(10px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            z-index: 3000;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 1024px) {
+            .top-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .field-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .progress-track {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -13,71 +390,105 @@
 
 <main class="content-area" id="maincontent" tabindex="-1">
     <div class="content-wrapper student-profile-page">
-        <header class="page-header profile-page-header">
+        <div class="hero-bar">
             <div>
-                <h1 class="page-title">Virtual ID Card</h1>
-                <p class="dashboard-subtitle">Secure digital identity and complete academic profile.</p>
+                <h1 class="page-title" style="margin:0;">Student Profile System</h1>
+                <p class="dashboard-subtitle" style="margin-top:0.35rem;">University ERP identity, academics, guardians, and metadata.</p>
             </div>
-        </header>
+            <div class="hero-actions">
+                <button class="btn btn-outline" type="button" id="darkModeBtn">Dark Mode</button>
+                <button class="btn btn-primary" type="button" id="editModeBtn" style="display:none;">Edit Mode: OFF</button>
+                <button class="btn btn-primary" type="button" id="saveBtn" style="display:none;">Save Changes</button>
+                <button class="btn btn-outline" type="button" id="downloadBtn">Download PDF</button>
+            </div>
+        </div>
 
-        <section class="profile-layout-grid">
-            <article class="digital-id-card" aria-labelledby="idCardTitle">
-                <div class="id-card-header">
-                    <h2 id="idCardTitle">Bennett University</h2>
-                    <span class="id-subtitle">Digital Student Identity</span>
+        <section class="top-layout">
+            <article class="id-card glass-card">
+                <h2>Bennett University</h2>
+                <p class="id-card-sub">Government-grade student identity record</p>
+
+                <img id="idAvatar" class="id-avatar" alt="Profile photo" src="" style="display:none;">
+                <div id="idFallback" class="id-avatar id-fallback">ID</div>
+
+                <div class="id-main">
+                    <p class="id-name" id="idName">Loading...</p>
+                    <p class="id-line" id="idEnrollment">Enrollment No: -</p>
+                    <p class="id-line" id="idCourse">Course: -</p>
+                    <p class="id-line" id="idValidity">Valid Upto: -</p>
                 </div>
 
-                <div class="id-photo-wrap">
-                    <img id="profileImage" class="id-photo" alt="Student profile" src="" style="display:none;">
-                    <div id="profilePhotoFallback" class="id-photo-fallback">ID</div>
-                </div>
-
-                <div class="id-main-info">
-                    <p id="idName" class="id-name">Loading...</p>
-                    <p id="idStudentCode" class="id-student-code">Student ID: -</p>
-                    <p id="idCourse" class="id-course">Course: -</p>
+                <div class="id-qr-shell">
+                    <canvas id="idQrCanvas" width="104" height="104"></canvas>
                 </div>
 
                 <div class="id-footer">
-                    <span id="idRoleBadge" class="id-role-badge">STUDENT</span>
-                    <div class="id-qr-placeholder" id="idQrText">QR: -</div>
+                    <span class="badge" id="idRoleBadge">STUDENT</span>
+                    <span id="idCardCode">Card: -</span>
                 </div>
             </article>
 
-            <article class="profile-details-card" aria-labelledby="profileDetailsHeading">
-                <div class="details-head">
-                    <h2 id="profileDetailsHeading">Student Details</h2>
-                    <p id="profileLoadStatus" class="profile-load-status" style="display:none;"></p>
+            <article class="panel glass-card">
+                <div class="panel-top">
+                    <div>
+                        <h2 style="margin:0;">Profile Summary</h2>
+                        <p class="meta-line" id="activityLine">Last updated by System</p>
+                        <div class="completion-row">
+                            <span style="font-weight:600;">Profile Completion:</span>
+                            <div class="progress-track"><div class="progress-fill" id="completionFill"></div></div>
+                            <strong id="completionText">0%</strong>
+                        </div>
+                    </div>
+                    <span class="status-pill" id="viewerRolePill">Viewer: STUDENT</span>
                 </div>
 
-                <div class="details-grid">
-                    <section class="details-section">
-                        <h3>Basic Info</h3>
-                        <div class="detail-item"><span>Full Name</span><strong id="fullName">-</strong></div>
-                        <div class="detail-item"><span>Student ID</span><strong id="studentId">-</strong></div>
-                        <div class="detail-item"><span>Email</span><strong id="email">-</strong></div>
-                        <div class="detail-item"><span>Phone</span><strong id="phone">-</strong></div>
-                    </section>
+                <div id="skeletonLoader" class="skeleton-wrap">
+                    <div class="skeleton"></div>
+                    <div class="skeleton"></div>
+                    <div class="skeleton"></div>
+                    <div class="skeleton"></div>
+                    <div class="skeleton"></div>
+                    <div class="skeleton"></div>
+                </div>
 
-                    <section class="details-section">
-                        <h3>Personal Info</h3>
-                        <div class="detail-item"><span>Gender</span><strong id="gender">-</strong></div>
-                        <div class="detail-item"><span>DOB</span><strong id="dob">-</strong></div>
-                        <div class="detail-item"><span>Address</span><strong id="address">-</strong></div>
-                    </section>
+                <div id="profileBody" style="display:none;">
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="personal">Personal</button>
+                        <button class="tab-btn" data-tab="academic">Academic</button>
+                        <button class="tab-btn" data-tab="identity">Identity</button>
+                        <button class="tab-btn" data-tab="contact">Contact</button>
+                        <button class="tab-btn" data-tab="guardian">Guardian</button>
+                        <button class="tab-btn" data-tab="documents">Documents</button>
+                        <button class="tab-btn" data-tab="analytics">Analytics</button>
+                        <button class="tab-btn" data-tab="metadata">Metadata</button>
+                    </div>
 
-                    <section class="details-section">
-                        <h3>Academic Info</h3>
-                        <div class="detail-item"><span>Course</span><strong id="course">-</strong></div>
-                        <div class="detail-item"><span>Department</span><strong id="department">-</strong></div>
-                        <div class="detail-item"><span>Semester</span><strong id="semester">-</strong></div>
-                        <div class="detail-item"><span>Roll No</span><strong id="rollNumber">-</strong></div>
-                        <div class="detail-item"><span>Enrollment Year</span><strong id="enrollmentYear">-</strong></div>
+                    <section class="tab-pane active" data-pane="personal">
+                        <div class="field-grid" id="personalGrid"></div>
                     </section>
-
-                    <section class="details-section">
-                        <h3>Role Info</h3>
-                        <div class="detail-item"><span>Role</span><strong id="role">-</strong></div>
+                    <section class="tab-pane" data-pane="academic">
+                        <div class="field-grid" id="academicGrid"></div>
+                    </section>
+                    <section class="tab-pane" data-pane="identity">
+                        <div class="field-grid" id="identityGrid"></div>
+                    </section>
+                    <section class="tab-pane" data-pane="contact">
+                        <div class="field-grid" id="contactGrid"></div>
+                    </section>
+                    <section class="tab-pane" data-pane="guardian">
+                        <div class="field-grid" id="guardianGrid"></div>
+                    </section>
+                    <section class="tab-pane" data-pane="documents">
+                        <table class="documents-table" id="documentsTable">
+                            <thead><tr><th>Type</th><th>File</th><th>Uploaded At</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </section>
+                    <section class="tab-pane" data-pane="analytics">
+                        <div class="field-grid" id="analyticsGrid"></div>
+                    </section>
+                    <section class="tab-pane" data-pane="metadata">
+                        <div class="field-grid" id="metadataGrid"></div>
                     </section>
                 </div>
             </article>
@@ -87,85 +498,346 @@
 
 <div th:replace="~{fragments/sidebar :: floating-tools}"></div>
 
-<script>
+<div class="toast" id="saveToast">Changes saved successfully.</div>
+
+<script th:inline="javascript">
+    const PROFILE_MODE = /*[[${profileMode}]]*/ 'STUDENT';
+    const TARGET_STUDENT_ID = /*[[${targetStudentId}]]*/ '';
+
+    let currentProfile = null;
+    let editEnabled = false;
+
+    const sections = {
+        personal: [
+            { key: 'fullName', label: 'Full Name' },
+            { key: 'dob', label: 'Date of Birth', type: 'date' },
+            { key: 'gender', label: 'Gender' },
+            { key: 'bloodGroup', label: 'Blood Group' }
+        ],
+        academic: [
+            { key: 'college', label: 'College' },
+            { key: 'course', label: 'Course' },
+            { key: 'department', label: 'Department' },
+            { key: 'semester', label: 'Semester' },
+            { key: 'section', label: 'Section' },
+            { key: 'admissionYear', label: 'Admission Year', type: 'number' },
+            { key: 'passingYear', label: 'Passing Year', type: 'number' }
+        ],
+        identity: [
+            { key: 'enrollmentNumber', label: 'Enrollment Number', readonly: true },
+            { key: 'studentId', label: 'Student ID', readonly: true },
+            { key: 'idCardNumber', label: 'ID Card Number' },
+            { key: 'validUpto', label: 'Valid Upto', type: 'date' },
+            { key: 'profileImage', label: 'Profile Image URL' }
+        ],
+        contact: [
+            { key: 'phone', label: 'Phone' },
+            { key: 'email', label: 'Email' },
+            { key: 'address', label: 'Address', full: true }
+        ],
+        guardian: [
+            { key: 'guardianName', label: 'Guardian Name' },
+            { key: 'guardianPhone', label: 'Guardian Phone' }
+        ]
+    };
+
+    const studentEditableFields = new Set(['phone', 'address', 'profileImage']);
+    const adminLockedFields = new Set(['enrollmentNumber', 'studentId']);
+
     function normalize(value) {
-        return value === null || value === undefined || String(value).trim() === '' ? '-' : String(value);
+        if (value === null || value === undefined) {
+            return '';
+        }
+        return String(value);
     }
 
-    function setText(id, value) {
-        const el = document.getElementById(id);
-        if (!el) {
+    function apiBase() {
+        if (PROFILE_MODE === 'ADMIN' && TARGET_STUDENT_ID) {
+            return `/api/admin/student/${encodeURIComponent(TARGET_STUDENT_ID)}/profile`;
+        }
+        return '/api/student/profile';
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById('saveToast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        window.setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    function toggleDarkMode() {
+        const enabled = document.body.classList.toggle('profile-dark');
+        localStorage.setItem('profileDarkMode', enabled ? '1' : '0');
+    }
+
+    function initDarkMode() {
+        if (localStorage.getItem('profileDarkMode') === '1') {
+            document.body.classList.add('profile-dark');
+        }
+    }
+
+    function formatDate(value) {
+        if (!value) {
+            return '-';
+        }
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return value;
+        }
+        return date.toLocaleDateString();
+    }
+
+    function fieldCanEdit(field) {
+        if (!editEnabled) {
+            return false;
+        }
+        if (PROFILE_MODE === 'ADMIN') {
+            return !adminLockedFields.has(field);
+        }
+        return studentEditableFields.has(field);
+    }
+
+    function buildFieldCard(field, value) {
+        const canEdit = fieldCanEdit(field.key) && !field.readonly;
+        const type = field.type || 'text';
+        const inputValue = type === 'date' && value ? normalize(value).substring(0, 10) : normalize(value);
+        return `
+            <div class="field-card ${field.full ? 'full' : ''}">
+                <label class="field-label">${field.label}</label>
+                <input class="field-input ${canEdit ? 'editable' : ''}" data-field="${field.key}" type="${type}" value="${inputValue}" ${canEdit ? '' : 'disabled'} />
+            </div>
+        `;
+    }
+
+    function renderSection(containerId, sectionFields) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = sectionFields.map((field) => buildFieldCard(field, currentProfile[field.key])).join('');
+    }
+
+    function renderDocuments() {
+        const tbody = document.querySelector('#documentsTable tbody');
+        const docs = currentProfile.documents || [];
+        if (!docs.length) {
+            tbody.innerHTML = '<tr><td colspan="3">No documents uploaded yet.</td></tr>';
             return;
         }
-        el.textContent = normalize(value);
+
+        tbody.innerHTML = docs.map((doc) => `
+            <tr>
+                <td>${normalize(doc.documentType) || '-'}</td>
+                <td><a href="${normalize(doc.fileUrl)}" target="_blank" rel="noopener">Open</a></td>
+                <td>${formatDate(doc.uploadedAt)}</td>
+            </tr>
+        `).join('');
     }
 
-    function setStatus(message, isError) {
-        const status = document.getElementById('profileLoadStatus');
-        status.textContent = message;
-        status.style.display = 'block';
-        status.style.color = isError ? '#b42318' : '#166534';
+    function renderAnalytics() {
+        const avgGrade = (currentProfile.academicRecords || []).reduce((sum, item) => sum + (item.grade || 0), 0) /
+            Math.max((currentProfile.academicRecords || []).length, 1);
+        const avgAttendance = (currentProfile.academicRecords || []).reduce((sum, item) => sum + (item.attendance || 0), 0) /
+            Math.max((currentProfile.academicRecords || []).length, 1);
+
+        document.getElementById('analyticsGrid').innerHTML = [
+            { label: 'Profile Completion', value: `${currentProfile.completionPercentage || 0}%` },
+            { label: 'Subjects Recorded', value: String((currentProfile.academicRecords || []).length) },
+            { label: 'Average Grade', value: avgGrade.toFixed(2) },
+            { label: 'Average Attendance', value: `${avgAttendance.toFixed(1)}%` },
+            { label: 'QR Linked URL', value: currentProfile.profileQrUrl || '-' , full: true }
+        ].map((item) => `
+            <div class="field-card ${item.full ? 'full' : ''}">
+                <span class="field-label">${item.label}</span>
+                <div class="field-value">${item.value}</div>
+            </div>
+        `).join('');
     }
 
-    function renderProfile(profile) {
-        setText('fullName', profile.fullName);
-        setText('studentId', profile.studentId);
-        setText('email', profile.email);
-        setText('phone', profile.phone);
+    function renderMetadata() {
+        document.getElementById('metadataGrid').innerHTML = [
+            { label: 'Created At', value: formatDate(currentProfile.createdAt) },
+            { label: 'Updated At', value: formatDate(currentProfile.updatedAt) },
+            { label: 'Updated By', value: normalize(currentProfile.updatedBy) || 'System' },
+            { label: 'Viewer Role', value: normalize(currentProfile.viewerRole) || PROFILE_MODE },
+            { label: 'Activity Log', value: `Last updated by ${normalize(currentProfile.updatedBy) || 'System'} at ${formatDate(currentProfile.updatedAt)}`, full: true }
+        ].map((item) => `
+            <div class="field-card ${item.full ? 'full' : ''}">
+                <span class="field-label">${item.label}</span>
+                <div class="field-value">${item.value}</div>
+            </div>
+        `).join('');
+    }
 
-        setText('gender', profile.gender);
-        setText('dob', profile.dob);
-        setText('address', profile.address);
+    function renderIdCard() {
+        document.getElementById('idName').textContent = normalize(currentProfile.fullName) || 'Student';
+        document.getElementById('idEnrollment').textContent = `Enrollment No: ${normalize(currentProfile.enrollmentNumber) || '-'}`;
+        document.getElementById('idCourse').textContent = `Course: ${normalize(currentProfile.course) || '-'}`;
+        document.getElementById('idValidity').textContent = `Valid Upto: ${formatDate(currentProfile.validUpto)}`;
+        document.getElementById('idRoleBadge').textContent = normalize(currentProfile.viewerRole) || PROFILE_MODE;
+        document.getElementById('idCardCode').textContent = `Card: ${normalize(currentProfile.idCardNumber) || '-'}`;
 
-        setText('course', profile.course);
-        setText('department', profile.department);
-        setText('semester', profile.semester);
-        setText('rollNumber', profile.rollNumber);
-        setText('enrollmentYear', profile.enrollmentYear);
-
-        setText('role', profile.role);
-
-        setText('idName', profile.fullName);
-        setText('idStudentCode', 'Student ID: ' + normalize(profile.studentId));
-        setText('idCourse', 'Course: ' + normalize(profile.course));
-        setText('idRoleBadge', normalize(profile.role));
-        setText('idQrText', 'QR: ' + normalize(profile.studentId) + ' | ' + normalize(profile.fullName));
-
-        const imageEl = document.getElementById('profileImage');
-        const fallback = document.getElementById('profilePhotoFallback');
-
-        if (profile.profileImageUrl) {
-            imageEl.src = profile.profileImageUrl;
-            imageEl.style.display = 'block';
+        const avatar = document.getElementById('idAvatar');
+        const fallback = document.getElementById('idFallback');
+        if (currentProfile.profileImage) {
+            avatar.src = currentProfile.profileImage;
+            avatar.style.display = 'block';
             fallback.style.display = 'none';
         } else {
-            imageEl.style.display = 'none';
+            avatar.style.display = 'none';
             fallback.style.display = 'flex';
-            fallback.textContent = normalize(profile.fullName).split(' ').map(part => part[0]).slice(0, 2).join('').toUpperCase();
+            fallback.textContent = (normalize(currentProfile.fullName) || 'ID')
+                .split(' ')
+                .map((part) => part.charAt(0))
+                .slice(0, 2)
+                .join('')
+                .toUpperCase();
         }
 
-        setStatus('Profile loaded successfully.', false);
+        const qrValue = `${window.location.origin}${currentProfile.profileQrUrl || '/student/profile'}`;
+        new QRious({ element: document.getElementById('idQrCanvas'), value: qrValue, size: 104, level: 'H' });
+    }
+
+    function renderProfile() {
+        document.getElementById('skeletonLoader').style.display = 'none';
+        document.getElementById('profileBody').style.display = 'block';
+
+        renderIdCard();
+        renderSection('personalGrid', sections.personal);
+        renderSection('academicGrid', sections.academic);
+        renderSection('identityGrid', sections.identity);
+        renderSection('contactGrid', sections.contact);
+        renderSection('guardianGrid', sections.guardian);
+        renderDocuments();
+        renderAnalytics();
+        renderMetadata();
+
+        const completion = currentProfile.completionPercentage || 0;
+        document.getElementById('completionText').textContent = `${completion}%`;
+        document.getElementById('completionFill').style.width = `${completion}%`;
+        document.getElementById('activityLine').textContent =
+            `Last updated by ${normalize(currentProfile.updatedBy) || 'System'} on ${formatDate(currentProfile.updatedAt)}`;
+        document.getElementById('viewerRolePill').textContent = `Viewer: ${normalize(currentProfile.viewerRole) || PROFILE_MODE}`;
+
+        const editButton = document.getElementById('editModeBtn');
+        editButton.style.display = 'inline-flex';
+        editButton.textContent = editEnabled
+            ? (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: ON' : 'Contact Edit: ON')
+            : (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: OFF' : 'Contact Edit: OFF');
+        document.getElementById('saveBtn').style.display = editEnabled ? 'inline-flex' : 'none';
+    }
+
+    function collectPayload() {
+        const inputs = document.querySelectorAll('.field-input');
+        const allValues = {};
+        inputs.forEach((input) => {
+            allValues[input.dataset.field] = input.value;
+        });
+
+        if (PROFILE_MODE === 'ADMIN') {
+            return {
+                fullName: allValues.fullName,
+                profileImage: allValues.profileImage,
+                dob: allValues.dob || null,
+                gender: allValues.gender,
+                bloodGroup: allValues.bloodGroup,
+                phone: allValues.phone,
+                email: allValues.email,
+                address: allValues.address,
+                guardianName: allValues.guardianName,
+                guardianPhone: allValues.guardianPhone,
+                college: allValues.college,
+                course: allValues.course,
+                department: allValues.department,
+                semester: allValues.semester,
+                section: allValues.section,
+                admissionYear: allValues.admissionYear ? Number(allValues.admissionYear) : null,
+                passingYear: allValues.passingYear ? Number(allValues.passingYear) : null,
+                validUpto: allValues.validUpto || null,
+                idCardNumber: allValues.idCardNumber
+            };
+        }
+
+        return {
+            phone: allValues.phone,
+            address: allValues.address,
+            profileImage: allValues.profileImage
+        };
+    }
+
+    async function saveProfile() {
+        const payload = collectPayload();
+
+        const response = await fetch(apiBase(), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error('Unable to save profile updates');
+        }
+
+        currentProfile = await response.json();
+        editEnabled = false;
+        document.getElementById('editModeBtn').textContent = 'Edit Mode: OFF';
+        document.getElementById('saveBtn').style.display = 'none';
+        renderProfile();
+        showToast('Changes saved');
     }
 
     async function loadProfile() {
-        try {
-            const response = await fetch('/api/student/profile', {
-                headers: { 'Accept': 'application/json' }
-            });
-
-            if (!response.ok) {
-                setStatus('Unable to load profile details.', true);
-                return;
-            }
-
-            const profile = await response.json();
-            renderProfile(profile);
-        } catch (error) {
-            setStatus('Network error while loading profile.', true);
+        const response = await fetch(apiBase(), { headers: { Accept: 'application/json' } });
+        if (!response.ok) {
+            throw new Error('Unable to fetch profile data');
         }
+        currentProfile = await response.json();
+        renderProfile();
     }
 
-    loadProfile();
+    function bindTabs() {
+        document.querySelectorAll('.tab-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach((other) => other.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach((pane) => pane.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelector(`.tab-pane[data-pane="${btn.dataset.tab}"]`).classList.add('active');
+            });
+        });
+    }
+
+    function bindActions() {
+        document.getElementById('darkModeBtn').addEventListener('click', toggleDarkMode);
+
+        document.getElementById('editModeBtn').addEventListener('click', () => {
+            editEnabled = !editEnabled;
+            document.getElementById('editModeBtn').textContent = editEnabled
+                ? (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: ON' : 'Contact Edit: ON')
+                : (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: OFF' : 'Contact Edit: OFF');
+            document.getElementById('saveBtn').style.display = editEnabled ? 'inline-flex' : 'none';
+            renderProfile();
+        });
+
+        document.getElementById('saveBtn').addEventListener('click', async () => {
+            try {
+                await saveProfile();
+            } catch (error) {
+                showToast(error.message || 'Unable to save changes');
+            }
+        });
+
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            window.print();
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        initDarkMode();
+        bindTabs();
+        bindActions();
+        try {
+            await loadProfile();
+        } catch (error) {
+            document.getElementById('skeletonLoader').innerHTML = '<div class="status-pill">Failed to load profile.</div>';
+        }
+    });
 </script>
 </body>
 </html>
