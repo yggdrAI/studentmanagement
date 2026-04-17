@@ -3,89 +3,219 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Students</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <title>Students | Enterprise SaaS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/admin-saas.css}">
 </head>
 <body>
-<div th:replace="~{fragments/sidebar :: sidebar(activeTab='students')}"></div>
+<div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Primary navigation" data-collapsed="false">
+        <div class="brand">
+            <div class="brand-mark"><span>BENNETT</span> UNIVERSITY</div>
+            <button class="sidebar-collapse" id="sidebarToggle" aria-label="Toggle sidebar">≡</button>
+        </div>
 
-<main class="content-area" id="maincontent" tabindex="-1">
-    <div class="content-wrapper">
-        <header class="page-header">
-            <div>
-                <h1 class="page-title">Manage Students</h1>
-                <p class="page-subtitle">All students are loaded from database. Open profile editor to update any details.</p>
+        <nav class="side-nav">
+            <a class="nav-link" href="/admin/dashboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h8V3H3z"></path><path d="M13 21h8v-6h-8z"></path><path d="M13 3h8v8h-8z"></path><path d="M3 21h8v-4H3z"></path></svg>
+                <span class="nav-label">Dashboard</span>
+            </a>
+            <a class="nav-link active" href="/admin/students">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M20 8v6"></path><path d="M23 11h-6"></path></svg>
+                <span class="nav-label">Students</span>
+            </a>
+            <a class="nav-link" href="/teachers">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10v6"></path><path d="M12 2 2 7l10 5 10-5-10-5Z"></path><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"></path></svg>
+                <span class="nav-label">Teachers</span>
+            </a>
+            <a class="nav-link" href="/attendance/reports">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><path d="M19 9l-5 5-4-4-3 3"></path></svg>
+                <span class="nav-label">Reports</span>
+            </a>
+        </nav>
+
+        <div style="margin-top:auto; display:grid; gap:8px;">
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="btn btn-outline" style="width:100%;">Logout</button>
+            </form>
+        </div>
+    </aside>
+
+    <section class="page">
+        <header class="topbar">
+            <input id="globalSearch" class="global-search" type="search" placeholder="Search everything or press Ctrl + K" aria-label="Global search">
+            <div class="top-actions">
+                <button class="icon-btn" aria-label="Notifications">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"></path><path d="M9 17a3 3 0 0 0 6 0"></path></svg>
+                </button>
+                <button id="themeToggle" class="icon-btn" aria-label="Toggle theme">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.9 4.9 1.4 1.4"></path><path d="m17.7 17.7 1.4 1.4"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m4.9 19.1 1.4-1.4"></path><path d="m17.7 6.3 1.4-1.4"></path></svg>
+                </button>
+                <button class="icon-btn" aria-label="Profile menu">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path></svg>
+                </button>
             </div>
         </header>
 
-        <section class="generic-card">
-            <header class="page-header">
-                <div>
-                    <h2 class="page-title">Create Student</h2>
-                </div>
-            </header>
+        <main class="main-content">
+            <div class="grid-2">
+                <section class="panel">
+                    <h2 class="panel-title">Create Student</h2>
+                    <p class="panel-subtitle">Enterprise onboarding wizard with validation and smart defaults.</p>
+                    <div class="stepper" aria-label="Create student progress">
+                        <div class="step active"></div>
+                        <div class="step"></div>
+                        <div class="step"></div>
+                    </div>
+                    <p id="stepLabel" class="panel-subtitle">Step 1 of 3</p>
 
-            <form th:action="@{/admin/students}" method="post" style="margin-bottom: 24px;">
-                <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
-                    <div>
-                        <label for="sid" class="form-label">Student ID</label>
-                        <input id="sid" name="id" class="form-input" placeholder="e.g. S001" required>
-                    </div>
-                    <div>
-                        <label for="sname" class="form-label">Name</label>
-                        <input id="sname" name="name" class="form-input" placeholder="Student Name" required>
-                    </div>
-                    <div>
-                        <button type="submit" class="btn btn-primary">Add Student</button>
-                    </div>
-                </div>
-            </form>
+                    <form id="createStudentForm" novalidate>
+                        <div data-step-panel="1" class="form-grid">
+                            <div class="field">
+                                <label for="studentIdInput">Student ID *</label>
+                                <input id="studentIdInput" name="id" required aria-required="true" autocomplete="off">
+                            </div>
+                            <div class="field">
+                                <label for="studentNameInput">Full Name *</label>
+                                <input id="studentNameInput" name="name" required aria-required="true" autocomplete="off">
+                            </div>
+                        </div>
 
-            <div style="margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                <span style="font-weight: 500;">Sort by:</span>
-                <a class="btn btn-outline" th:href="@{/admin/students(sort='id')}">ID</a>
-                <a class="btn btn-outline" th:href="@{/admin/students(sort='name')}">Name</a>
-                <a class="btn btn-outline" th:href="@{/admin/students(sort='marks')}">Average Marks</a>
+                        <div data-step-panel="2" class="form-grid" hidden>
+                            <div class="field">
+                                <label for="studentCourseInput">Course</label>
+                                <select id="studentCourseInput" name="course">
+                                    <option value="">Select course</option>
+                                    <option value="B.Tech">B.Tech</option>
+                                    <option value="BBA">BBA</option>
+                                    <option value="MBA">MBA</option>
+                                    <option value="M.Tech">M.Tech</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="studentSemesterInput">Semester</label>
+                                <select id="studentSemesterInput" name="semester">
+                                    <option value="">Select semester</option>
+                                    <option value="Semester 1">Semester 1</option>
+                                    <option value="Semester 2">Semester 2</option>
+                                    <option value="Semester 3">Semester 3</option>
+                                    <option value="Semester 4">Semester 4</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div data-step-panel="3" class="form-grid" hidden>
+                            <div class="field">
+                                <label for="studentPhoneInput">Phone</label>
+                                <input id="studentPhoneInput" name="phone" autocomplete="off">
+                            </div>
+                            <div class="field">
+                                <label for="studentEmailInput">Email (auto-derived)</label>
+                                <input id="studentEmailInput" name="email" readonly value="enrollment@bennett.edu.in">
+                            </div>
+                        </div>
+
+                        <div style="display:flex; gap:8px; margin-top:16px;">
+                            <button type="button" id="stepPrevBtn" class="btn btn-outline">Back</button>
+                            <button type="button" id="stepNextBtn" class="btn btn-outline">Next</button>
+                            <button type="submit" id="createSubmitBtn" class="btn btn-primary" hidden>Create Student</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="panel">
+                    <h2 class="panel-title">Smart Insights</h2>
+                    <p class="panel-subtitle">Performance analytics and recent administrative audit trail.</p>
+                    <div class="kpi-grid">
+                        <article class="kpi-card">
+                            <h4>Total Students</h4>
+                            <div id="totalLabel" class="kpi-value">0 records</div>
+                        </article>
+                        <article class="kpi-card">
+                            <h4>Current Page</h4>
+                            <div id="pageLabel" class="kpi-value">Page 0 / 0</div>
+                        </article>
+                    </div>
+
+                    <h3 class="panel-subtitle" style="margin-top:16px;">Marks Distribution</h3>
+                    <div id="marksChart" class="chart" aria-label="Marks distribution chart"></div>
+
+                    <h3 class="panel-subtitle" style="margin-top:14px;">Top Performers</h3>
+                    <ul id="topPerformers" class="audit-list"></ul>
+
+                    <h3 class="panel-subtitle" style="margin-top:14px;">Activity & Audit Trail</h3>
+                    <ul id="auditItems" class="audit-list"></ul>
+                </section>
             </div>
 
-            <div style="overflow-x:auto;">
-                <table class="table table-striped">
-                    <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Enrollment</th>
-                        <th>Email</th>
-                        <th>Course</th>
-                        <th>Average Marks</th>
-                        <th>Actions</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr th:if="${students == null or #lists.isEmpty(students)}">
-                        <td colspan="7">No students found in database.</td>
-                    </tr>
-                    <tr th:each="student : ${students}" th:with="profile=${profileMap != null ? profileMap.get(student.id) : null}">
-                        <td th:text="${student.id}">ID</td>
-                        <td th:text="${student.name}">Name</td>
-                        <td th:text="${profile != null ? profile.enrollmentNumber : student.id}">Enrollment</td>
-                        <td th:text="${profile != null ? profile.email : student.email}">Email</td>
-                        <td th:text="${profile != null ? profile.course : student.course}">Course</td>
-                        <td th:text="${averageMap != null ? #numbers.formatDecimal(averageMap.get(student.id), 1, 2) : '0.00'}">0.00</td>
-                        <td style="display:flex; gap: 8px; flex-wrap: wrap;">
-                            <a class="btn btn-outline" th:href="@{/admin/students/{id}/profile(id=${student.id})}">Edit Full Profile</a>
-                            <a class="btn btn-danger" th:href="@{'/admin/students/delete/' + ${student.id}}" onclick="return confirm('Delete this student?');">Delete</a>
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
+            <section class="panel">
+                <h2 class="panel-title">Students Data Grid</h2>
+                <p class="panel-subtitle">Sticky headers, server pagination, debounced search, filtering, bulk operations, and icon-based actions.</p>
+
+                <div class="student-toolbar">
+                    <input id="studentSearch" class="input" type="search" placeholder="Search ID, name, email" aria-label="Search students">
+                    <select id="courseFilter" class="select" aria-label="Filter by course">
+                        <option value="">All courses</option>
+                        <option value="B.Tech">B.Tech</option>
+                        <option value="BBA">BBA</option>
+                        <option value="MBA">MBA</option>
+                        <option value="M.Tech">M.Tech</option>
+                    </select>
+                    <button id="bulkDeleteBtn" class="btn btn-danger" disabled>Bulk Delete</button>
+                    <button id="exportBtn" class="btn btn-outline">Export CSV</button>
+                </div>
+
+                <div class="table-wrap" role="region" aria-label="Students table">
+                    <table class="data-grid">
+                        <thead>
+                        <tr>
+                            <th><input id="selectAllRows" type="checkbox" aria-label="Select all rows"></th>
+                            <th><button class="btn btn-outline" data-sort="id">ID</button></th>
+                            <th><button class="btn btn-outline" data-sort="name">Name</button></th>
+                            <th>Enrollment</th>
+                            <th><button class="btn btn-outline" data-sort="email">Email</button></th>
+                            <th><button class="btn btn-outline" data-sort="course">Course</button></th>
+                            <th><button class="btn btn-outline" data-sort="id">Average Marks</button></th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody id="gridBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="pagination">
+                    <button id="prevPageBtn" class="btn btn-outline">Previous</button>
+                    <span id="pageHint" class="panel-subtitle">Use keyboard navigation and command palette for quick actions.</span>
+                    <button id="nextPageBtn" class="btn btn-outline">Next</button>
+                </div>
+            </section>
+        </main>
+    </section>
+</div>
+
+<div id="confirmModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="deleteTitle">
+    <div class="modal">
+        <h3 id="deleteTitle" class="panel-title">Confirm Deletion</h3>
+        <p class="panel-subtitle">This operation removes the student record and linked profile from persistent storage.</p>
+        <div style="display:flex; gap:8px; margin-top:18px; justify-content:flex-end;">
+            <button id="cancelDeleteBtn" class="btn btn-outline">Cancel</button>
+            <button id="confirmDeleteBtn" class="btn btn-danger">Delete</button>
+        </div>
     </div>
-</main>
+</div>
 
-<div th:replace="~{fragments/sidebar :: floating-tools}"></div>
+<div id="commandPalette" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="commandTitle">
+    <div class="modal">
+        <h3 id="commandTitle" class="panel-title">Command Palette</h3>
+        <input id="commandInput" class="global-search" type="search" placeholder="Type a command" aria-label="Command palette search" style="margin-top:10px; width:100%;">
+        <div id="commandList" style="display:grid; gap:8px; margin-top:12px;"></div>
+    </div>
+</div>
+
+<div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+<script th:src="@{/js/admin-students-saas.js}"></script>
 </body>
 </html>

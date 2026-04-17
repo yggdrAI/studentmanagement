@@ -81,11 +81,11 @@ public class DemoDataLoader implements CommandLineRunner {
 
         User admin = createUser("admin", "1234", Role.ADMIN);
         User teacherUser = createUser("teacher", "1234", Role.TEACHER);
-        User studentUser = createUser("student", "1234", Role.STUDENT);
+        User studentUser = createUser("S25CSEU1006", "S25CSEU1006", Role.STUDENT);
 
-        userRepository.save(admin);
-        userRepository.save(teacherUser);
-        userRepository.save(studentUser);
+        userRepository.save(java.util.Objects.requireNonNull(admin));
+        userRepository.save(java.util.Objects.requireNonNull(teacherUser));
+        userRepository.save(java.util.Objects.requireNonNull(studentUser));
 
         Teacher teacher = new Teacher();
         teacher.setName("Dr. Rahul Sharma");
@@ -95,7 +95,7 @@ public class DemoDataLoader implements CommandLineRunner {
 
         Student student = new Student("S25CSEU1006", "Bhavya Jain");
         student.setUser(studentUser);
-        student.setEmail("bhavya.jain@bennett.edu.in");
+        student.setEmail("S25CSEU1006@bennett.edu.in");
         student.setPhone("+91-7668464847");
         student.setGender("Female");
         student.setDob(LocalDate.of(2007, 3, 15));
@@ -118,7 +118,7 @@ public class DemoDataLoader implements CommandLineRunner {
         profile.setSemester("Semester 2");
         profile.setSection("A");
         profile.setPhone("+91-7668464847");
-        profile.setEmail("bhavya.jain@bennett.edu.in");
+        profile.setEmail("S25CSEU1006@bennett.edu.in");
         profile.setBloodGroup("O+ve");
         profile.setDob(LocalDate.of(2007, 3, 15));
         profile.setGender("Female");

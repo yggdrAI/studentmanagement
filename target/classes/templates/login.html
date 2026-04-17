@@ -91,6 +91,10 @@
             <span class="subtitle">Smart Student Management Portal</span>
         </div>
 
+        <div th:if="${studentLoginMode}" class="alert alert-success">
+            Student login uses your enrollment number as both username and initial password.
+        </div>
+
         <!-- Alerts -->
         <div th:if="${param.error}" class="alert alert-error">
             Invalid username or password. Please try again.
@@ -101,8 +105,8 @@
 
         <form th:action="@{/login}" method="post">
             <div class="form-group">
-                <label for="username" class="form-label">Username</label>
-                <input type="text" id="username" name="username" class="form-input" placeholder="e.g. admin" required autofocus>
+                <label for="username" class="form-label" th:text="${studentLoginMode} ? 'Enrollment Number' : 'Username'">Username</label>
+                <input type="text" id="username" name="username" class="form-input" th:placeholder="${studentLoginMode} ? 'e.g. S25CSEU1006' : 'e.g. admin'" required autofocus>
             </div>
             <div class="form-group">
                 <label for="password" class="form-label">Password</label>
@@ -113,7 +117,12 @@
 
         <div class="hint">
             <strong>Demo Credentials (Username / Password)</strong><br>
-            <span>admin</span> / 1234 &bull; <span>teacher</span> / 1234 &bull; <span>student</span> / 1234
+            <span th:if="${!studentLoginMode}">admin / 1234 &bull; teacher / 1234 &bull; student enrollment / enrollment password</span>
+            <span th:if="${studentLoginMode}">S25CSEU1006 / S25CSEU1006</span>
+        </div>
+
+        <div style="margin-top: 14px; text-align: center; font-size: 13px;">
+            <a href="/student-login" style="color: #2563eb; text-decoration: none; font-weight: 600;">Student Login</a>
         </div>
     </div>
 

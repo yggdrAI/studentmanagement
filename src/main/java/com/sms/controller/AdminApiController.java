@@ -1,11 +1,25 @@
 package com.sms.controller;
 
+import java.nio.charset.StandardCharsets;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,7 +29,13 @@ import com.sms.dto.dashboard.AssignTeacherRequest;
 import com.sms.dto.dashboard.EnrollStudentRequest;
 import com.sms.model.Course;
 import com.sms.model.Enrollment;
+import com.sms.model.SecurityAudit;
+import com.sms.model.Student;
+import com.sms.model.StudentProfile;
+import com.sms.repository.SecurityAuditRepository;
+import com.sms.repository.StudentProfileRepository;
 import com.sms.service.DashboardService;
+import com.sms.service.StudentService;
 
 import jakarta.validation.Valid;
 
@@ -25,9 +45,138 @@ import jakarta.validation.Valid;
 public class AdminApiController {
 
     private final DashboardService dashboardService;
+    private final StudentService studentService;
+    private final StudentProfileRepository studentProfileRepository;
+    private final SecurityAuditRepository securityAuditRepository;
 
-    public AdminApiController(DashboardService dashboardService) {
+    public AdminApiController(DashboardService dashboardService,
+                              StudentService studentService,
+                              StudentProfileRepository studentProfileRepository,
+                              SecurityAuditRepository securityAuditRepository) {
         this.dashboardService = dashboardService;
+        this.studentService = studentService;
+        this.studentProfileRepository = studentProfileRepository;
+        this.securityAuditRepository = securityAuditRepository;
+    }
+
+    @GetMapping("/students")
+    public ResponseEntity<Map<String, Object>> getStudents(@RequestParam(name = "page", defaultValue = "0") int page,
+                                                           @RequestParam(name = "size", defaultValue = "20") int size,
+                                                           @RequestParam(name = "search", required = false) String search,
+                                                           @RequestParam(name = "course", required = false) String course,
+                                                           @RequestParam(name = "sortBy", defaultValue = "id") String sortBy,
+                                                           @RequestParam(name = "sortDir", defaultValue = "asc") String sortDir) {
+
+        int normalizedSize = Math.min(Math.max(size, 1), 100);
+        Page<Student> studentsPage = studentService.getStudentsPage(search, course, page, normalizedSize, sortBy, sortDir);
+
+        Map<String, Double> averageMap = studentService.getAverageMarksMap(studentsPage.getContent());
+        List<Map<String, Object>> items = new ArrayList<>();
+
+        for (Student student : studentsPage.getContent()) {
+            StudentProfile profile = studentProfileRepository.findByStudentId(student.getId()).orElse(null);
+            Map<String, Object> row = new HashMap<>();
+            row.put("id", student.getId());
+            row.put("name", student.getName());
+            row.put("enrollment", profile != null && profile.getEnrollmentNumber() != null ? profile.getEnrollmentNumber() : student.getId());
+            row.put("email", student.getEmail());
+            row.put("course", profile != null && profile.getCourse() != null ? profile.getCourse() : student.getCourse());
+            row.put("averageMarks", averageMap.getOrDefault(student.getId(), 0.0));
+            row.put("avatar", buildAvatar(student.getName()));
+            items.add(row);
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "items", items,
+                "page", studentsPage.getNumber(),
+                "size", studentsPage.getSize(),
+                "totalElements", studentsPage.getTotalElements(),
+                "totalPages", studentsPage.getTotalPages(),
+                "hasNext", studentsPage.hasNext(),
+                "hasPrevious", studentsPage.hasPrevious()
+        ));
+    }
+
+    @PostMapping("/students")
+    public ResponseEntity<Map<String, Object>> createStudentViaApi(@RequestBody Map<String, String> payload) {
+        String studentId = payload.get("id");
+        String studentName = payload.get("name");
+
+        if (studentId == null || studentId.isBlank() || studentName == null || studentName.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Student ID and Name are required");
+        }
+
+        if (studentService.findById(studentId.trim()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Student ID already exists");
+        }
+
+        Student student = new Student(studentId.trim(), studentName.trim());
+        Student saved = studentService.save(student);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "id", saved.getId(),
+                "name", saved.getName(),
+                "email", saved.getEmail(),
+                "message", "Student created successfully"
+        ));
+    }
+
+    @DeleteMapping("/students/{id}")
+    public ResponseEntity<Map<String, Object>> deleteStudent(@PathVariable("id") String id) {
+        studentService.deleteById(id);
+        return ResponseEntity.ok(Map.of("message", "Student deleted", "id", id));
+    }
+
+    @PostMapping("/students/bulk-delete")
+    public ResponseEntity<Map<String, Object>> bulkDeleteStudents(@RequestBody Map<String, List<String>> payload) {
+        List<String> ids = payload.get("ids");
+        int deletedCount = studentService.deleteByIds(ids);
+        return ResponseEntity.ok(Map.of("deleted", deletedCount));
+    }
+
+    @GetMapping("/students/export")
+    public ResponseEntity<byte[]> exportStudentsCsv() {
+        List<Student> students = studentService.getAllStudentsSortedById();
+        Map<String, Double> averageMap = studentService.getAverageMarksMap(students);
+
+        StringBuilder csv = new StringBuilder();
+        csv.append("ID,Name,Email,Course,AverageMarks\n");
+        for (Student student : students) {
+            csv.append(escapeCsv(student.getId())).append(',')
+               .append(escapeCsv(student.getName())).append(',')
+               .append(escapeCsv(student.getEmail())).append(',')
+               .append(escapeCsv(student.getCourse())).append(',')
+               .append(String.format("%.2f", averageMap.getOrDefault(student.getId(), 0.0)))
+               .append("\n");
+        }
+
+        byte[] body = csv.toString().getBytes(StandardCharsets.UTF_8);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=students.csv")
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(body);
+    }
+
+    @GetMapping("/students/activity")
+    public ResponseEntity<List<Map<String, Object>>> getActivity(@RequestParam(name = "limit", defaultValue = "15") int limit) {
+        int normalizedLimit = Math.min(Math.max(limit, 1), 50);
+        List<SecurityAudit> audits = securityAuditRepository.findAll(
+                PageRequest.of(0, normalizedLimit, Sort.by(Sort.Direction.DESC, "createdAt"))
+        ).getContent();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (SecurityAudit audit : audits) {
+            Map<String, Object> row = new HashMap<>();
+            row.put("type", audit.getViolationType());
+            row.put("severity", audit.getSeverityLevel());
+            row.put("studentId", audit.getStudentId());
+            row.put("description", audit.getDescription());
+            row.put("time", audit.getCreatedAt() != null ? audit.getCreatedAt().format(formatter) : "");
+            items.add(row);
+        }
+        return ResponseEntity.ok(items);
     }
 
     @PostMapping("/enroll")
@@ -55,5 +204,24 @@ public class AdminApiController {
                 "subjectId", course.getId(),
                 "teacherId", course.getTeacher().getId()
         ));
+    }
+
+    private String buildAvatar(String name) {
+        if (name == null || name.isBlank()) {
+            return "ST";
+        }
+        String[] parts = name.trim().split("\\s+");
+        if (parts.length == 1) {
+            return parts[0].substring(0, 1).toUpperCase();
+        }
+        return (parts[0].substring(0, 1) + parts[parts.length - 1].substring(0, 1)).toUpperCase();
+    }
+
+    private String escapeCsv(String value) {
+        if (value == null) {
+            return "";
+        }
+        String escaped = value.replace("\"", "\"\"");
+        return '"' + escaped + '"';
     }
 }

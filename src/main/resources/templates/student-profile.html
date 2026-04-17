@@ -109,6 +109,69 @@
             background: rgba(255,255,255,0.08);
         }
 
+        .avatar-shell {
+            position: relative;
+            width: fit-content;
+            cursor: pointer;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        .avatar-shell:hover {
+            transform: scale(1.03);
+            filter: drop-shadow(0 0 10px rgba(147, 197, 253, 0.55));
+        }
+
+        .avatar-plus {
+            position: absolute;
+            right: -6px;
+            bottom: -6px;
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            border: 2px solid rgba(255,255,255,0.85);
+            background: #2563eb;
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: 700;
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.45);
+        }
+
+        .avatar-menu {
+            position: absolute;
+            left: 0;
+            top: calc(100% + 8px);
+            min-width: 180px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 12px;
+            padding: 0.35rem;
+            display: none;
+            z-index: 30;
+        }
+
+        .avatar-menu.show {
+            display: block;
+        }
+
+        .avatar-menu button {
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: transparent;
+            color: #e2e8f0;
+            border-radius: 10px;
+            padding: 0.55rem 0.65rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .avatar-menu button:hover {
+            background: rgba(37, 99, 235, 0.22);
+        }
+
         .id-fallback {
             display: none;
             align-items: center;
@@ -295,6 +358,39 @@
             cursor: text;
         }
 
+        .field-error {
+            display: none;
+            margin-top: 0.25rem;
+            color: var(--danger);
+            font-size: 0.76rem;
+            font-weight: 600;
+        }
+
+        .field-error.show {
+            display: block;
+        }
+
+        .smart-hints {
+            margin-top: 0.65rem;
+            border: 1px dashed var(--card-border);
+            border-radius: 12px;
+            padding: 0.65rem;
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+        }
+
+        .strength-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.55rem;
+            border-radius: 999px;
+            border: 1px solid var(--card-border);
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-top: 0.45rem;
+        }
+
         .documents-table {
             width: 100%;
             border-collapse: collapse;
@@ -405,7 +501,7 @@
                 <button class="btn btn-outline" type="button" id="darkModeBtn">Dark Mode</button>
                 <button class="btn btn-primary" type="button" id="editModeBtn" style="display:none;">Edit Mode: OFF</button>
                 <button class="btn btn-primary" type="button" id="saveBtn" style="display:none;">Save Changes</button>
-                <button class="btn btn-outline" type="button" id="uploadImageBtn" style="display:none;">Upload Photo</button>
+                <button class="btn btn-secondary" type="button" id="cancelBtn" style="display:none;">Cancel</button>
                 <input type="file" id="profileImageFile" accept="image/*" style="display:none;">
                 <button class="btn btn-outline" type="button" id="downloadBtn">Download PDF</button>
             </div>
@@ -416,8 +512,15 @@
                 <h2>Bennett University</h2>
                 <p class="id-card-sub">Government-grade student identity record</p>
 
-                <img id="idAvatar" class="id-avatar" alt="Profile photo" src="" style="display:none;">
-                <div id="idFallback" class="id-avatar id-fallback">ID</div>
+                <div class="avatar-shell" id="avatarShell" title="Profile photo actions">
+                    <img id="idAvatar" class="id-avatar" alt="Profile photo" src="" style="display:none;">
+                    <div id="idFallback" class="id-avatar id-fallback">ID</div>
+                    <span class="avatar-plus" id="avatarPlus">+</span>
+                    <div class="avatar-menu" id="avatarMenu">
+                        <button type="button" id="avatarUploadAction">Upload Photo</button>
+                        <button type="button" id="avatarRemoveAction">Remove Photo</button>
+                    </div>
+                </div>
 
                 <div class="id-main">
                     <p class="id-name" id="idName">Loading...</p>
@@ -446,6 +549,8 @@
                             <div class="progress-track"><div class="progress-fill" id="completionFill"></div></div>
                             <strong id="completionText">0%</strong>
                         </div>
+                        <div class="strength-pill" id="strengthPill">Strength: Weak</div>
+                        <div class="smart-hints" id="suggestionBox">Suggestions will appear here.</div>
                     </div>
                     <span class="status-pill" id="viewerRolePill">Viewer: STUDENT</span>
                 </div>
@@ -513,53 +618,128 @@
     const TARGET_STUDENT_ID = /*[[${targetStudentId}]]*/ '';
 
     let currentProfile = null;
+    let originalProfileSnapshot = null;
     let editEnabled = false;
+    let autoSaveTimer = null;
 
-    const sections = {
-        personal: [
-            { key: 'fullName', label: 'Full Name' },
-            { key: 'dob', label: 'Date of Birth', type: 'date' },
-            { key: 'gender', label: 'Gender', type: 'select' },
-            { key: 'religion', label: 'Religion', type: 'select' },
-            { key: 'bloodGroup', label: 'Blood Group', type: 'select' }
-        ],
-        academic: [
-            { key: 'college', label: 'College' },
-            { key: 'course', label: 'Course' },
-            { key: 'department', label: 'Department' },
-            { key: 'semester', label: 'Semester', type: 'select' },
-            { key: 'section', label: 'Section', type: 'select' },
-            { key: 'admissionYear', label: 'Admission Year', type: 'number' },
-            { key: 'passingYear', label: 'Passing Year', type: 'number' }
-        ],
-        identity: [
-            { key: 'enrollmentNumber', label: 'Enrollment Number', readonly: true },
-            { key: 'studentId', label: 'Student ID', readonly: true },
-            { key: 'idCardNumber', label: 'ID Card Number' },
-            { key: 'validUpto', label: 'Valid Upto', type: 'date' },
-            { key: 'profileImage', label: 'Profile Image URL' }
-        ],
-        contact: [
-            { key: 'phone', label: 'Phone' },
-            { key: 'email', label: 'Email' },
-            { key: 'address', label: 'Address', full: true }
-        ],
-        guardian: [
-            { key: 'guardianName', label: 'Guardian Name' },
-            { key: 'guardianPhone', label: 'Guardian Phone' }
-        ]
+    const PROFILE_SCHEMA = [
+        { key: 'fullName', label: 'Full Name', section: 'personal', type: 'text', required: true },
+        { key: 'dob', label: 'Date of Birth', section: 'personal', type: 'date', required: true },
+        { key: 'gender', label: 'Gender', section: 'personal', type: 'select', required: true,
+            options: ['Male', 'Female', 'Non-binary', 'Prefer not to say', 'Other'] },
+        { key: 'religion', label: 'Religion', section: 'personal', type: 'select', required: true,
+            options: ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Other'] },
+        { key: 'bloodGroup', label: 'Blood Group', section: 'personal', type: 'select', required: true,
+            options: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] },
+
+        { key: 'college', label: 'College', section: 'academic', type: 'text', required: true },
+        { key: 'course', label: 'Course', section: 'academic', type: 'select', required: true,
+            options: ['B.Tech', 'BBA', 'BCA', 'MBA', 'M.Tech', 'MCA', 'BA', 'B.Com'] },
+        { key: 'department', label: 'Department', section: 'academic', type: 'select', required: true,
+            options: ['Computer Science', 'IT', 'Mechanical', 'Civil', 'ECE', 'Management'] },
+        { key: 'semester', label: 'Semester', section: 'academic', type: 'select', required: true },
+        { key: 'section', label: 'Section', section: 'academic', type: 'select', required: true,
+            options: ['A', 'B', 'C', 'D'] },
+        { key: 'admissionYear', label: 'Admission Year', section: 'academic', type: 'select', required: true },
+        { key: 'passingYear', label: 'Passing Year', section: 'academic', type: 'select', required: true },
+
+        { key: 'enrollmentNumber', label: 'Enrollment Number', section: 'identity', type: 'text', readonly: true },
+        { key: 'studentId', label: 'Student ID', section: 'identity', type: 'text', readonly: true },
+        { key: 'idCardNumber', label: 'ID Card Number', section: 'identity', type: 'text', required: true },
+        { key: 'validUpto', label: 'Valid Upto', section: 'identity', type: 'date', required: true },
+        { key: 'profileImage', label: 'Profile Image URL', section: 'identity', type: 'text' },
+
+        { key: 'phone', label: 'Phone', section: 'contact', type: 'text', required: true },
+        { key: 'email', label: 'Email', section: 'contact', type: 'text', required: true, readonly: true },
+        { key: 'address', label: 'Address', section: 'contact', type: 'text', required: true, full: true },
+
+        { key: 'guardianName', label: 'Guardian Name', section: 'guardian', type: 'text', required: true },
+        { key: 'guardianPhone', label: 'Guardian Phone', section: 'guardian', type: 'text', required: true }
+    ];
+
+    const COURSE_DEPARTMENT_MAP = {
+        'B.Tech': ['Computer Science', 'IT', 'Mechanical', 'Civil', 'ECE'],
+        'M.Tech': ['Computer Science', 'IT', 'Mechanical', 'Civil', 'ECE'],
+        'BBA': ['Management'],
+        'MBA': ['Management'],
+        'BCA': ['Computer Science', 'IT'],
+        'MCA': ['Computer Science', 'IT'],
+        'BA': ['Management'],
+        'B.Com': ['Management']
     };
+
+    const COURSE_DURATION_YEARS = {
+        'B.Tech': 4,
+        'M.Tech': 2,
+        'BBA': 3,
+        'MBA': 2,
+        'BCA': 3,
+        'MCA': 2,
+        'BA': 3,
+        'B.Com': 3
+    };
+
+    function buildSectionsFromSchema() {
+        const base = {
+            personal: [],
+            academic: [],
+            identity: [],
+            contact: [],
+            guardian: []
+        };
+        PROFILE_SCHEMA.forEach((field) => {
+            if (base[field.section]) {
+                base[field.section].push(field);
+            }
+        });
+        return base;
+    }
+
+    const sections = buildSectionsFromSchema();
 
     const studentEditableFields = new Set(['phone', 'address', 'profileImage']);
     const adminLockedFields = new Set(['enrollmentNumber', 'studentId']);
 
-    const fieldSelectOptions = {
-        gender: ['Male', 'Female', 'Other'],
-        religion: ['Hindu', 'Muslim', 'Sikh', 'Christian', 'Buddhist', 'Jain', 'Other', 'Prefer not to say'],
-        bloodGroup: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'O+ve'],
-        semester: ['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6', 'Semester 7', 'Semester 8'],
-        section: ['A', 'B', 'C', 'D', 'E']
-    };
+    function dynamicAdmissionYears() {
+        const now = new Date().getFullYear();
+        const years = [];
+        for (let y = now; y >= now - 14; y--) {
+            years.push(String(y));
+        }
+        return years;
+    }
+
+    function maxSemesterForCourse(courseName) {
+        const years = COURSE_DURATION_YEARS[courseName] || 4;
+        return years * 2;
+    }
+
+    function dynamicSemesters(courseName) {
+        const maxSem = maxSemesterForCourse(courseName);
+        const list = [];
+        for (let i = 1; i <= maxSem; i++) {
+            list.push(`Semester ${i}`);
+        }
+        return list;
+    }
+
+    function getFieldOptions(fieldKey) {
+        const profileCourse = normalize(currentProfile && currentProfile.course);
+        if (fieldKey === 'admissionYear') {
+            return dynamicAdmissionYears();
+        }
+        if (fieldKey === 'passingYear') {
+            return dynamicAdmissionYears().map((year) => String(Number(year) + 6));
+        }
+        if (fieldKey === 'semester') {
+            return dynamicSemesters(profileCourse || 'B.Tech');
+        }
+        if (fieldKey === 'department') {
+            return COURSE_DEPARTMENT_MAP[profileCourse] || ['Computer Science', 'IT', 'Mechanical', 'Civil', 'ECE', 'Management'];
+        }
+        const schemaField = PROFILE_SCHEMA.find((f) => f.key === fieldKey);
+        return schemaField && schemaField.options ? schemaField.options : [];
+    }
 
     function normalize(value) {
         if (value === null || value === undefined) {
@@ -614,12 +794,153 @@
         return studentEditableFields.has(field);
     }
 
+    function fieldIsRequired(fieldKey) {
+        const schemaField = PROFILE_SCHEMA.find((f) => f.key === fieldKey);
+        return Boolean(schemaField && schemaField.required);
+    }
+
+    function getValidationMessage(fieldKey, value) {
+        if (!fieldIsRequired(fieldKey)) {
+            return '';
+        }
+        if (value === null || value === undefined || String(value).trim() === '') {
+            return 'This field is required.';
+        }
+        if (fieldKey === 'dob' || fieldKey === 'validUpto') {
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return 'Use a valid date format.';
+            }
+        }
+        return '';
+    }
+
+    function computeCompletionFromSchema() {
+        const required = PROFILE_SCHEMA.filter((f) => f.required);
+        if (!required.length || !currentProfile) {
+            return 0;
+        }
+        const filled = required.filter((f) => {
+            const value = currentProfile[f.key];
+            return value !== null && value !== undefined && String(value).trim() !== '';
+        }).length;
+        return Math.round((filled * 100) / required.length);
+    }
+
+    function profileStrengthLabel(percentage) {
+        if (percentage < 45) {
+            return 'Weak';
+        }
+        if (percentage < 80) {
+            return 'متوسط';
+        }
+        return 'Strong';
+    }
+
+    function buildMissingFieldSuggestions() {
+        if (!currentProfile) {
+            return [];
+        }
+        return PROFILE_SCHEMA
+            .filter((f) => f.required)
+            .filter((f) => {
+                const value = currentProfile[f.key];
+                return value === null || value === undefined || String(value).trim() === '';
+            })
+            .map((f) => f.label);
+    }
+
+    function updateSmartMetrics() {
+        const completion = computeCompletionFromSchema();
+        currentProfile.completionPercentage = completion;
+        document.getElementById('completionText').textContent = `${completion}%`;
+        document.getElementById('completionFill').style.width = `${completion}%`;
+
+        const strength = profileStrengthLabel(completion);
+        const strengthPill = document.getElementById('strengthPill');
+        strengthPill.textContent = `Strength: ${strength}`;
+
+        const missing = buildMissingFieldSuggestions();
+        const suggestionBox = document.getElementById('suggestionBox');
+        if (!missing.length) {
+            suggestionBox.textContent = 'All key fields are complete. Great profile quality.';
+        } else {
+            suggestionBox.textContent = `Suggested next fields: ${missing.slice(0, 4).join(', ')}${missing.length > 4 ? '...' : ''}`;
+        }
+    }
+
+    function applyDependentFieldRules(changedField, changedValue) {
+        if (!currentProfile) {
+            return;
+        }
+        if (changedField === 'course') {
+            const allowedDepartments = COURSE_DEPARTMENT_MAP[changedValue] || [];
+            if (allowedDepartments.length && !allowedDepartments.includes(currentProfile.department)) {
+                currentProfile.department = allowedDepartments[0];
+            }
+            const maxSem = maxSemesterForCourse(changedValue);
+            const currentSemNumber = Number(String(currentProfile.semester || '').replace(/[^0-9]/g, ''));
+            if (!currentSemNumber || currentSemNumber > maxSem) {
+                currentProfile.semester = `Semester 1`;
+            }
+        }
+
+        if (changedField === 'admissionYear' || changedField === 'course') {
+            const admission = Number(currentProfile.admissionYear);
+            const duration = COURSE_DURATION_YEARS[currentProfile.course] || 4;
+            if (!Number.isNaN(admission) && admission > 0) {
+                currentProfile.passingYear = admission + duration;
+            }
+        }
+    }
+
+    function debounceAutoSave() {
+        if (!editEnabled) {
+            return;
+        }
+        if (autoSaveTimer) {
+            window.clearTimeout(autoSaveTimer);
+        }
+        autoSaveTimer = window.setTimeout(async () => {
+            const hasErrors = validateCurrentForm();
+            if (hasErrors) {
+                return;
+            }
+            try {
+                await saveProfile(true);
+            } catch (error) {
+                console.debug('Auto-save skipped:', error);
+            }
+        }, 1200);
+    }
+
+    function validateCurrentForm() {
+        let hasErrors = false;
+        document.querySelectorAll('.field-input').forEach((input) => {
+            const key = input.dataset.field;
+            const errorEl = document.querySelector(`.field-error[data-error-for="${key}"]`);
+            if (!errorEl) {
+                return;
+            }
+            const message = getValidationMessage(key, input.value);
+            if (message) {
+                hasErrors = true;
+                errorEl.textContent = message;
+                errorEl.classList.add('show');
+            } else {
+                errorEl.textContent = '';
+                errorEl.classList.remove('show');
+            }
+        });
+        return hasErrors;
+    }
+
     function buildFieldCard(field, value) {
         const canEdit = fieldCanEdit(field.key) && !field.readonly;
         const type = field.type || 'text';
         const inputValue = type === 'date' && value ? normalize(value).substring(0, 10) : normalize(value);
         if (type === 'select') {
-            const options = fieldSelectOptions[field.key] || [];
+            const options = getFieldOptions(field.key);
             const normalizedValue = normalize(inputValue);
             const renderedOptions = options.map((optionValue) => {
                 const selected = normalizedValue === optionValue ? 'selected' : '';
@@ -632,6 +953,7 @@
                         <option value="">Select</option>
                         ${renderedOptions}
                     </select>
+                    <small class="field-error" data-error-for="${field.key}"></small>
                 </div>
             `;
         }
@@ -640,6 +962,7 @@
             <div class="field-card ${field.full ? 'full' : ''}">
                 <label class="field-label">${field.label}</label>
                 <input class="field-input ${canEdit ? 'editable' : ''}" data-field="${field.key}" type="${type}" value="${inputValue}" ${canEdit ? '' : 'disabled'} />
+                <small class="field-error" data-error-for="${field.key}"></small>
             </div>
         `;
     }
@@ -743,22 +1066,43 @@
         renderDocuments();
         renderAnalytics();
         renderMetadata();
-
-        const completion = currentProfile.completionPercentage || 0;
-        document.getElementById('completionText').textContent = `${completion}%`;
-        document.getElementById('completionFill').style.width = `${completion}%`;
+        updateSmartMetrics();
         document.getElementById('activityLine').textContent =
             `Last updated by ${normalize(currentProfile.updatedBy) || 'System'} on ${formatDate(currentProfile.updatedAt)}`;
         document.getElementById('viewerRolePill').textContent = `Viewer: ${normalize(currentProfile.viewerRole) || PROFILE_MODE}`;
 
         const editButton = document.getElementById('editModeBtn');
-        const uploadButton = document.getElementById('uploadImageBtn');
+        const cancelButton = document.getElementById('cancelBtn');
+        const avatarPlus = document.getElementById('avatarPlus');
         editButton.style.display = 'inline-flex';
         editButton.textContent = editEnabled
             ? (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: ON' : 'Contact Edit: ON')
             : (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: OFF' : 'Contact Edit: OFF');
         document.getElementById('saveBtn').style.display = editEnabled ? 'inline-flex' : 'none';
-        uploadButton.style.display = PROFILE_MODE === 'ADMIN' ? 'inline-flex' : 'none';
+        cancelButton.style.display = editEnabled ? 'inline-flex' : 'none';
+        avatarPlus.style.display = PROFILE_MODE === 'ADMIN' ? 'inline-flex' : 'none';
+
+        bindFieldEvents();
+    }
+
+    function bindFieldEvents() {
+        document.querySelectorAll('.field-input').forEach((input) => {
+            input.addEventListener('change', () => {
+                const key = input.dataset.field;
+                const value = input.value;
+                currentProfile[key] = value;
+                applyDependentFieldRules(key, value);
+                renderProfile();
+                debounceAutoSave();
+            });
+            input.addEventListener('input', () => {
+                const key = input.dataset.field;
+                currentProfile[key] = input.value;
+                updateSmartMetrics();
+                validateCurrentForm();
+                debounceAutoSave();
+            });
+        });
     }
 
     function collectPayload() {
@@ -767,6 +1111,42 @@
         inputs.forEach((input) => {
             allValues[input.dataset.field] = input.value;
         });
+
+        const nestedData = {
+            personal: {
+                fullName: allValues.fullName,
+                dob: allValues.dob,
+                gender: allValues.gender,
+                religion: allValues.religion,
+                bloodGroup: allValues.bloodGroup
+            },
+            academic: {
+                college: allValues.college,
+                course: allValues.course,
+                department: allValues.department,
+                semester: allValues.semester,
+                section: allValues.section,
+                admissionYear: allValues.admissionYear,
+                passingYear: allValues.passingYear
+            },
+            identity: {
+                enrollmentNumber: allValues.enrollmentNumber,
+                studentId: allValues.studentId,
+                idCardNumber: allValues.idCardNumber,
+                validUpto: allValues.validUpto,
+                profileImage: allValues.profileImage
+            },
+            contact: {
+                phone: allValues.phone,
+                email: allValues.email,
+                address: allValues.address
+            },
+            guardian: {
+                guardianName: allValues.guardianName,
+                guardianPhone: allValues.guardianPhone
+            },
+            documents: {}
+        };
 
         if (PROFILE_MODE === 'ADMIN') {
             return {
@@ -789,18 +1169,27 @@
                 admissionYear: allValues.admissionYear ? Number(allValues.admissionYear) : null,
                 passingYear: allValues.passingYear ? Number(allValues.passingYear) : null,
                 validUpto: allValues.validUpto || null,
-                idCardNumber: allValues.idCardNumber
+                idCardNumber: allValues.idCardNumber,
+                profileSections: nestedData
             };
         }
 
         return {
             phone: allValues.phone,
             address: allValues.address,
-            profileImage: allValues.profileImage
+            profileImage: allValues.profileImage,
+            profileSections: nestedData
         };
     }
 
-    async function saveProfile() {
+    async function saveProfile(isAuto = false) {
+        if (validateCurrentForm()) {
+            if (!isAuto) {
+                showToast('Please fix highlighted fields');
+            }
+            throw new Error('Validation failed');
+        }
+
         const payload = collectPayload();
 
         const response = await fetch(apiBase(), {
@@ -814,11 +1203,14 @@
         }
 
         currentProfile = await response.json();
-        editEnabled = false;
-        document.getElementById('editModeBtn').textContent = 'Edit Mode: OFF';
-        document.getElementById('saveBtn').style.display = 'none';
+        if (!isAuto) {
+            editEnabled = false;
+            document.getElementById('editModeBtn').textContent = 'Edit Mode: OFF';
+            document.getElementById('saveBtn').style.display = 'none';
+            originalProfileSnapshot = JSON.parse(JSON.stringify(currentProfile));
+        }
         renderProfile();
-        showToast('Changes saved');
+        showToast(isAuto ? 'Auto-saved' : 'Changes saved');
     }
 
     async function loadProfile() {
@@ -827,6 +1219,7 @@
             throw new Error('Unable to fetch profile data');
         }
         currentProfile = await response.json();
+        originalProfileSnapshot = JSON.parse(JSON.stringify(currentProfile));
         renderProfile();
     }
 
@@ -845,12 +1238,46 @@
         document.getElementById('darkModeBtn').addEventListener('click', toggleDarkMode);
 
         const imagePicker = document.getElementById('profileImageFile');
-        document.getElementById('uploadImageBtn').addEventListener('click', () => {
+        const avatarShell = document.getElementById('avatarShell');
+        const avatarMenu = document.getElementById('avatarMenu');
+        const avatarUploadAction = document.getElementById('avatarUploadAction');
+        const avatarRemoveAction = document.getElementById('avatarRemoveAction');
+
+        avatarShell.addEventListener('click', (event) => {
+            if (PROFILE_MODE !== 'ADMIN') {
+                return;
+            }
+            event.stopPropagation();
+            avatarMenu.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => avatarMenu.classList.remove('show'));
+
+        avatarUploadAction.addEventListener('click', (event) => {
+            event.stopPropagation();
+            avatarMenu.classList.remove('show');
             if (PROFILE_MODE !== 'ADMIN') {
                 showToast('Only admin can upload profile picture here.');
                 return;
             }
             imagePicker.click();
+        });
+
+        avatarRemoveAction.addEventListener('click', (event) => {
+            event.stopPropagation();
+            avatarMenu.classList.remove('show');
+            if (PROFILE_MODE !== 'ADMIN') {
+                return;
+            }
+            currentProfile.profileImage = '';
+            const profileImageInput = document.querySelector('[data-field="profileImage"]');
+            if (profileImageInput) {
+                profileImageInput.value = '';
+            }
+            renderIdCard();
+            updateSmartMetrics();
+            debounceAutoSave();
+            showToast('Photo removed. Click Save Changes to persist.');
         });
 
         imagePicker.addEventListener('change', (event) => {
@@ -879,6 +1306,7 @@
                     profileImageInput.value = currentProfile.profileImage;
                 }
                 renderIdCard();
+                debounceAutoSave();
                 showToast('Profile image selected. Click Save Changes to persist.');
             };
             reader.onerror = () => showToast('Unable to read selected image.');
@@ -892,12 +1320,22 @@
                 ? (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: ON' : 'Contact Edit: ON')
                 : (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: OFF' : 'Contact Edit: OFF');
             document.getElementById('saveBtn').style.display = editEnabled ? 'inline-flex' : 'none';
+            document.getElementById('cancelBtn').style.display = editEnabled ? 'inline-flex' : 'none';
             renderProfile();
+        });
+
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+            if (originalProfileSnapshot) {
+                currentProfile = JSON.parse(JSON.stringify(originalProfileSnapshot));
+            }
+            editEnabled = false;
+            renderProfile();
+            showToast('Changes reverted');
         });
 
         document.getElementById('saveBtn').addEventListener('click', async () => {
             try {
-                await saveProfile();
+                await saveProfile(false);
             } catch (error) {
                 showToast(error.message || 'Unable to save changes');
             }

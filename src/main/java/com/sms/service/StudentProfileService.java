@@ -43,16 +43,18 @@ public class StudentProfileService {
 
     @Cacheable(value = "studentProfile", key = "'student:' + #username")
     public StudentProfileResponseDTO getProfileForStudent(String username) {
-        Student student = studentRepository.findByUserUsername(username)
-            .orElseThrow(() -> new IllegalArgumentException("Student not found for username: " + username));
+        String normalizedUsername = java.util.Objects.requireNonNull(username, "Username must not be null");
+        Student student = studentRepository.findByUserUsername(normalizedUsername)
+            .orElseThrow(() -> new IllegalArgumentException("Student not found for username: " + normalizedUsername));
         return mapProfile(student.getId(), "STUDENT");
     }
 
     @Cacheable(value = "studentProfile", key = "'admin:' + #studentId")
     public StudentProfileResponseDTO getProfileForAdmin(String studentId) {
-        studentRepository.findById(studentId)
-            .orElseThrow(() -> new IllegalArgumentException("Student not found with id: " + studentId));
-        return mapProfile(studentId, "ADMIN");
+        String normalizedStudentId = java.util.Objects.requireNonNull(studentId, "Student id must not be null");
+        studentRepository.findById(normalizedStudentId)
+            .orElseThrow(() -> new IllegalArgumentException("Student not found with id: " + normalizedStudentId));
+        return mapProfile(normalizedStudentId, "ADMIN");
     }
 
     @Transactional
@@ -60,13 +62,14 @@ public class StudentProfileService {
     public StudentProfileResponseDTO updateByAdmin(String studentId,
                                                    AdminUpdateStudentProfileRequest request,
                                                    String actorUsername) {
-        Student student = studentRepository.findById(studentId)
-            .orElseThrow(() -> new IllegalArgumentException("Student not found with id: " + studentId));
+        String normalizedStudentId = java.util.Objects.requireNonNull(studentId, "Student id must not be null");
+        Student student = studentRepository.findById(normalizedStudentId)
+            .orElseThrow(() -> new IllegalArgumentException("Student not found with id: " + normalizedStudentId));
 
-        StudentProfile profile = studentProfileRepository.findByStudentId(studentId)
+        StudentProfile profile = studentProfileRepository.findByStudentId(normalizedStudentId)
             .orElseGet(() -> createProfileFromStudent(student));
 
-        profile.setStudentId(studentId);
+        profile.setStudentId(normalizedStudentId);
         profile.setFullName(request.getFullName());
         profile.setProfileImage(request.getProfileImage());
         profile.setDob(request.getDob());
@@ -74,7 +77,7 @@ public class StudentProfileService {
         profile.setReligion(request.getReligion());
         profile.setBloodGroup(request.getBloodGroup());
         profile.setPhone(request.getPhone());
-        profile.setEmail(request.getEmail());
+        profile.setEmail(deriveStudentEmail(normalizedStudentId));
         profile.setAddress(request.getAddress());
         profile.setGuardianName(request.getGuardianName());
         profile.setGuardianPhone(request.getGuardianPhone());
@@ -96,7 +99,7 @@ public class StudentProfileService {
         studentProfileRepository.save(profile);
 
         student.setName(request.getFullName());
-        student.setEmail(request.getEmail());
+        student.setEmail(deriveStudentEmail(normalizedStudentId));
         student.setPhone(request.getPhone());
         student.setGender(request.getGender());
         student.setDob(request.getDob());
@@ -110,44 +113,48 @@ public class StudentProfileService {
         }
         studentRepository.save(student);
 
-        return mapProfile(studentId, "ADMIN");
+        return mapProfile(normalizedStudentId, "ADMIN");
     }
 
     @Transactional
     @CacheEvict(value = "studentProfile", allEntries = true)
     public StudentProfileResponseDTO updateByStudent(String username, StudentSelfUpdateProfileRequest request) {
-        Student student = studentRepository.findByUserUsername(username)
-            .orElseThrow(() -> new IllegalArgumentException("Student not found for username: " + username));
+        String normalizedUsername = java.util.Objects.requireNonNull(username, "Username must not be null");
+        Student student = studentRepository.findByUserUsername(normalizedUsername)
+            .orElseThrow(() -> new IllegalArgumentException("Student not found for username: " + normalizedUsername));
 
         StudentProfile profile = studentProfileRepository.findByStudentId(student.getId())
             .orElseGet(() -> createProfileFromStudent(student));
 
         profile.setPhone(request.getPhone());
+        profile.setEmail(deriveStudentEmail(student.getId()));
         profile.setAddress(request.getAddress());
         profile.setProfileImage(request.getProfileImage());
-        profile.setUpdatedBy(username);
+        profile.setUpdatedBy(normalizedUsername);
         studentProfileRepository.save(profile);
 
         student.setPhone(request.getPhone());
         student.setAddress(request.getAddress());
         student.setProfileImageUrl(request.getProfileImage());
+        student.setEmail(deriveStudentEmail(student.getId()));
         studentRepository.save(student);
 
         return mapProfile(student.getId(), "STUDENT");
     }
 
     private StudentProfileResponseDTO mapProfile(String studentId, String viewerRole) {
-        Student student = studentRepository.findById(studentId)
-            .orElseThrow(() -> new IllegalArgumentException("Student not found with id: " + studentId));
+        String normalizedStudentId = java.util.Objects.requireNonNull(studentId, "Student id must not be null");
+        Student student = studentRepository.findById(normalizedStudentId)
+            .orElseThrow(() -> new IllegalArgumentException("Student not found with id: " + normalizedStudentId));
 
-        StudentProfile profile = studentProfileRepository.findByStudentId(studentId)
+        StudentProfile profile = studentProfileRepository.findByStudentId(normalizedStudentId)
             .orElseGet(() -> createProfileFromStudent(student));
 
-        List<StudentDocument> documents = studentDocumentRepository.findByStudentIdOrderByUploadedAtDesc(studentId);
-        List<AcademicRecord> records = academicRecordRepository.findByStudentIdOrderBySubjectAsc(studentId);
+        List<StudentDocument> documents = studentDocumentRepository.findByStudentIdOrderByUploadedAtDesc(normalizedStudentId);
+        List<AcademicRecord> records = academicRecordRepository.findByStudentIdOrderBySubjectAsc(normalizedStudentId);
 
         StudentProfileResponseDTO dto = new StudentProfileResponseDTO();
-        dto.setStudentId(studentId);
+        dto.setStudentId(normalizedStudentId);
         dto.setFullName(firstNonBlank(profile.getFullName(), student.getName()));
         dto.setEnrollmentNumber(firstNonBlank(profile.getEnrollmentNumber(), student.getId()));
         dto.setProfileImage(firstNonBlank(profile.getProfileImage(), student.getProfileImageUrl()));
@@ -158,7 +165,7 @@ public class StudentProfileService {
         dto.setBloodGroup(profile.getBloodGroup());
 
         dto.setPhone(firstNonBlank(profile.getPhone(), student.getPhone()));
-        dto.setEmail(firstNonBlank(profile.getEmail(), student.getEmail()));
+        dto.setEmail(deriveStudentEmail(studentId));
         dto.setAddress(firstNonBlank(profile.getAddress(), student.getAddress()));
 
         dto.setGuardianName(profile.getGuardianName());
@@ -179,7 +186,7 @@ public class StudentProfileService {
         dto.setUpdatedAt(profile.getUpdatedAt());
         dto.setUpdatedBy(firstNonBlank(profile.getUpdatedBy(), "System"));
 
-        dto.setProfileQrUrl("/student/profile?studentId=" + studentId);
+        dto.setProfileQrUrl("/student/profile?studentId=" + normalizedStudentId);
         dto.setViewerRole(viewerRole);
         dto.setAdminEditable("ADMIN".equalsIgnoreCase(viewerRole));
 
@@ -200,7 +207,7 @@ public class StudentProfileService {
         profile.setGender(student.getGender());
         profile.setReligion(null);
         profile.setPhone(student.getPhone());
-        profile.setEmail(student.getEmail());
+        profile.setEmail(deriveStudentEmail(student.getId()));
         profile.setAddress(student.getAddress());
         profile.setCourse(student.getCourse());
         profile.setDepartment(student.getDepartment());
@@ -283,5 +290,9 @@ public class StudentProfileService {
             return primary;
         }
         return fallback;
+    }
+
+    private String deriveStudentEmail(String studentId) {
+        return studentId + "@bennett.edu.in";
     }
 }

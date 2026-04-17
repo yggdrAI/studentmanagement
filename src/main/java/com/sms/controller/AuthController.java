@@ -2,6 +2,7 @@ package com.sms.controller;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
@@ -13,7 +14,14 @@ public class AuthController {
     }
 
     @GetMapping("/login")
-    public String loginPage() {
+    public String loginPage(Model model) {
+        model.addAttribute("studentLoginMode", false);
+        return "login";
+    }
+
+    @GetMapping("/student-login")
+    public String studentLoginPage(Model model) {
+        model.addAttribute("studentLoginMode", true);
         return "login";
     }
 

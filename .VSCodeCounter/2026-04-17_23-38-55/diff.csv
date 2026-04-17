@@ -1,0 +1,14 @@
+"filename", "language", "Java", "HTML", "comment", "blank", "total"
+"f:\Coding\studentmanagement\src\main\java\com\sms\controller\AuthController.java", "Java", 7, 0, 0, 1, 8
+"f:\Coding\studentmanagement\src\main\java\com\sms\service\StudentProfileService.java", "Java", 10, 0, 0, 1, 11
+"f:\Coding\studentmanagement\src\main\java\com\sms\service\StudentService.java", "Java", 73, 0, 0, 7, 80
+"f:\Coding\studentmanagement\src\main\resources\templates\login.html", "HTML", 0, 7, 0, 2, 9
+"f:\Coding\studentmanagement\src\main\resources\templates\student-profile.html", "HTML", 0, 396, 0, 42, 438
+"f:\Coding\studentmanagement\target\classes\com\sms\config\DemoDataLoader.class", "Java", 1, 0, 0, 0, 1
+"f:\Coding\studentmanagement\target\classes\com\sms\config\SecurityConfig.class", "Java", -3, 0, 2, 0, -1
+"f:\Coding\studentmanagement\target\classes\com\sms\controller\AuthController.class", "Java", 15, 0, 0, 0, 15
+"f:\Coding\studentmanagement\target\classes\com\sms\service\StudentProfileService.class", "Java", 10, 0, 0, 0, 10
+"f:\Coding\studentmanagement\target\classes\com\sms\service\StudentService.class", "Java", 48, 0, 0, 0, 48
+"f:\Coding\studentmanagement\target\classes\templates\login.html", "HTML", 0, 7, 0, 2, 9
+"f:\Coding\studentmanagement\target\classes\templates\student-profile.html", "HTML", 0, 396, 0, 42, 438
+"Total", "-", 161, 806, 2, 97, 1066
