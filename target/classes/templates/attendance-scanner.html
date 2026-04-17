@@ -531,6 +531,23 @@
     let lastQrDetectedAt = null;
     let attendanceProcessing = false;
     let fallbackFaceStream = null;
+    let resolvedSubjectId = CURRENT_SUBJECT_ID ? Number(CURRENT_SUBJECT_ID) : null;
+
+    function isMobileDevice() {
+        return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    }
+
+    function getRearCameraConstraints() {
+        return {
+            audio: false,
+            video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                advanced: [{ facingMode: 'environment' }]
+            }
+        };
+    }
 
     /**
      * Wait for html5-qrcode library to load
@@ -665,11 +682,6 @@
     }
 
     async function captureFaceEmbedding() {
-        const video = document.querySelector('#reader video') || document.getElementById('cameraVideo');
-        if (!video) {
-            throw new Error('Camera stream is unavailable for face verification');
-        }
-
         await ensureFaceModelsLoaded();
 
         const prompts = ['Blink twice', 'Turn your head slightly left', 'Smile briefly'];
@@ -677,10 +689,20 @@
         document.getElementById('facePromptText').textContent = `Liveness prompt: ${activeLivenessPrompt}`;
         showStatus(`👤 ${activeLivenessPrompt} and hold your face inside the frame`, 'info');
 
-        let detection = await detectFaceWithRetries(video, 8, 300);
-        if (!detection) {
+        let detection = null;
+        if (isMobileDevice()) {
             showStatus('🔄 Switching to front camera for face verification...', 'warning');
             detection = await captureFaceFromFrontCamera();
+        } else {
+            const video = document.querySelector('#reader video') || document.getElementById('cameraVideo');
+            if (!video) {
+                throw new Error('Camera stream is unavailable for face verification');
+            }
+            detection = await detectFaceWithRetries(video, 8, 300);
+            if (!detection) {
+                showStatus('🔄 Switching to front camera for face verification...', 'warning');
+                detection = await captureFaceFromFrontCamera();
+            }
         }
 
         if (!detection || !detection.descriptor) {
@@ -842,11 +864,7 @@
                 try {
                     qrDetector = new BarcodeDetector({ formats: ['qr_code'] });
                     const constraints = {
-                        audio: false,
-                        video: {
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        }
+                        ...getRearCameraConstraints()
                     };
                     cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
                     const video = document.getElementById('cameraVideo');
@@ -873,7 +891,7 @@
                 try {
                     html5QrcodeScanner = new Html5Qrcode('reader');
                     await html5QrcodeScanner.start(
-                        { facingMode: "environment" },
+                        { facingMode: { exact: 'environment' } },
                         {
                             fps: 10,
                             qrbox: { width: 250, height: 250 },
@@ -900,6 +918,32 @@
                     return;
                 } catch (err) {
                     console.error('html5-qrcode initialization failed:', err);
+                    try {
+                        await html5QrcodeScanner.start(
+                            { facingMode: 'environment' },
+                            {
+                                fps: 10,
+                                qrbox: { width: 250, height: 250 },
+                                aspectRatio: 1.0
+                            },
+                            (decodedText) => {
+                                if (lastScannedToken !== decodedText) {
+                                    onScanSuccess(decodedText);
+                                }
+                            },
+                            () => {}
+                        );
+                        useFallbackScanner = true;
+                        isScanning = true;
+                        startLocationHeartbeat();
+                        document.getElementById('startBtn').style.display = 'none';
+                        document.getElementById('stopBtn').style.display = 'block';
+                        enableCameraFocusMode();
+                        showStatus('✓ Scanner started - Point at QR code', 'info');
+                        return;
+                    } catch (fallbackError) {
+                        console.error('html5-qrcode fallback initialization failed:', fallbackError);
+                    }
                 }
             }
 
@@ -1131,7 +1175,16 @@
      * Load today's attendance status
      */
     function loadTodayAttendance() {
-        const subjectId = new URLSearchParams(window.location.search).get('subjectId') || '1';
+        const subjectId = resolvedSubjectId;
+        if (!subjectId) {
+            document.getElementById('todayAttendance').innerHTML = `
+                <div style="background: #e2e8f0; padding: 1rem; border-radius: 6px; border-left: 4px solid #64748b;">
+                    <strong style="color: #334155;">ℹ Select a timetable class first</strong>
+                    <p style="margin: 0.5rem 0 0 0; color: #475569;">Open attendance scanner from timetable so subject sync stays accurate.</p>
+                </div>
+            `;
+            return;
+        }
         
         fetch(`/api/student/attendance/check-today?subjectId=${subjectId}`, {
             headers: {
@@ -1169,7 +1222,20 @@
     document.addEventListener('DOMContentLoaded', function() {
         registerPwa();
         document.body.classList.add('has-bottom-nav');
-        loadTodayAttendance();
+        if (!resolvedSubjectId) {
+            fetch('/api/student/timetable', { headers: { Accept: 'application/json' } })
+                .then((response) => response.ok ? response.json() : [])
+                .then((items) => {
+                    const first = Array.isArray(items) ? items.find(item => item && item.courseId) : null;
+                    if (first && first.courseId) {
+                        resolvedSubjectId = Number(first.courseId);
+                    }
+                    loadTodayAttendance();
+                })
+                .catch(() => loadTodayAttendance());
+        } else {
+            loadTodayAttendance();
+        }
         document.getElementById('metadata').style.display = 'block';
         showStatus('Click "Start Scanner" to begin', 'info');
 

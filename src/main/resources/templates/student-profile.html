@@ -369,6 +369,12 @@
             transform: translateY(0);
         }
 
+        .upload-hint {
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            margin-top: 0.35rem;
+        }
+
         @media (max-width: 1024px) {
             .top-layout {
                 grid-template-columns: 1fr;
@@ -399,6 +405,8 @@
                 <button class="btn btn-outline" type="button" id="darkModeBtn">Dark Mode</button>
                 <button class="btn btn-primary" type="button" id="editModeBtn" style="display:none;">Edit Mode: OFF</button>
                 <button class="btn btn-primary" type="button" id="saveBtn" style="display:none;">Save Changes</button>
+                <button class="btn btn-outline" type="button" id="uploadImageBtn" style="display:none;">Upload Photo</button>
+                <input type="file" id="profileImageFile" accept="image/*" style="display:none;">
                 <button class="btn btn-outline" type="button" id="downloadBtn">Download PDF</button>
             </div>
         </div>
@@ -511,15 +519,16 @@
         personal: [
             { key: 'fullName', label: 'Full Name' },
             { key: 'dob', label: 'Date of Birth', type: 'date' },
-            { key: 'gender', label: 'Gender' },
-            { key: 'bloodGroup', label: 'Blood Group' }
+            { key: 'gender', label: 'Gender', type: 'select' },
+            { key: 'religion', label: 'Religion', type: 'select' },
+            { key: 'bloodGroup', label: 'Blood Group', type: 'select' }
         ],
         academic: [
             { key: 'college', label: 'College' },
             { key: 'course', label: 'Course' },
             { key: 'department', label: 'Department' },
-            { key: 'semester', label: 'Semester' },
-            { key: 'section', label: 'Section' },
+            { key: 'semester', label: 'Semester', type: 'select' },
+            { key: 'section', label: 'Section', type: 'select' },
             { key: 'admissionYear', label: 'Admission Year', type: 'number' },
             { key: 'passingYear', label: 'Passing Year', type: 'number' }
         ],
@@ -543,6 +552,14 @@
 
     const studentEditableFields = new Set(['phone', 'address', 'profileImage']);
     const adminLockedFields = new Set(['enrollmentNumber', 'studentId']);
+
+    const fieldSelectOptions = {
+        gender: ['Male', 'Female', 'Other'],
+        religion: ['Hindu', 'Muslim', 'Sikh', 'Christian', 'Buddhist', 'Jain', 'Other', 'Prefer not to say'],
+        bloodGroup: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'O+ve'],
+        semester: ['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6', 'Semester 7', 'Semester 8'],
+        section: ['A', 'B', 'C', 'D', 'E']
+    };
 
     function normalize(value) {
         if (value === null || value === undefined) {
@@ -601,6 +618,24 @@
         const canEdit = fieldCanEdit(field.key) && !field.readonly;
         const type = field.type || 'text';
         const inputValue = type === 'date' && value ? normalize(value).substring(0, 10) : normalize(value);
+        if (type === 'select') {
+            const options = fieldSelectOptions[field.key] || [];
+            const normalizedValue = normalize(inputValue);
+            const renderedOptions = options.map((optionValue) => {
+                const selected = normalizedValue === optionValue ? 'selected' : '';
+                return `<option value="${optionValue}" ${selected}>${optionValue}</option>`;
+            }).join('');
+            return `
+                <div class="field-card ${field.full ? 'full' : ''}">
+                    <label class="field-label">${field.label}</label>
+                    <select class="field-input ${canEdit ? 'editable' : ''}" data-field="${field.key}" ${canEdit ? '' : 'disabled'}>
+                        <option value="">Select</option>
+                        ${renderedOptions}
+                    </select>
+                </div>
+            `;
+        }
+
         return `
             <div class="field-card ${field.full ? 'full' : ''}">
                 <label class="field-label">${field.label}</label>
@@ -717,11 +752,13 @@
         document.getElementById('viewerRolePill').textContent = `Viewer: ${normalize(currentProfile.viewerRole) || PROFILE_MODE}`;
 
         const editButton = document.getElementById('editModeBtn');
+        const uploadButton = document.getElementById('uploadImageBtn');
         editButton.style.display = 'inline-flex';
         editButton.textContent = editEnabled
             ? (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: ON' : 'Contact Edit: ON')
             : (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: OFF' : 'Contact Edit: OFF');
         document.getElementById('saveBtn').style.display = editEnabled ? 'inline-flex' : 'none';
+        uploadButton.style.display = PROFILE_MODE === 'ADMIN' ? 'inline-flex' : 'none';
     }
 
     function collectPayload() {
@@ -737,6 +774,7 @@
                 profileImage: allValues.profileImage,
                 dob: allValues.dob || null,
                 gender: allValues.gender,
+                religion: allValues.religion,
                 bloodGroup: allValues.bloodGroup,
                 phone: allValues.phone,
                 email: allValues.email,
@@ -805,6 +843,48 @@
 
     function bindActions() {
         document.getElementById('darkModeBtn').addEventListener('click', toggleDarkMode);
+
+        const imagePicker = document.getElementById('profileImageFile');
+        document.getElementById('uploadImageBtn').addEventListener('click', () => {
+            if (PROFILE_MODE !== 'ADMIN') {
+                showToast('Only admin can upload profile picture here.');
+                return;
+            }
+            imagePicker.click();
+        });
+
+        imagePicker.addEventListener('change', (event) => {
+            const [file] = event.target.files || [];
+            if (!file) {
+                return;
+            }
+
+            if (!file.type.startsWith('image/')) {
+                showToast('Please select a valid image file.');
+                imagePicker.value = '';
+                return;
+            }
+
+            if (file.size > 2 * 1024 * 1024) {
+                showToast('Image must be 2MB or smaller.');
+                imagePicker.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                currentProfile.profileImage = String(reader.result || '');
+                const profileImageInput = document.querySelector('[data-field="profileImage"]');
+                if (profileImageInput) {
+                    profileImageInput.value = currentProfile.profileImage;
+                }
+                renderIdCard();
+                showToast('Profile image selected. Click Save Changes to persist.');
+            };
+            reader.onerror = () => showToast('Unable to read selected image.');
+            reader.readAsDataURL(file);
+            imagePicker.value = '';
+        });
 
         document.getElementById('editModeBtn').addEventListener('click', () => {
             editEnabled = !editEnabled;

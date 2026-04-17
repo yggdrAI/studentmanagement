@@ -13,6 +13,7 @@ public class StudentProfileResponseDTO {
 
     private LocalDate dob;
     private String gender;
+    private String religion;
     private String bloodGroup;
 
     private String phone;
@@ -57,6 +58,8 @@ public class StudentProfileResponseDTO {
     public void setDob(LocalDate dob) { this.dob = dob; }
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
+    public String getReligion() { return religion; }
+    public void setReligion(String religion) { this.religion = religion; }
     public String getBloodGroup() { return bloodGroup; }
     public void setBloodGroup(String bloodGroup) { this.bloodGroup = bloodGroup; }
     public String getPhone() { return phone; }

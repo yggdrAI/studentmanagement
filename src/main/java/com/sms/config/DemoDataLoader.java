@@ -122,6 +122,7 @@ public class DemoDataLoader implements CommandLineRunner {
         profile.setBloodGroup("O+ve");
         profile.setDob(LocalDate.of(2007, 3, 15));
         profile.setGender("Female");
+        profile.setReligion("Hindu");
         profile.setGuardianName("Ashok Kumar Jain");
         profile.setGuardianPhone("+91-9999988888");
         profile.setAddress("Delhi Road, Meerut");

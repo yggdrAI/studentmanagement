@@ -324,11 +324,7 @@
                     <div class="form-group">
                         <label class="form-label">📚 Select Subject</label>
                         <select id="subjectId" required>
-                            <option value="">-- Choose Subject --</option>
-                            <option value="1">DSA (Data Structures)</option>
-                            <option value="2">Web Development</option>
-                            <option value="3">Database Systems</option>
-                            <option value="4">Operating Systems</option>
+                            <option value="">-- Loading Subjects... --</option>
                         </select>
                     </div>
 
@@ -435,11 +431,7 @@
                         <div class="form-group">
                             <label class="form-label">📚 Subject</label>
                             <select id="manualSubjectId" required>
-                                <option value="">-- Choose Subject --</option>
-                                <option value="1">DSA (Data Structures)</option>
-                                <option value="2">Web Development</option>
-                                <option value="3">Database Systems</option>
-                                <option value="4">Operating Systems</option>
+                                <option value="">-- Loading Subjects... --</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -468,6 +460,85 @@
     let activeQRSession = null;
     let timerInterval = null;
     let statsInterval = null;
+    let teacherSubjects = [];
+
+    function getSelectedSubjectName() {
+        const selected = teacherSubjects.find(subject => String(subject.subjectId) === String(document.getElementById('subjectId').value));
+        return selected ? `${selected.subjectCode} - ${selected.subjectName}` : '';
+    }
+
+    function renderSubjectOptions() {
+        const subjectSelect = document.getElementById('subjectId');
+        const manualSubjectSelect = document.getElementById('manualSubjectId');
+
+        const baseOption = '<option value="">-- Choose Subject --</option>';
+        const options = teacherSubjects.map(subject =>
+            `<option value="${subject.subjectId}">${subject.subjectCode} (${subject.subjectName})</option>`
+        ).join('');
+
+        subjectSelect.innerHTML = baseOption + options;
+        manualSubjectSelect.innerHTML = baseOption + options;
+    }
+
+    function renderStudentList(students) {
+        const list = document.getElementById('studentList');
+        if (!students || !students.length) {
+            list.innerHTML = '<div style="color:#64748b;">No enrolled students found for this subject.</div>';
+            return;
+        }
+
+        list.innerHTML = students.map((student) => `
+            <label style="display:block; margin-bottom:8px;">
+                <input type="checkbox" class="student-checkbox" data-student-id="${student.studentId}" checked>
+                ${student.studentName} <span style="color:#64748b;">(${student.studentId})</span>
+            </label>
+        `).join('');
+    }
+
+    function loadSubjectStudents(subjectId) {
+        if (!subjectId) {
+            renderStudentList([]);
+            return;
+        }
+
+        fetch(`/api/teacher/attendance/subject/${encodeURIComponent(subjectId)}/students`, {
+            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
+        })
+        .then(response => response.json())
+        .then(data => renderStudentList(Array.isArray(data) ? data : []))
+        .catch(error => {
+            console.error('Error loading subject students:', error);
+            renderStudentList([]);
+        });
+    }
+
+    function loadTeacherSubjects() {
+        fetch('/api/teacher/attendance/subjects', {
+            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
+        })
+        .then(response => response.json())
+        .then(data => {
+            teacherSubjects = Array.isArray(data) ? data : [];
+            renderSubjectOptions();
+
+            if (teacherSubjects.length > 0) {
+                const firstId = String(teacherSubjects[0].subjectId);
+                document.getElementById('subjectId').value = firstId;
+                document.getElementById('manualSubjectId').value = firstId;
+                document.getElementById('subjectName').value = getSelectedSubjectName();
+                loadSubjectStudents(firstId);
+            } else {
+                document.getElementById('subjectName').value = '';
+                renderStudentList([]);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading teacher subjects:', error);
+            teacherSubjects = [];
+            renderSubjectOptions();
+            renderStudentList([]);
+        });
+    }
 
     /**
      * Generate QR code
@@ -485,7 +556,7 @@
 
         const request = {
             subjectId: parseInt(subjectId),
-            subjectName: document.getElementById('subjectName').value,
+            subjectName: getSelectedSubjectName(),
             expiryMinutes: parseInt(expiryMinutes)
         };
 
@@ -695,26 +766,17 @@
      */
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('subjectId').addEventListener('change', function() {
-            const names = {
-                '1': 'Data Structures & Algorithms',
-                '2': 'Web Development',
-                '3': 'Database Systems',
-                '4': 'Operating Systems'
-            };
-            document.getElementById('subjectName').value = names[this.value] || '';
+            document.getElementById('subjectName').value = getSelectedSubjectName();
+        });
+
+        document.getElementById('manualSubjectId').addEventListener('change', function() {
+            loadSubjectStudents(this.value);
         });
 
         // Set today's date
         document.getElementById('attendanceDate').valueAsDate = new Date();
 
-        // Load student list
-        document.getElementById('studentList').innerHTML = `
-            <label><input type="checkbox" class="student-checkbox" data-student-id="STU001" checked> Aarav Patel</label><br/>
-            <label><input type="checkbox" class="student-checkbox" data-student-id="STU002" checked> Riya Sharma</label><br/>
-            <label><input type="checkbox" class="student-checkbox" data-student-id="STU003"> Rahul Verma</label><br/>
-            <label><input type="checkbox" class="student-checkbox" data-student-id="STU004" checked> Priya Desai</label><br/>
-            <label><input type="checkbox" class="student-checkbox" data-student-id="STU005"> Vikram Singh</label><br/>
-        `;
+        loadTeacherSubjects();
     });
 </script>
 

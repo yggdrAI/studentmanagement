@@ -71,6 +71,7 @@ public class StudentProfileService {
         profile.setProfileImage(request.getProfileImage());
         profile.setDob(request.getDob());
         profile.setGender(request.getGender());
+        profile.setReligion(request.getReligion());
         profile.setBloodGroup(request.getBloodGroup());
         profile.setPhone(request.getPhone());
         profile.setEmail(request.getEmail());
@@ -153,6 +154,7 @@ public class StudentProfileService {
 
         dto.setDob(profile.getDob() != null ? profile.getDob() : student.getDob());
         dto.setGender(firstNonBlank(profile.getGender(), student.getGender()));
+        dto.setReligion(profile.getReligion());
         dto.setBloodGroup(profile.getBloodGroup());
 
         dto.setPhone(firstNonBlank(profile.getPhone(), student.getPhone()));
@@ -196,6 +198,7 @@ public class StudentProfileService {
         profile.setProfileImage(student.getProfileImageUrl());
         profile.setDob(student.getDob());
         profile.setGender(student.getGender());
+        profile.setReligion(null);
         profile.setPhone(student.getPhone());
         profile.setEmail(student.getEmail());
         profile.setAddress(student.getAddress());
@@ -238,11 +241,11 @@ public class StudentProfileService {
 
     private int calculateCompletion(StudentProfileResponseDTO dto) {
         int filled = 0;
-        int total = 22;
+        int total = 23;
 
         List<Object> fields = Arrays.asList(
             dto.getFullName(), dto.getEnrollmentNumber(), dto.getProfileImage(),
-            dto.getDob(), dto.getGender(), dto.getBloodGroup(),
+            dto.getDob(), dto.getGender(), dto.getReligion(), dto.getBloodGroup(),
             dto.getPhone(), dto.getEmail(), dto.getAddress(),
             dto.getGuardianName(), dto.getGuardianPhone(),
             dto.getCollege(), dto.getCourse(), dto.getDepartment(), dto.getSemester(), dto.getSection(),

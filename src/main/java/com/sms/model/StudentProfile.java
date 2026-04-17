@@ -33,6 +33,9 @@ public class StudentProfile {
     @Column(name = "gender")
     private String gender;
 
+    @Column(name = "religion")
+    private String religion;
+
     @Column(name = "blood_group")
     private String bloodGroup;
 
@@ -115,6 +118,8 @@ public class StudentProfile {
     public void setDob(LocalDate dob) { this.dob = dob; }
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
+    public String getReligion() { return religion; }
+    public void setReligion(String religion) { this.religion = religion; }
     public String getBloodGroup() { return bloodGroup; }
     public void setBloodGroup(String bloodGroup) { this.bloodGroup = bloodGroup; }
     public String getPhone() { return phone; }

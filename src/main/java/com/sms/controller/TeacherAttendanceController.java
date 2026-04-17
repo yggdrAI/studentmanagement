@@ -1,9 +1,13 @@
 package com.sms.controller;
 
 import com.sms.dto.attendance.*;
+import com.sms.model.Course;
+import com.sms.model.Teacher;
 import com.sms.service.AttendanceQRTokenService;
 import com.sms.service.AttendanceService;
+import com.sms.service.DashboardService;
 import com.sms.model.Attendance;
+import com.sms.repository.CourseRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,6 +33,58 @@ public class TeacherAttendanceController {
     @Autowired
     private AttendanceService attendanceService;
 
+    @Autowired
+    private DashboardService dashboardService;
+
+    @Autowired
+    private CourseRepository courseRepository;
+
+    private Teacher resolveTeacher(Authentication auth) {
+        if (auth == null || auth.getName() == null || auth.getName().isBlank()) {
+            throw new IllegalArgumentException("Unauthenticated teacher request");
+        }
+        return dashboardService.resolveTeacherByUsername(auth.getName());
+    }
+
+    private Course resolveTeacherCourse(Authentication auth, Long subjectId) {
+        Teacher teacher = resolveTeacher(auth);
+        Course course = courseRepository.findById(subjectId)
+                .orElseThrow(() -> new IllegalArgumentException("Subject not found: " + subjectId));
+        if (course.getTeacher() == null || !course.getTeacher().getId().equals(teacher.getId())) {
+            throw new IllegalArgumentException("Subject does not belong to authenticated teacher");
+        }
+        return course;
+    }
+
+    @GetMapping("/subjects")
+    public ResponseEntity<List<Map<String, Object>>> getTeacherSubjects(Authentication auth) {
+        Teacher teacher = resolveTeacher(auth);
+        List<Map<String, Object>> payload = new ArrayList<>();
+        for (Course course : courseRepository.findByTeacherId(teacher.getId())) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("subjectId", course.getId());
+            item.put("subjectCode", course.getCode());
+            item.put("subjectName", course.getCourseName());
+            payload.add(item);
+        }
+        return ResponseEntity.ok(payload);
+    }
+
+    @GetMapping("/subject/{subjectId}/students")
+    public ResponseEntity<List<Map<String, Object>>> getSubjectStudents(@PathVariable Long subjectId,
+                                                                        Authentication auth) {
+        resolveTeacherCourse(auth, subjectId);
+        List<Map<String, Object>> payload = new ArrayList<>();
+        dashboardService.getSubjectProgress(auth.getName(), subjectId).forEach(student -> {
+            Map<String, Object> item = new HashMap<>();
+            item.put("studentId", student.getStudentId());
+            item.put("studentName", student.getStudentName());
+            item.put("progressPercent", student.getProgressPercent());
+            payload.add(item);
+        });
+        return ResponseEntity.ok(payload);
+    }
+
     /**
      * Generate QR code for attendance
      * Teacher initiates this to start attendance marking for a class
@@ -40,8 +96,9 @@ public class TeacherAttendanceController {
             @RequestBody GenerateAttendanceQRRequest request,
             Authentication auth) {
         try {
-            // Get teacher ID (in real app, from JWT token)
-            Long teacherId = 1L; // TODO: Extract from authentication
+            Course course = resolveTeacherCourse(auth, request.getSubjectId());
+            Long teacherId = course.getTeacher().getId();
+            String subjectName = course.getCourseName();
             
             // Generate JWT token
             String qrToken = qrTokenService.generateAttendanceToken(
@@ -64,7 +121,7 @@ public class TeacherAttendanceController {
                 qrToken,
                 qrImageBase64,
                 request.getSubjectId(),
-                request.getSubjectName(),
+                subjectName,
                 expiresAt,
                 expirySeconds,
                 sessionId
@@ -86,7 +143,8 @@ public class TeacherAttendanceController {
             @RequestBody ManualAttendanceRequest request,
             Authentication auth) {
         try {
-            Long teacherId = 1L; // TODO: Extract from authentication
+            Course course = resolveTeacherCourse(auth, request.getSubjectId());
+            Long teacherId = course.getTeacher().getId();
             
             LocalDate attendanceDate = LocalDate.parse(
                 request.getAttendanceDate(),
@@ -134,8 +192,10 @@ public class TeacherAttendanceController {
     @GetMapping("/session-stats")
     public ResponseEntity<Map<String, Object>> getSessionStats(
             @RequestParam Long subjectId,
-            @RequestParam(required = false) String date) {
+            @RequestParam(required = false) String date,
+            Authentication auth) {
         try {
+            resolveTeacherCourse(auth, subjectId);
             LocalDate attendanceDate = date != null ? 
                 LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE) : 
                 LocalDate.now();
@@ -175,8 +235,10 @@ public class TeacherAttendanceController {
     @GetMapping("/records")
     public ResponseEntity<List<Map<String, Object>>> getAttendanceRecords(
             @RequestParam Long subjectId,
-            @RequestParam(required = false) String date) {
+            @RequestParam(required = false) String date,
+            Authentication auth) {
         try {
+            resolveTeacherCourse(auth, subjectId);
             LocalDate attendanceDate = date != null ? 
                 LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE) : 
                 LocalDate.now();
