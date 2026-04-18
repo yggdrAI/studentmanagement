@@ -3,31 +3,152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cafeteria - Student Portal</title>
+    <title>Smart Cafeteria - Student Portal</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/cafeteria.css}">
 </head>
 <body>
 
     <div th:replace="~{fragments/sidebar :: sidebar(activeTab='cafeteria')}"></div>
 
     <main class="content-area" id="maincontent" tabindex="-1">
-        <div class="content-wrapper">
-            <header class="page-header">
+        <div class="content-wrapper cafeteria-page">
+            <header class="page-header cafeteria-header">
                 <div>
-                    <h1 class="page-title">Cafeteria Services 🍔</h1>
+                    <h1 class="page-title">Flagship Smart Cafeteria</h1>
+                    <p class="dashboard-subtitle">Apple-grade clarity for meal selection, AI insights, and weekly nutrition trends.</p>
                 </div>
             </header>
 
-            <section class="generic-card">
-                <h2>Today's Special</h2>
-                <p>The cafeteria is serving a special Deluxe Meal Combo today!</p>
-                <button type="button" class="btn btn-outline" style="margin-top: 16px;">View Full Menu</button>
+            <section class="cafeteria-shell" aria-label="World-class cafeteria planner">
+                <div class="cafeteria-atmosphere" aria-hidden="true"></div>
+
+                <section class="hero-panel glass-panel" aria-label="Daily overview">
+                    <div class="hero-copy">
+                        <p class="mini-label">Daily Command Center</p>
+                        <h2>Smart Cafeteria</h2>
+                        <p>Choose meals, track calorie rhythm, and keep your daily choices balanced with AI-backed guidance.</p>
+                        <div id="daySelector" class="day-selector" role="tablist" aria-label="Select day"></div>
+                    </div>
+                    <div class="hero-ring-wrap" aria-label="Today calories ring">
+                        <svg class="hero-ring" viewBox="0 0 120 120" aria-hidden="true">
+                            <circle class="hero-ring-track" cx="60" cy="60" r="50"></circle>
+                            <circle id="heroCalorieArc" class="hero-ring-progress" cx="60" cy="60" r="50"></circle>
+                        </svg>
+                        <div class="hero-ring-center">
+                            <strong id="heroRingValue">0</strong>
+                            <span>kcal</span>
+                            <small id="heroDayText">Today</small>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="ai-suggestion-panel glass-panel" aria-live="polite">
+                    <div class="ai-heading">
+                        <p class="mini-label">AI Diet Planner</p>
+                        <span class="ai-live-dot">Live</span>
+                    </div>
+                    <h3 id="aiSuggestionTitle">Adaptive recommendation loading...</h3>
+                    <p id="aiSuggestionText">We analyze your calorie trend and next meal timing to suggest healthier choices.</p>
+                    <div class="ai-metrics">
+                        <div class="ai-metric-chip">
+                            <span>ML Prediction</span>
+                            <strong id="mlPrediction">moderate</strong>
+                        </div>
+                        <div class="ai-metric-chip">
+                            <span>Health Score</span>
+                            <strong id="mlScore">0</strong>
+                        </div>
+                        <div class="ai-metric-chip">
+                            <span>Engine</span>
+                            <strong id="mlSource">heuristic</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="chart-grid" aria-label="Diet analytics charts">
+                    <article class="chart-card glass-panel">
+                        <div class="chart-head">
+                            <h3>Weekly Calories</h3>
+                            <span class="chart-meta">7 day trend</span>
+                        </div>
+                        <div class="chart-viewport">
+                            <canvas id="weeklyCaloriesChart"></canvas>
+                            <div id="weeklyChartEmpty" class="chart-empty" hidden>No data yet. Start selecting meals.</div>
+                        </div>
+                    </article>
+                    <article class="chart-card glass-panel radial-card">
+                        <div class="chart-head">
+                            <h3>Health Score</h3>
+                            <span class="chart-meta">AI risk indicator</span>
+                        </div>
+                        <div class="chart-viewport chart-viewport-radial">
+                            <canvas id="healthScoreChart"></canvas>
+                        </div>
+                    </article>
+                </section>
+
+                <section class="filters-panel glass-panel">
+                    <label class="search-field" for="mealSearch">
+                        <span class="mini-label">Search Menu</span>
+                        <input id="mealSearch" type="search" placeholder="Search meal item..." autocomplete="off">
+                    </label>
+                    <label class="filter-field" for="mealTypeFilter">
+                        <span class="mini-label">Meal Type</span>
+                        <select id="mealTypeFilter">
+                            <option value="all">All</option>
+                            <option value="Breakfast">Breakfast</option>
+                            <option value="Lunch">Lunch</option>
+                            <option value="Snack">Snack</option>
+                            <option value="Dinner">Dinner</option>
+                        </select>
+                    </label>
+                    <button type="button" id="clearFiltersBtn" class="cafeteria-btn ghost">Clear</button>
+                </section>
+
+                <section class="meal-section">
+                    <div class="meal-section-head">
+                        <h3>Meal Sections</h3>
+                        <p>Tap items to build your cafeteria request and update AI insights in real time.</p>
+                    </div>
+                    <div id="mealGrid" class="meal-grid" aria-live="polite"></div>
+                </section>
+
+                <section class="qr-sheet glass-panel" id="qrDrawer" hidden aria-live="polite">
+                    <div id="qrCanvas" class="qr-canvas" aria-label="Generated meal QR"></div>
+                    <div class="qr-details">
+                        <p id="qrMeta" class="qr-meta">No QR generated yet.</p>
+                        <pre id="qrPayloadPreview" class="payload-preview" aria-label="QR payload preview"></pre>
+                    </div>
+                </section>
+
+                <section class="summary-bar glass-panel" aria-live="polite">
+                    <div>
+                        <p class="mini-label">Selected Items</p>
+                        <h3 id="selectedCount">0 item</h3>
+                    </div>
+                    <div>
+                        <p class="mini-label">Total Calories</p>
+                        <h3 id="totalCalories">0 kcal</h3>
+                    </div>
+                    <div class="summary-meter" aria-hidden="true">
+                        <div id="calorieProgress" class="summary-meter-fill" style="width: 0%;"></div>
+                    </div>
+                    <div class="summary-actions">
+                        <button type="button" id="regenerateTokenBtn" class="cafeteria-btn ghost">Regenerate Token</button>
+                        <button type="button" id="generateQrBtn" class="cafeteria-btn solid">Generate QR</button>
+                    </div>
+                </section>
             </section>
         </div>
     </main>
 
     <div th:replace="~{fragments/sidebar :: floating-tools}"></div>
+    <div id="cafeteriaToast" class="cafeteria-toast" hidden></div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script th:src="@{/js/cafeteria.js}"></script>
 
 </body>
 </html>
