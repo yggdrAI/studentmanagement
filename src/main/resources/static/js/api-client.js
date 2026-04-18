@@ -177,6 +177,13 @@
         },
 
         admin: {
+            dashboard: {
+                summary: () => request('/api/admin/dashboard/summary'),
+                databaseHealth: () => request('/api/admin/dashboard/database-health'),
+                analytics: () => request('/api/admin/dashboard/analytics'),
+                alerts: () => request('/api/admin/dashboard/alerts'),
+                recentActivity: (limit) => request('/api/admin/dashboard/recent-activity?limit=' + encodeURIComponent(limit || 12))
+            },
             students: {
                 list: (queryParams) => request(withQuery('/api/admin/students', queryParams)),
                 create: (payload) => request('/api/admin/students', { method: 'POST', body: JSON.stringify(payload) }),

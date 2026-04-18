@@ -3,25 +3,25 @@ package com.sms.controller;
 import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -36,8 +36,8 @@ import com.sms.model.StudentProfile;
 import com.sms.repository.SecurityAuditRepository;
 import com.sms.repository.StudentProfileRepository;
 import com.sms.service.DashboardService;
-import com.sms.service.FaceVerificationService;
 import com.sms.service.DatabaseMigrationService;
+import com.sms.service.FaceVerificationService;
 import com.sms.service.StudentService;
 
 import jakarta.validation.Valid;
@@ -69,6 +69,7 @@ public class AdminApiController {
     }
 
     @PostMapping(value = "/upload-face", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('MANAGE_STUDENTS') and @permissionEngine.canAccessTenant(#tenantId)")
     public ResponseEntity<Map<String, Object>> uploadFace(
         @RequestParam("file") MultipartFile file,
         @RequestParam("studentId") String studentId,
@@ -130,6 +131,11 @@ public class AdminApiController {
             row.put("enrollment", profile != null && profile.getEnrollmentNumber() != null ? profile.getEnrollmentNumber() : student.getId());
             row.put("email", student.getEmail());
             row.put("course", profile != null && profile.getCourse() != null ? profile.getCourse() : student.getCourse());
+            row.put("semester", student.getSemester());
+            row.put("section", profile != null && profile.getSection() != null ? profile.getSection() : student.getSection());
+            row.put("batch", student.getEnrollmentYear());
+            row.put("classGroup", student.getClassGroup());
+            row.put("batchGroup", student.getBatchGroup());
             row.put("averageMarks", averageMap.getOrDefault(student.getId(), 0.0));
             row.put("avatar", buildAvatar(student.getName()));
             items.add(row);
@@ -190,13 +196,33 @@ public class AdminApiController {
         }
 
         Student student = new Student(studentId.trim(), studentName.trim());
+        student.setCourse(trimValue(payload.get("course")));
+        student.setSemester(trimValue(payload.get("semester")));
+        student.setSection(trimValue(payload.get("section")));
+        student.setEnrollmentYear(trimValue(payload.get("batch")));
+        student.setPhone(trimValue(payload.get("phone")));
         Student saved = studentService.save(student);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "id", saved.getId(),
                 "name", saved.getName(),
                 "email", saved.getEmail(),
+                "course", saved.getCourse(),
+                "semester", saved.getSemester(),
+                "section", saved.getSection(),
+                "batch", saved.getEnrollmentYear(),
+                "classGroup", saved.getClassGroup(),
+                "batchGroup", saved.getBatchGroup(),
                 "message", "Student created successfully"
+        ));
+    }
+
+    @PostMapping("/students/recompute-cohorts")
+    public ResponseEntity<Map<String, Object>> recomputeStudentCohorts() {
+        int updated = studentService.recomputeCohortsForAllStudents();
+        return ResponseEntity.ok(Map.of(
+            "updated", updated,
+            "message", "Student class/batch groups recomputed"
         ));
     }
 
@@ -219,12 +245,17 @@ public class AdminApiController {
         Map<String, Double> averageMap = studentService.getAverageMarksMap(students);
 
         StringBuilder csv = new StringBuilder();
-        csv.append("ID,Name,Email,Course,AverageMarks\n");
+                 csv.append("ID,Name,Email,Course,Semester,Section,Batch,ClassGroup,BatchGroup,AverageMarks\n");
         for (Student student : students) {
             csv.append(escapeCsv(student.getId())).append(',')
                .append(escapeCsv(student.getName())).append(',')
                .append(escapeCsv(student.getEmail())).append(',')
                .append(escapeCsv(student.getCourse())).append(',')
+             .append(escapeCsv(student.getSemester())).append(',')
+             .append(escapeCsv(student.getSection())).append(',')
+             .append(escapeCsv(student.getEnrollmentYear())).append(',')
+                         .append(escapeCsv(student.getClassGroup())).append(',')
+                         .append(escapeCsv(student.getBatchGroup())).append(',')
                .append(String.format("%.2f", averageMap.getOrDefault(student.getId(), 0.0)))
                .append("\n");
         }
@@ -302,5 +333,13 @@ public class AdminApiController {
         }
         String escaped = value.replace("\"", "\"\"");
         return '"' + escaped + '"';
+    }
+
+    private String trimValue(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

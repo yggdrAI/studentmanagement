@@ -1,14 +1,15 @@
 package com.sms.repository;
 
-import com.sms.model.Attendance;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
+import com.sms.model.Attendance;
 
 /**
  * Repository for Attendance entity
@@ -163,4 +164,18 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         @Param("date") LocalDate date,
         @Param("tenantId") Long tenantId
     );
+
+        @Query("SELECT a.attendanceDate, " +
+            "SUM(CASE WHEN a.status = 'PRESENT' THEN 1 ELSE 0 END), " +
+            "COUNT(a) " +
+            "FROM Attendance a " +
+            "WHERE a.attendanceDate BETWEEN :fromDate AND :toDate " +
+            "GROUP BY a.attendanceDate ORDER BY a.attendanceDate")
+        List<Object[]> attendanceTrend(@Param("fromDate") LocalDate fromDate, @Param("toDate") LocalDate toDate);
+
+        @Query("SELECT a.studentId, " +
+            "SUM(CASE WHEN a.status = 'PRESENT' THEN 1 ELSE 0 END), " +
+            "COUNT(a) " +
+            "FROM Attendance a GROUP BY a.studentId HAVING COUNT(a) >= :minRecords")
+        List<Object[]> studentAttendanceRates(@Param("minRecords") long minRecords);
 }

@@ -20,6 +20,8 @@
             name: "",
             course: "",
             semester: "",
+            section: "",
+            batch: "",
             phone: "",
             email: ""
         },
@@ -227,15 +229,6 @@
 
     async function fetchStudents() {
         showSkeleton();
-        const params = new URLSearchParams({
-            page: String(state.page),
-            size: String(state.size),
-            search: state.search,
-            course: state.course,
-            sortBy: state.sortBy,
-            sortDir: state.sortDir
-        });
-
         try {
             const payload = await window.smsApi.admin.students.list({
                 page: state.page,
@@ -254,21 +247,21 @@
             renderInsights();
             syncBulkActions();
         } catch (error) {
-            refs.gridBody.innerHTML = `<tr><td colspan="8" class="empty-state">Unable to load students. ${escapeHtml(error.message)}</td></tr>`;
+            refs.gridBody.innerHTML = `<tr><td colspan="11" class="empty-state">Unable to load students. ${escapeHtml(error.message)}</td></tr>`;
             toast("Unable to fetch students", "error");
         }
     }
 
     function showSkeleton() {
         const skeletonRows = Array.from({ length: 7 }).map(() =>
-            `<tr><td colspan="8"><div class="skeleton-row"></div></td></tr>`
+            `<tr><td colspan="11"><div class="skeleton-row"></div></td></tr>`
         ).join("");
         refs.gridBody.innerHTML = skeletonRows;
     }
 
     function renderGrid() {
         if (!state.items.length) {
-            refs.gridBody.innerHTML = `<tr><td colspan="8" class="empty-state">No students match the current filters.</td></tr>`;
+            refs.gridBody.innerHTML = `<tr><td colspan="11" class="empty-state">No students match the current filters.</td></tr>`;
             return;
         }
 
@@ -285,6 +278,9 @@
                     <td>${escapeHtml(item.enrollment || item.id)}</td>
                     <td>${escapeHtml(item.email || "")}</td>
                     <td><span class="badge">${escapeHtml(item.course || "N/A")}</span></td>
+                    <td>${escapeHtml(item.semester || "-")}</td>
+                    <td>${escapeHtml(item.classGroup || item.section || "-")}</td>
+                    <td>${escapeHtml(item.batchGroup || item.batch || "-")}</td>
                     <td>
                         <div style="display:flex; align-items:center; gap:10px;">
                             <div class="progress ${progressClass}"><span style="width:${marksPct}%;"></span></div>
@@ -419,7 +415,12 @@
     async function createStudent() {
         const payload = {
             id: state.formData.id.trim(),
-            name: state.formData.name.trim()
+            name: state.formData.name.trim(),
+            course: (state.formData.course || "").trim(),
+            semester: (state.formData.semester || "").trim(),
+            section: (state.formData.section || "").trim(),
+            batch: (state.formData.batch || "").trim(),
+            phone: (state.formData.phone || "").trim()
         };
 
         try {
@@ -431,7 +432,7 @@
         }
 
         refs.form.reset();
-        state.formData = { id: "", name: "", course: "", semester: "", phone: "", email: "" };
+        state.formData = { id: "", name: "", course: "", semester: "", section: "", batch: "", phone: "", email: "" };
         state.step = 1;
         renderSteps();
         toast("Student created and persisted successfully", "success");

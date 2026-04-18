@@ -13,9 +13,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.sms.dto.auth.LoginRequest;
 import com.sms.dto.auth.LoginResponse;
+import com.sms.model.Role;
 import com.sms.model.User;
 import com.sms.repository.UserRepository;
 import com.sms.service.JwtService;
+import com.sms.service.RolePermissionService;
 
 import jakarta.validation.Valid;
 
@@ -26,11 +28,16 @@ public class ApiAuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final RolePermissionService rolePermissionService;
 
-    public ApiAuthController(AuthenticationManager authenticationManager, JwtService jwtService, UserRepository userRepository) {
+    public ApiAuthController(AuthenticationManager authenticationManager,
+                             JwtService jwtService,
+                             UserRepository userRepository,
+                             RolePermissionService rolePermissionService) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.userRepository = userRepository;
+        this.rolePermissionService = rolePermissionService;
     }
 
     @PostMapping("/login")
@@ -49,9 +56,17 @@ public class ApiAuthController {
             .map(authority -> authority.substring("ROLE_".length()))
             .findFirst()
             .orElse("STUDENT");
-        String token = jwtService.generateToken(userDetails.getUsername(), role, tenantId);
+        Role roleEnum;
+        try {
+            roleEnum = Role.valueOf(role);
+        } catch (IllegalArgumentException ignored) {
+            roleEnum = Role.STUDENT;
+        }
+        var permissions = rolePermissionService.getPermissionNames(roleEnum).stream().toList();
+
+        String token = jwtService.generateToken(userDetails.getUsername(), role, tenantId, permissions);
         long expiresAt = jwtService.extractExpiration(token).getTime();
 
-        return ResponseEntity.ok(new LoginResponse(token, role, expiresAt));
+        return ResponseEntity.ok(new LoginResponse(token, role, tenantId, permissions, expiresAt));
     }
 }

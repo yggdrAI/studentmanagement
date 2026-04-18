@@ -1,18 +1,19 @@
 package com.sms.controller;
 
-import com.sms.service.FraudDetectionService;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.Map;
+import com.sms.service.FraudDetectionService;
 
 @RestController
 @RequestMapping("/api/teacher/fraud")
-@PreAuthorize("hasAnyRole('TEACHER','ADMIN')")
+@PreAuthorize("hasRole('TEACHER')")
 public class TeacherFraudController {
 
     private final FraudDetectionService fraudDetectionService;

@@ -1,0 +1,12 @@
+package com.sms.model;
+
+public enum Permission {
+    VIEW_ANALYTICS,
+    CREATE_TIMETABLE,
+    EDIT_TIMETABLE,
+    MARK_ATTENDANCE,
+    MANAGE_STUDENTS,
+    MANAGE_TEACHERS,
+    EXPORT_REPORTS,
+    MANAGE_SYSTEM
+}

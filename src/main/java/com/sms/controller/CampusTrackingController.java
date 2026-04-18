@@ -1,25 +1,24 @@
 package com.sms.controller;
 
-import com.sms.model.StudentLocation;
-import com.sms.service.BehaviorAIService;
-import com.sms.service.CampusTrackingService;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import com.sms.model.StudentLocation;
+import com.sms.service.BehaviorAIService;
+import com.sms.service.CampusTrackingService;
 
 @RestController
-@RequestMapping("/api/campus")
-@PreAuthorize("hasAnyRole('TEACHER','ADMIN','STUDENT')")
+@RequestMapping({"/api/teacher/campus", "/api/admin/campus"})
+@PreAuthorize("hasAnyRole('TEACHER','ADMIN')")
 public class CampusTrackingController {
 
     private final CampusTrackingService campusTrackingService;
@@ -45,16 +44,12 @@ public class CampusTrackingController {
             @RequestParam(required = false) Long subjectId,
             @RequestParam(required = false) String sessionId,
             @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "200") int limit,
-            Authentication authentication) {
-        boolean studentView = hasRole(authentication, "ROLE_STUDENT")
-                && !hasRole(authentication, "ROLE_ADMIN")
-                && !hasRole(authentication, "ROLE_TEACHER");
+            @RequestParam(defaultValue = "200") int limit) {
 
         List<Map<String, Object>> rows = campusTrackingService
                 .getRecentLocations(subjectId, sessionId, status, limit)
                 .stream()
-                .map(location -> toMapRow(location, studentView))
+            .map(location -> toMapRow(location, false))
                 .toList();
         return ResponseEntity.ok(rows);
     }
@@ -101,19 +96,6 @@ public class CampusTrackingController {
         row.put("locationConfidence", location.getLocationConfidence());
         row.put("recordedAt", location.getRecordedAt());
         return row;
-    }
-
-    private boolean hasRole(Authentication authentication, String role) {
-        if (authentication == null || authentication.getAuthorities() == null) {
-            return false;
-        }
-
-        for (GrantedAuthority authority : authentication.getAuthorities()) {
-            if (role.equalsIgnoreCase(authority.getAuthority())) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private String anonymize(String studentId) {

@@ -1,26 +1,28 @@
 package com.sms.controller;
 
-import com.sms.service.AiAnalyticsService;
-import com.sms.service.AnalyticsReportService;
+import java.time.LocalDate;
+import java.util.Map;
+import java.util.Objects;
+
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
-import java.util.Map;
+import com.sms.service.AiAnalyticsService;
+import com.sms.service.AnalyticsReportService;
 
 @RestController
-@RequestMapping("/api/analytics")
-@PreAuthorize("hasAnyRole('ADMIN','TEACHER','STUDENT')")
+@RequestMapping({"/api/analytics", "/api/admin/analytics", "/api/teacher/analytics", "/api/student/analytics"})
+@PreAuthorize("hasAuthority('VIEW_ANALYTICS')")
 public class AnalyticsApiController {
 
     private final AiAnalyticsService aiAnalyticsService;
@@ -46,6 +48,7 @@ public class AnalyticsApiController {
     }
 
     @GetMapping("/live")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     public Map<String, Object> live() {
         return aiAnalyticsService.buildLiveSnapshot();
     }
@@ -66,7 +69,7 @@ public class AnalyticsApiController {
         Map<String, byte[]> bundle = analyticsReportService.buildExportBundle();
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=ai-analytics-digest.pdf")
-                .contentType(MediaType.APPLICATION_PDF)
+            .contentType(MediaType.parseMediaType("application/pdf"))
                 .body(bundle.get("pdf"));
     }
 
@@ -88,6 +91,15 @@ public class AnalyticsApiController {
                 boolean owns = tags.stream().anyMatch(item -> item instanceof java.util.Map<?, ?> map && studentId.equals(String.valueOf(map.get("studentId"))));
                 if (!owns) {
                     throw new IllegalArgumentException("Not allowed to access this profile analytics");
+                }
+            }
+        } else if ("ROLE_TEACHER".equals(role)) {
+            Map<String, Object> own = aiAnalyticsService.buildDashboard("TEACHER", authentication.getName(), null, null, null, null, null);
+            Object tagsObj = own.get("studentTags");
+            if (tagsObj instanceof java.util.List<?> tags) {
+                boolean teachesStudent = tags.stream().anyMatch(item -> item instanceof java.util.Map<?, ?> map && Objects.equals(studentId, String.valueOf(map.get("studentId"))));
+                if (!teachesStudent) {
+                    throw new IllegalArgumentException("Not allowed to access non-assigned student analytics");
                 }
             }
         }

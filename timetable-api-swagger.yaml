@@ -1,0 +1,549 @@
+openapi: 3.0.0
+info:
+  title: Timetable Management System API
+  description: Comprehensive REST API for academic timetable management with conflict detection
+  version: 1.0.0
+  contact:
+    name: Support
+    email: support@bennett.edu.in
+  license:
+    name: Apache 2.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: https://api.bennett.edu.in
+    description: Production server
+
+paths:
+  /api/v1/timetables:
+    post:
+      summary: Create a new timetable
+      operationId: createTimetable
+      tags:
+        - Timetable Management
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TimetableDTO'
+            example:
+              courseId: "CSE-B.TECH"
+              courseName: "B.Tech Computer Science Engineering"
+              semester: 2
+              section: "CSE-2A"
+              academicYear: "2025-2026"
+              effectiveFrom: "2025-01-19"
+              effectiveTo: "2025-05-30"
+      responses:
+        '201':
+          description: Timetable created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimetableDTO'
+        '400':
+          description: Invalid input data
+        '409':
+          description: Duplicate timetable code
+        '500':
+          description: Server error
+
+  /api/v1/timetables/{id}:
+    get:
+      summary: Get timetable by ID
+      operationId: getTimetable
+      tags:
+        - Timetable Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Timetable ID
+      responses:
+        '200':
+          description: Timetable retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimetableDTO'
+        '404':
+          description: Timetable not found
+        '500':
+          description: Server error
+
+  /api/v1/timetables/{id}/schedule-entries:
+    post:
+      summary: Add schedule entries to timetable
+      operationId: addScheduleEntries
+      tags:
+        - Schedule Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Timetable ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/ScheduleEntryDTO'
+            example:
+              - subjectId: "SUBJ-001"
+                subjectName: "Object Oriented Programming using Java"
+                subjectCode: "2025CSET152"
+                facultyId: "FAC-001"
+                facultyName: "Dr. Rajesh Kumar Sharma"
+                roomId: "ROOM-001"
+                roomNumber: "P-LH-101"
+                dayOfWeek: "MONDAY"
+                startTime: "08:20"
+                endTime: "09:20"
+                classType: "LECTURE"
+      responses:
+        '201':
+          description: Schedule entries added successfully
+        '400':
+          description: Invalid schedule data
+        '404':
+          description: Timetable not found
+        '500':
+          description: Server error
+
+  /api/v1/timetables/{id}/day:
+    get:
+      summary: Get timetable for a specific day
+      operationId: getTimetableForDay
+      tags:
+        - Schedule Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Timetable ID
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Date in YYYY-MM-DD format
+      responses:
+        '200':
+          description: Daily schedule retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScheduleEntryDTO'
+        '404':
+          description: Timetable or date not found
+        '500':
+          description: Server error
+
+  /api/v1/timetables/{id}/detect-conflicts:
+    post:
+      summary: Detect conflicts in timetable
+      operationId: detectConflicts
+      tags:
+        - Conflict Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Timetable ID
+      responses:
+        '200':
+          description: Conflict detection completed
+        '404':
+          description: Timetable not found
+        '500':
+          description: Server error
+
+  /api/v1/timetables/{id}/publish:
+    post:
+      summary: Publish timetable
+      operationId: publishTimetable
+      tags:
+        - Publication
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Timetable ID
+        - name: publishedBy
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Email or ID of person publishing
+      responses:
+        '200':
+          description: Timetable published successfully
+        '400':
+          description: Cannot publish with unresolved conflicts
+        '404':
+          description: Timetable not found
+        '500':
+          description: Server error
+
+  /api/v1/timetables/{id}/holidays:
+    post:
+      summary: Add holiday to timetable
+      operationId: addHoliday
+      tags:
+        - Holiday Management
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Timetable ID
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Holiday date
+        - name: type
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/HolidayType'
+          description: Type of holiday
+        - name: reason
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Reason for holiday
+      responses:
+        '201':
+          description: Holiday added successfully
+        '400':
+          description: Invalid holiday data
+        '404':
+          description: Timetable not found
+        '500':
+          description: Server error
+
+  /api/v1/timetables/active:
+    get:
+      summary: Get active timetables for a date
+      operationId: getActiveTimetables
+      tags:
+        - Timetable Management
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Date to check
+      responses:
+        '200':
+          description: Active timetables retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimetableDTO'
+        '500':
+          description: Server error
+
+components:
+  schemas:
+    TimetableDTO:
+      type: object
+      required:
+        - courseId
+        - courseName
+        - semester
+        - academicYear
+        - effectiveFrom
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Timetable ID
+        timetableCode:
+          type: string
+          description: Unique timetable code
+        courseId:
+          type: string
+          description: Course identifier
+        courseName:
+          type: string
+          description: Full course name
+        semester:
+          type: integer
+          description: Semester number
+        section:
+          type: string
+          description: Section/batch code
+        academicYear:
+          type: string
+          description: Academic year
+        effectiveFrom:
+          type: string
+          format: date
+          description: Start date
+        effectiveTo:
+          type: string
+          format: date
+          description: End date
+        status:
+          $ref: '#/components/schemas/TimetableStatus'
+        scheduleEntries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduleEntryDTO'
+        holidays:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimetableHolidayDTO'
+        conflictCount:
+          type: integer
+          description: Number of conflicts
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        updatedBy:
+          type: string
+
+    ScheduleEntryDTO:
+      type: object
+      required:
+        - subjectId
+        - subjectName
+        - subjectCode
+        - facultyId
+        - facultyName
+        - roomId
+        - roomNumber
+        - dayOfWeek
+        - startTime
+        - endTime
+        - classType
+      properties:
+        id:
+          type: integer
+          format: int64
+        classCode:
+          type: string
+        subjectId:
+          type: string
+        subjectName:
+          type: string
+        subjectCode:
+          type: string
+        facultyId:
+          type: string
+        facultyName:
+          type: string
+        roomId:
+          type: string
+        roomNumber:
+          type: string
+        dayOfWeek:
+          $ref: '#/components/schemas/DayOfWeek'
+        scheduleDate:
+          type: string
+          format: date
+        startTime:
+          type: string
+          format: time
+          pattern: "HH:mm"
+        endTime:
+          type: string
+          format: time
+          pattern: "HH:mm"
+        classType:
+          $ref: '#/components/schemas/ClassType'
+        attendanceStatus:
+          $ref: '#/components/schemas/AttendanceStatus'
+        isException:
+          type: boolean
+        duration:
+          type: string
+          readOnly: true
+
+    TimetableHolidayDTO:
+      type: object
+      required:
+        - holidayDate
+        - holidayType
+        - reason
+      properties:
+        id:
+          type: integer
+          format: int64
+        holidayDate:
+          type: string
+          format: date
+        holidayType:
+          $ref: '#/components/schemas/HolidayType'
+        reason:
+          type: string
+        description:
+          type: string
+        dayName:
+          type: string
+          readOnly: true
+
+    TimetableConflictDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        scheduleEntryId1:
+          type: integer
+          format: int64
+        scheduleEntryId2:
+          type: integer
+          format: int64
+        conflictType:
+          $ref: '#/components/schemas/ConflictType'
+        description:
+          type: string
+        resource1:
+          type: string
+        resource2:
+          type: string
+        severity:
+          $ref: '#/components/schemas/Severity'
+        status:
+          $ref: '#/components/schemas/ConflictStatus'
+        resolutionSuggestion:
+          type: string
+        resolvedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    TimetableStatus:
+      type: string
+      enum:
+        - DRAFT
+        - PUBLISHED
+        - ARCHIVED
+        - CANCELLED
+
+    DayOfWeek:
+      type: string
+      enum:
+        - MONDAY
+        - TUESDAY
+        - WEDNESDAY
+        - THURSDAY
+        - FRIDAY
+        - SATURDAY
+        - SUNDAY
+
+    ClassType:
+      type: string
+      enum:
+        - LECTURE
+        - TUTORIAL
+        - PRACTICAL
+        - SEMINAR
+        - PROJECT
+
+    AttendanceStatus:
+      type: string
+      enum:
+        - PENDING
+        - ATTENDANCE_RECORDED
+        - CANCELLED
+        - RESCHEDULED
+
+    HolidayType:
+      type: string
+      enum:
+        - NATIONAL_HOLIDAY
+        - INSTITUTIONAL_HOLIDAY
+        - EXAM_DAY
+        - NO_CLASSES
+        - SPECIAL_EVENT
+        - MAINTENANCE
+
+    ConflictType:
+      type: string
+      enum:
+        - FACULTY_CLASH
+        - ROOM_CLASH
+        - STUDENT_OVERLAP
+        - TIME_OVERLAP
+        - RESOURCE_OVERLAP
+
+    Severity:
+      type: string
+      enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+        - CRITICAL
+
+    ConflictStatus:
+      type: string
+      enum:
+        - PENDING
+        - REVIEWED
+        - RESOLVED
+        - IGNORED
+        - ESCALATED
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT authentication token
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Timetable Management
+    description: Operations for managing timetables
+  - name: Schedule Management
+    description: Operations for managing schedule entries
+  - name: Conflict Management
+    description: Operations for conflict detection and resolution
+  - name: Holiday Management
+    description: Operations for managing holidays
+  - name: Publication
+    description: Operations for publishing timetables

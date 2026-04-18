@@ -1,0 +1,549 @@
+{
+  "timetableId": "TT-BTECH-CSE-SEM2-2025-26",
+  "course": "B.Tech Computer Science Engineering",
+  "semester": 2,
+  "academicYear": "2025-2026",
+  "section": "CSE-2A",
+  "createdAt": "2026-01-15T10:30:00Z",
+  "effectiveFrom": "2026-01-19",
+  "weeklySchedule": {
+    "monday": [
+      {
+        "classId": "CLASS-MON-001",
+        "subject": "Object Oriented Programming using Java",
+        "code": "2025CSET152",
+        "faculty": "Dr. Rajesh Kumar Sharma",
+        "room": "P-LH-101",
+        "startTime": "08:20",
+        "endTime": "09:20",
+        "type": "Lecture",
+        "attendanceStatus": "Attendance recorded"
+      },
+      {
+        "classId": "CLASS-MON-002",
+        "subject": "Discrete Mathematical Structures",
+        "code": "2025CSEM151",
+        "faculty": "Prof. Anjali Singh",
+        "room": "P-LH-102",
+        "startTime": "09:30",
+        "endTime": "10:30",
+        "type": "Lecture",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-MON-003",
+        "subject": "Linear Algebra and Ordinary Differential Equations",
+        "code": "2025CSEM152",
+        "faculty": "Dr. Vikram Patel",
+        "room": "P-LH-103",
+        "startTime": "10:40",
+        "endTime": "11:40",
+        "type": "Lecture",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-MON-004",
+        "subject": "Digital Design",
+        "code": "2025CSET153",
+        "faculty": "Dr. Neha Gupta",
+        "room": "P-CC-018",
+        "startTime": "12:30",
+        "endTime": "13:30",
+        "type": "Lecture",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-MON-005",
+        "subject": "Object Oriented Programming using Java",
+        "code": "2025CSET152",
+        "faculty": "Dr. Rajesh Kumar Sharma",
+        "room": "P-LA-302",
+        "startTime": "13:40",
+        "endTime": "14:40",
+        "type": "Tutorial",
+        "attendanceStatus": "Attendance recorded"
+      },
+      {
+        "classId": "CLASS-MON-006",
+        "subject": "Soft Skills and Personality Development",
+        "code": "2025CSHS151",
+        "faculty": "Ms. Priya Desai",
+        "room": "P-CC-012",
+        "startTime": "14:50",
+        "endTime": "15:50",
+        "type": "Lecture",
+        "attendanceStatus": "Pending"
+      }
+    ],
+    "tuesday": [
+      {
+        "classId": "CLASS-TUE-001",
+        "subject": "Introduction to Electrical and Electronics Engineering",
+        "code": "2025CSED151",
+        "faculty": "Prof. Arun Mishra",
+        "room": "P-LH-104",
+        "startTime": "08:20",
+        "endTime": "09:20",
+        "type": "Lecture",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-TUE-002",
+        "subject": "Discrete Mathematical Structures",
+        "code": "2025CSEM151",
+        "faculty": "Prof. Anjali Singh",
+        "room": "P-LH-102",
+        "startTime": "09:30",
+        "endTime": "10:30",
+        "type": "Tutorial",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-TUE-003",
+        "subject": "Environment and Sustainability",
+        "code": "2025CSHS152",
+        "faculty": "Dr. Meera Joshi",
+        "room": "P-LH-105",
+        "startTime": "10:40",
+        "endTime": "11:40",
+        "type": "Lecture",
+        "attendanceStatus": "Attendance recorded"
+      },
+      {
+        "classId": "CLASS-TUE-004",
+        "subject": "Digital Design",
+        "code": "2025CSET153",
+        "faculty": "Dr. Neha Gupta",
+        "room": "P-CC-019",
+        "startTime": "12:30",
+        "endTime": "13:30",
+        "type": "Tutorial",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-TUE-005",
+        "subject": "Object Oriented Programming using Java",
+        "code": "2025CSET152",
+        "faculty": "Dr. Rajesh Kumar Sharma",
+        "room": "P-LA-301",
+        "startTime": "13:40",
+        "endTime": "14:40",
+        "type": "Practical",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-TUE-006",
+        "subject": "Object Oriented Programming using Java",
+        "code": "2025CSET152",
+        "faculty": "Dr. Rajesh Kumar Sharma",
+        "room": "P-LA-301",
+        "startTime": "14:50",
+        "endTime": "15:50",
+        "type": "Practical",
+        "attendanceStatus": "Pending"
+      }
+    ],
+    "wednesday": [
+      {
+        "classId": "CLASS-WED-001",
+        "subject": "Linear Algebra and Ordinary Differential Equations",
+        "code": "2025CSEM152",
+        "faculty": "Dr. Vikram Patel",
+        "room": "P-LH-103",
+        "startTime": "08:20",
+        "endTime": "09:20",
+        "type": "Tutorial",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-WED-002",
+        "subject": "Discrete Mathematical Structures",
+        "code": "2025CSEM151",
+        "faculty": "Prof. Anjali Singh",
+        "room": "P-LH-102",
+        "startTime": "09:30",
+        "endTime": "10:30",
+        "type": "Lecture",
+        "attendanceStatus": "Attendance recorded"
+      },
+      {
+        "classId": "CLASS-WED-003",
+        "subject": "Digital Design",
+        "code": "2025CSET153",
+        "faculty": "Dr. Neha Gupta",
+        "room": "P-LA-401",
+        "startTime": "10:40",
+        "endTime": "11:40",
+        "type": "Practical",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-WED-004",
+        "subject": "Digital Design",
+        "code": "2025CSET153",
+        "faculty": "Dr. Neha Gupta",
+        "room": "P-LA-401",
+        "startTime": "12:30",
+        "endTime": "13:30",
+        "type": "Practical",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-WED-005",
+        "subject": "Introduction to Electrical and Electronics Engineering",
+        "code": "2025CSED151",
+        "faculty": "Prof. Arun Mishra",
+        "room": "P-CC-020",
+        "startTime": "13:40",
+        "endTime": "14:40",
+        "type": "Tutorial",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-WED-006",
+        "subject": "Environment and Sustainability",
+        "code": "2025CSHS152",
+        "faculty": "Dr. Meera Joshi",
+        "room": "P-LH-105",
+        "startTime": "14:50",
+        "endTime": "15:50",
+        "type": "Tutorial",
+        "attendanceStatus": "Attendance recorded"
+      }
+    ],
+    "thursday": [
+      {
+        "classId": "CLASS-THU-001",
+        "subject": "Object Oriented Programming using Java",
+        "code": "2025CSET152",
+        "faculty": "Dr. Rajesh Kumar Sharma",
+        "room": "P-LH-101",
+        "startTime": "08:20",
+        "endTime": "09:20",
+        "type": "Lecture",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-THU-002",
+        "subject": "Linear Algebra and Ordinary Differential Equations",
+        "code": "2025CSEM152",
+        "faculty": "Dr. Vikram Patel",
+        "room": "P-LH-103",
+        "startTime": "09:30",
+        "endTime": "10:30",
+        "type": "Lecture",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-THU-003",
+        "subject": "Introduction to Electrical and Electronics Engineering",
+        "code": "2025CSED151",
+        "faculty": "Prof. Arun Mishra",
+        "room": "P-LA-501",
+        "startTime": "10:40",
+        "endTime": "11:40",
+        "type": "Practical",
+        "attendanceStatus": "Attendance recorded"
+      },
+      {
+        "classId": "CLASS-THU-004",
+        "subject": "Introduction to Electrical and Electronics Engineering",
+        "code": "2025CSED151",
+        "faculty": "Prof. Arun Mishra",
+        "room": "P-LA-501",
+        "startTime": "12:30",
+        "endTime": "13:30",
+        "type": "Practical",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-THU-005",
+        "subject": "Discrete Mathematical Structures",
+        "code": "2025CSEM151",
+        "faculty": "Prof. Anjali Singh",
+        "room": "P-CC-018",
+        "startTime": "13:40",
+        "endTime": "14:40",
+        "type": "Lecture",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-THU-006",
+        "subject": "Soft Skills and Personality Development",
+        "code": "2025CSHS151",
+        "faculty": "Ms. Priya Desai",
+        "room": "P-CC-012",
+        "startTime": "14:50",
+        "endTime": "15:50",
+        "type": "Lecture",
+        "attendanceStatus": "Attendance recorded"
+      }
+    ],
+    "friday": [
+      {
+        "classId": "CLASS-FRI-001",
+        "subject": "Digital Design",
+        "code": "2025CSET153",
+        "faculty": "Dr. Neha Gupta",
+        "room": "P-LH-104",
+        "startTime": "08:20",
+        "endTime": "09:20",
+        "type": "Lecture",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-FRI-002",
+        "subject": "Linear Algebra and Ordinary Differential Equations",
+        "code": "2025CSEM152",
+        "faculty": "Dr. Vikram Patel",
+        "room": "P-LH-103",
+        "startTime": "09:30",
+        "endTime": "10:30",
+        "type": "Lecture",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-FRI-003",
+        "subject": "Environment and Sustainability",
+        "code": "2025CSHS152",
+        "faculty": "Dr. Meera Joshi",
+        "room": "P-CC-021",
+        "startTime": "10:40",
+        "endTime": "11:40",
+        "type": "Lecture",
+        "attendanceStatus": "Attendance recorded"
+      },
+      {
+        "classId": "CLASS-FRI-004",
+        "subject": "Soft Skills and Personality Development",
+        "code": "2025CSHS151",
+        "faculty": "Ms. Priya Desai",
+        "room": "P-LH-105",
+        "startTime": "12:30",
+        "endTime": "13:30",
+        "type": "Tutorial",
+        "attendanceStatus": "Pending"
+      },
+      {
+        "classId": "CLASS-FRI-005",
+        "subject": "Introduction to Electrical and Electronics Engineering",
+        "code": "2025CSED151",
+        "faculty": "Prof. Arun Mishra",
+        "room": "P-LH-106",
+        "startTime": "13:40",
+        "endTime": "14:40",
+        "type": "Lecture",
+        "attendanceStatus": "Pending"
+      }
+    ]
+  },
+  "subjects": [
+    {
+      "subjectId": "SUBJ-001",
+      "name": "Object Oriented Programming using Java",
+      "code": "2025CSET152",
+      "credits": 4,
+      "department": "CSE"
+    },
+    {
+      "subjectId": "SUBJ-002",
+      "name": "Discrete Mathematical Structures",
+      "code": "2025CSEM151",
+      "credits": 4,
+      "department": "CSE"
+    },
+    {
+      "subjectId": "SUBJ-003",
+      "name": "Linear Algebra and Ordinary Differential Equations",
+      "code": "2025CSEM152",
+      "credits": 4,
+      "department": "CSE"
+    },
+    {
+      "subjectId": "SUBJ-004",
+      "name": "Digital Design",
+      "code": "2025CSET153",
+      "credits": 4,
+      "department": "CSE"
+    },
+    {
+      "subjectId": "SUBJ-005",
+      "name": "Environment and Sustainability",
+      "code": "2025CSHS152",
+      "credits": 2,
+      "department": "HSS"
+    },
+    {
+      "subjectId": "SUBJ-006",
+      "name": "Soft Skills and Personality Development",
+      "code": "2025CSHS151",
+      "credits": 2,
+      "department": "HSS"
+    },
+    {
+      "subjectId": "SUBJ-007",
+      "name": "Introduction to Electrical and Electronics Engineering",
+      "code": "2025CSED151",
+      "credits": 3,
+      "department": "EE"
+    }
+  ],
+  "faculty": [
+    {
+      "facultyId": "FAC-001",
+      "name": "Dr. Rajesh Kumar Sharma",
+      "email": "rajesh.sharma@bennett.edu.in",
+      "department": "CSE",
+      "phone": "+91-9876543210"
+    },
+    {
+      "facultyId": "FAC-002",
+      "name": "Prof. Anjali Singh",
+      "email": "anjali.singh@bennett.edu.in",
+      "department": "CSE",
+      "phone": "+91-9876543211"
+    },
+    {
+      "facultyId": "FAC-003",
+      "name": "Dr. Vikram Patel",
+      "email": "vikram.patel@bennett.edu.in",
+      "department": "CSE",
+      "phone": "+91-9876543212"
+    },
+    {
+      "facultyId": "FAC-004",
+      "name": "Dr. Neha Gupta",
+      "email": "neha.gupta@bennett.edu.in",
+      "department": "CSE",
+      "phone": "+91-9876543213"
+    },
+    {
+      "facultyId": "FAC-005",
+      "name": "Dr. Meera Joshi",
+      "email": "meera.joshi@bennett.edu.in",
+      "department": "HSS",
+      "phone": "+91-9876543214"
+    },
+    {
+      "facultyId": "FAC-006",
+      "name": "Ms. Priya Desai",
+      "email": "priya.desai@bennett.edu.in",
+      "department": "HSS",
+      "phone": "+91-9876543215"
+    },
+    {
+      "facultyId": "FAC-007",
+      "name": "Prof. Arun Mishra",
+      "email": "arun.mishra@bennett.edu.in",
+      "department": "EE",
+      "phone": "+91-9876543216"
+    }
+  ],
+  "rooms": [
+    {
+      "roomId": "ROOM-001",
+      "roomNumber": "P-LH-101",
+      "capacity": 60,
+      "type": "Lecture Hall",
+      "building": "Academic Block - Phase I"
+    },
+    {
+      "roomId": "ROOM-002",
+      "roomNumber": "P-LH-102",
+      "capacity": 60,
+      "type": "Lecture Hall",
+      "building": "Academic Block - Phase I"
+    },
+    {
+      "roomId": "ROOM-003",
+      "roomNumber": "P-LH-103",
+      "capacity": 60,
+      "type": "Lecture Hall",
+      "building": "Academic Block - Phase I"
+    },
+    {
+      "roomId": "ROOM-004",
+      "roomNumber": "P-LH-104",
+      "capacity": 60,
+      "type": "Lecture Hall",
+      "building": "Academic Block - Phase I"
+    },
+    {
+      "roomId": "ROOM-005",
+      "roomNumber": "P-LH-105",
+      "capacity": 60,
+      "type": "Lecture Hall",
+      "building": "Academic Block - Phase I"
+    },
+    {
+      "roomId": "ROOM-006",
+      "roomNumber": "P-LH-106",
+      "capacity": 60,
+      "type": "Lecture Hall",
+      "building": "Academic Block - Phase I"
+    },
+    {
+      "roomId": "ROOM-007",
+      "roomNumber": "P-CC-012",
+      "capacity": 40,
+      "type": "Classroom",
+      "building": "Academic Block - Phase I"
+    },
+    {
+      "roomId": "ROOM-008",
+      "roomNumber": "P-CC-018",
+      "capacity": 40,
+      "type": "Classroom",
+      "building": "Academic Block - Phase I"
+    },
+    {
+      "roomId": "ROOM-009",
+      "roomNumber": "P-CC-019",
+      "capacity": 40,
+      "type": "Classroom",
+      "building": "Academic Block - Phase I"
+    },
+    {
+      "roomId": "ROOM-010",
+      "roomNumber": "P-CC-020",
+      "capacity": 40,
+      "type": "Classroom",
+      "building": "Academic Block - Phase I"
+    },
+    {
+      "roomId": "ROOM-011",
+      "roomNumber": "P-CC-021",
+      "capacity": 40,
+      "type": "Classroom",
+      "building": "Academic Block - Phase I"
+    },
+    {
+      "roomId": "ROOM-012",
+      "roomNumber": "P-LA-301",
+      "capacity": 30,
+      "type": "Lab",
+      "building": "Computer Lab - Block 3"
+    },
+    {
+      "roomId": "ROOM-013",
+      "roomNumber": "P-LA-302",
+      "capacity": 30,
+      "type": "Lab",
+      "building": "Computer Lab - Block 3"
+    },
+    {
+      "roomId": "ROOM-014",
+      "roomNumber": "P-LA-401",
+      "capacity": 30,
+      "type": "Lab",
+      "building": "Electronics Lab - Block 4"
+    },
+    {
+      "roomId": "ROOM-015",
+      "roomNumber": "P-LA-501",
+      "capacity": 30,
+      "type": "Lab",
+      "building": "Electrical Lab - Block 5"
+    }
+  ]
+}

@@ -2,7 +2,11 @@ package com.sms.service;
 
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.crypto.SecretKey;
 
@@ -20,7 +24,9 @@ import io.jsonwebtoken.security.Keys;
 public class JwtService {
 
     private static final String ROLE_CLAIM = "role";
-    private static final String TENANT_CLAIM = "tenant_id";
+    private static final String TENANT_CLAIM = "tenantId";
+    private static final String LEGACY_TENANT_CLAIM = "tenant_id";
+    private static final String PERMISSIONS_CLAIM = "permissions";
 
     @Value("${app.jwt.secret}")
     private String jwtSecret;
@@ -36,19 +42,31 @@ public class JwtService {
             .findFirst()
             .orElse("STUDENT");
 
-        return generateToken(userDetails.getUsername(), role, 1L);
-        }
+        List<String> permissions = userDetails.getAuthorities().stream()
+            .map(GrantedAuthority::getAuthority)
+            .filter(authority -> !authority.startsWith("ROLE_"))
+            .distinct()
+            .toList();
+
+        return generateToken(userDetails.getUsername(), role, 1L, permissions);
+    }
 
     public String generateToken(String username, String role) {
-        return generateToken(username, role, 1L);
+        return generateToken(username, role, 1L, List.of());
     }
 
     public String generateToken(String username, String role, Long tenantId) {
+        return generateToken(username, role, tenantId, List.of());
+    }
+
+    public String generateToken(String username, String role, Long tenantId, List<String> permissions) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMillis);
         Map<String, Object> claims = new HashMap<>();
         claims.put(ROLE_CLAIM, role);
         claims.put(TENANT_CLAIM, tenantId == null ? 1L : tenantId);
+        claims.put(LEGACY_TENANT_CLAIM, tenantId == null ? 1L : tenantId);
+        claims.put(PERMISSIONS_CLAIM, permissions == null ? List.of() : permissions);
 
         return Jwts.builder()
             .claims(claims)
@@ -69,7 +87,11 @@ public class JwtService {
     }
 
     public Long extractTenantId(String token) {
-        Object claim = extractAllClaims(token).get(TENANT_CLAIM);
+        Claims claims = extractAllClaims(token);
+        Object claim = claims.get(TENANT_CLAIM);
+        if (claim == null) {
+            claim = claims.get(LEGACY_TENANT_CLAIM);
+        }
         if (claim == null) {
             return 1L;
         }
@@ -81,6 +103,18 @@ public class JwtService {
         } catch (NumberFormatException ignored) {
             return 1L;
         }
+    }
+
+    public Set<String> extractPermissions(String token) {
+        Object claim = extractAllClaims(token).get(PERMISSIONS_CLAIM);
+        if (!(claim instanceof List<?> list)) {
+            return Set.of();
+        }
+        return list.stream()
+            .map(String::valueOf)
+            .map(String::trim)
+            .filter(value -> !value.isEmpty())
+            .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     public Date extractExpiration(String token) {

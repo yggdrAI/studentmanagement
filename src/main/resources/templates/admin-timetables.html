@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Timetable Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <style>
+        .tt-shell { display: grid; gap: 18px; }
+        .tt-card { background: var(--card-bg, #fff); border: 1px solid rgba(148,163,184,0.25); border-radius: 16px; padding: 16px; }
+        .tt-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+        .tt-grid input, .tt-grid select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid rgba(148,163,184,0.35); }
+        .tt-toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+        .tt-table-wrap { overflow: auto; margin-top: 12px; }
+        .tt-table { width: 100%; border-collapse: collapse; min-width: 980px; }
+        .tt-table th, .tt-table td { border-bottom: 1px solid rgba(148,163,184,0.25); padding: 8px; text-align: left; }
+        .tt-table th { font-size: 0.9rem; color: var(--muted-text, #64748b); }
+        .tt-table input, .tt-table select { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid rgba(148,163,184,0.35); }
+        .tt-actions { display: flex; gap: 8px; }
+        .tt-status { margin-top: 10px; color: var(--muted-text, #64748b); font-size: 0.92rem; }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/sidebar :: sidebar(activeTab='timetables')}"></div>
+
+<main class="content-area" id="maincontent" tabindex="-1">
+    <div class="content-wrapper tt-shell">
+        <header class="page-header">
+            <div>
+                <h1 class="page-title">Weekly Timetable Management</h1>
+                <p class="page-subtitle">Update an entire weekly class schedule for a selected class, semester, and section.</p>
+            </div>
+        </header>
+
+        <section class="tt-card">
+            <h2 class="page-title" style="font-size:1.25rem;">Find Class Timetable</h2>
+            <div class="tt-grid">
+                <label>
+                    Course ID
+                    <input id="courseIdFilter" placeholder="e.g. CSE">
+                </label>
+                <label>
+                    Semester
+                    <input id="semesterFilter" type="number" min="1" max="12" placeholder="e.g. 3">
+                </label>
+                <label>
+                    Section
+                    <input id="sectionFilter" placeholder="e.g. A">
+                </label>
+                <label>
+                    Academic Year
+                    <input id="academicYearFilter" placeholder="e.g. 2025-26">
+                </label>
+            </div>
+            <div class="tt-toolbar">
+                <button id="loadTimetablesBtn" class="btn btn-primary" type="button">Load Timetables</button>
+                <select id="timetableSelect" class="select" style="min-width:380px;">
+                    <option value="">Select timetable</option>
+                </select>
+            </div>
+            <p class="tt-status">Tip: if no timetable exists for this class, create one below and then generate the week in one click.</p>
+        </section>
+
+        <section class="tt-card">
+            <h2 class="page-title" style="font-size:1.25rem;">Create Class Timetable</h2>
+            <div class="tt-grid">
+                <label>
+                    Course Name
+                    <input id="courseNameInput" placeholder="e.g. B.Tech CSE">
+                </label>
+                <label>
+                    Effective From
+                    <input id="effectiveFromInput" type="date">
+                </label>
+                <label>
+                    Effective To (optional)
+                    <input id="effectiveToInput" type="date">
+                </label>
+                <label>
+                    Created By
+                    <input id="createdByInput" placeholder="admin">
+                </label>
+            </div>
+            <div class="tt-toolbar">
+                <button id="createTimetableBtn" class="btn btn-outline" type="button">Create Timetable For Class</button>
+            </div>
+        </section>
+
+        <section class="tt-card">
+            <h2 class="page-title" style="font-size:1.25rem;">Weekly Schedule Editor</h2>
+            <p class="page-subtitle">Add/edit rows and save to replace the entire weekly schedule for the selected timetable.</p>
+            <div class="tt-toolbar">
+                <button id="addRowBtn" class="btn btn-outline" type="button">Add Row</button>
+                <button id="generateWeekBtn" class="btn btn-outline" type="button">Generate Recommended Week</button>
+                <button id="saveWeeklyBtn" class="btn btn-primary" type="button">Save Entire Week</button>
+                <button id="exportJsonBtn" class="btn btn-outline" type="button">Export JSON</button>
+            </div>
+
+            <div class="tt-table-wrap">
+                <table class="tt-table" aria-label="Weekly timetable editor">
+                    <thead>
+                    <tr>
+                        <th>Day</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Subject ID</th>
+                        <th>Subject Name</th>
+                        <th>Subject Code</th>
+                        <th>Faculty ID</th>
+                        <th>Faculty Name</th>
+                        <th>Room ID</th>
+                        <th>Room No</th>
+                        <th>Type</th>
+                        <th>Action</th>
+                    </tr>
+                    </thead>
+                    <tbody id="weeklyRows"></tbody>
+                </table>
+            </div>
+            <p id="weeklyStatus" class="tt-status">Load a timetable to start editing weekly rows.</p>
+        </section>
+
+        <section class="tt-card">
+            <h2 class="page-title" style="font-size:1.25rem;">Weekly JSON Output</h2>
+            <p class="page-subtitle">Format ready for API use. Weekly structure remains same; only dates change dynamically.</p>
+            <textarea id="weeklyJsonOutput" rows="16" style="width:100%; border:1px solid rgba(148,163,184,0.35); border-radius:10px; padding:10px; font-family:Consolas, monospace;"></textarea>
+            <div class="tt-toolbar">
+                <button id="copyJsonBtn" class="btn btn-outline" type="button">Copy JSON</button>
+            </div>
+        </section>
+    </div>
+</main>
+
+<div th:replace="~{fragments/sidebar :: floating-tools}"></div>
+<script th:src="@{/js/admin-timetables.js}"></script>
+</body>
+</html>

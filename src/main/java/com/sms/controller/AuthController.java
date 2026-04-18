@@ -1,6 +1,7 @@
 package com.sms.controller;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,20 +28,32 @@ public class AuthController {
 
     @GetMapping("/dashboard")
     public String dashboard(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return "redirect:/login";
+        }
 
-        String role = authentication.getAuthorities()
-                                    .iterator()
-                                    .next()
-                                    .getAuthority();
+        boolean isAdmin = hasAuthority(authentication, "ROLE_ADMIN");
+        boolean isTeacher = hasAuthority(authentication, "ROLE_TEACHER");
+        boolean isStudent = hasAuthority(authentication, "ROLE_STUDENT");
 
-        if (role.equals("ROLE_ADMIN")) {
+        if (isAdmin) {
             return "redirect:/admin/dashboard";
         }
 
-        if (role.equals("ROLE_TEACHER")) {
+        if (isTeacher) {
             return "redirect:/teacher/dashboard";
         }
 
+        if (isStudent) {
+            return "redirect:/student/dashboard";
+        }
+
         return "redirect:/student/dashboard";
+    }
+
+    private boolean hasAuthority(Authentication authentication, String expectedAuthority) {
+        return authentication.getAuthorities().stream()
+            .map(GrantedAuthority::getAuthority)
+            .anyMatch(expectedAuthority::equals);
     }
 }

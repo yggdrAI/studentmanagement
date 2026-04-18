@@ -3,144 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Student Portal</title>
-    <!-- Premium Font -->
+    <title>Admin Control Center</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
-    <!-- Global Dashboard CSS -->
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/admin-dashboard.css}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
+<div th:replace="~{fragments/sidebar :: sidebar(activeTab='dashboard')}"></div>
 
-    <!-- Inject Sidebar Fragment passing 'dashboard' as the active tab -->
-    <div th:replace="~{fragments/sidebar :: sidebar(activeTab='dashboard')}"></div>
+<main class="content-area" id="maincontent" tabindex="-1">
+    <div class="content-wrapper admin-control-shell">
+        <header class="admin-topbar">
+            <div>
+                <p class="eyebrow">Smart University Operations</p>
+                <h1 class="page-title">Admin Control Center</h1>
+                <p class="page-subtitle">Welcome <span th:text="${#authentication.name}">Admin</span>. Monitor campus systems, attendance and operational alerts from one place.</p>
+            </div>
+            <span id="systemHealthBadge" class="status-pill healthy">Healthy</span>
+        </header>
 
-    <!-- Main Content -->
-    <main class="content-area" id="maincontent" tabindex="-1">
-        <div class="content-wrapper">
-            
-            <header class="page-header">
-                <div>
-                    <!-- Dynamic Title showing the user role -->
-                    <h1 class="page-title">
-                        Welcome <span th:text="${#authentication.name}">User</span>!
-                        <span class="status-badge">Active</span>
-                    </h1>
-                </div>
-            </header>
+        <section class="kpi-grid" id="kpiGrid" aria-label="Top metrics"></section>
 
-            <section class="info-card" aria-labelledby="adminOverviewHeading">
-                <h2 id="adminOverviewHeading" class="sr-only">Admin Overview</h2>
-                <div class="grid-info">
-                    <div class="data-group"><span class="data-label">Profile</span><span class="data-value">The Creator, Bhavya Jain</span></div>
-                    <div class="data-group"><span class="data-label">Role</span><span class="data-value">ADMIN</span></div>
-                    <div class="data-group"><span class="data-label">Students in Database</span><span class="data-value" th:text="${studentCount}">0</span></div>
-                    <div class="data-group"><span class="data-label">Dashboard Type</span><span class="data-value">Administrator Console</span></div>
-                </div>
-            </section>
-
-            <section class="generic-card database-status-card" style="margin-top: 24px;">
-                <header class="page-header">
-                    <div>
-                        <h2 class="page-title">Database Health</h2>
-                        <p class="page-subtitle">Verify persistence mode, storage path, and row counts at a glance.</p>
-                    </div>
+        <section class="health-and-actions">
+            <article class="glass-card health-card">
+                <header class="card-head">
+                    <h2>Database Health</h2>
+                    <span id="dbStatusBadge" class="chip healthy">Healthy</span>
                 </header>
-                <div class="grid-info" th:if="${databaseStatus != null}">
-                    <div class="data-group"><span class="data-label">Source Mode</span><span class="data-value" th:text="${databaseStatus.mode}">h2-file</span></div>
-                    <div class="data-group"><span class="data-label">Source Path</span><span class="data-value" th:text="${databaseStatus.sourcePath}">./data/studentmanagement</span></div>
-                    <div class="data-group"><span class="data-label">Target Path</span><span class="data-value" th:text="${databaseStatus.persistentPath}">./data/studentmanagement</span></div>
-                    <div class="data-group"><span class="data-label">Migration Required</span><span class="data-value" th:text="${databaseStatus.migrationRequired ? 'Yes' : 'No'}">No</span></div>
-                </div>
-                <div class="grid-info" style="margin-top: 14px;" th:if="${databaseStatus != null}">
-                    <div class="data-group"><span class="data-label">Last Migration</span><span class="data-value" th:text="${databaseMigrationMessage}">Migration not attempted</span></div>
-                    <div class="data-group"><span class="data-label">Migration Result</span><span class="data-value" th:text="${databaseMigrationSuccess ? 'Successful' : 'Pending / Failed'}">Successful</span></div>
-                    <div class="data-group"><span class="data-label">Source URL</span><span class="data-value" th:text="${databaseStatus.sourceUrl}">jdbc:h2:file:...</span></div>
-                    <div class="data-group"><span class="data-label">Persistent URL</span><span class="data-value" th:text="${databaseStatus.persistentUrl}">jdbc:h2:file:...</span></div>
-                </div>
-                <div class="grid-info" style="margin-top: 14px;" th:if="${databaseStatus != null}">
-                    <div class="data-group" th:each="entry : ${databaseStatus.tableCounts}">
-                        <span class="data-label" th:text="${entry.key}">student</span>
-                        <span class="data-value" th:text="${entry.value}">0</span>
+                <div class="health-metrics" id="dbHealthMetrics"></div>
+                <div class="storage-wrap">
+                    <label for="storageBar">Storage Usage</label>
+                    <div class="storage-track">
+                        <span id="storageBar" class="storage-fill" style="width:0%;"></span>
                     </div>
+                    <small id="storageText">0% utilized</small>
                 </div>
-                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 18px;">
-                    <a class="btn btn-primary" th:href="@{/api/admin/database/export}">Export DB Now</a>
+                <details class="advanced-info">
+                    <summary>Advanced Info</summary>
+                    <pre id="advancedInfoDump">Loading...</pre>
+                </details>
+                <div class="row-actions">
+                    <a class="btn btn-primary" th:href="@{/api/admin/database/export}">Export Backup</a>
                     <button class="btn btn-outline" type="button" id="restoreDbBtn">Restore Backup</button>
                     <input id="restoreDbInput" type="file" accept=".sql" hidden>
                 </div>
-            </section>
+            </article>
 
-            <section class="generic-card" style="margin-top: 24px;">
-                <header class="page-header">
-                    <div>
-                        <h2 class="page-title">Quick Actions</h2>
-                        <p class="page-subtitle">Manage student records and open your admin profile.</p>
-                    </div>
+            <article class="glass-card quick-actions-card">
+                <header class="card-head">
+                    <h2>Quick Actions</h2>
+                    <p>Operational shortcuts</p>
                 </header>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <a class="btn btn-primary" th:href="@{/admin/students}">Open Manage Students</a>
-                    <a class="btn btn-primary" th:href="@{/ai-insights}">Open AI Insights</a>
-                    <a class="btn btn-outline" th:href="@{/admin/profile}">Open Admin Profile</a>
+                <div class="quick-action-grid">
+                    <a class="quick-action" th:href="@{/admin/students}">
+                        <span class="icon">🎓</span><span>Add Student</span>
+                    </a>
+                    <a class="quick-action" th:href="@{/teachers}">
+                        <span class="icon">👩‍🏫</span><span>Add Teacher</span>
+                    </a>
+                    <a class="quick-action" th:href="@{/admin/timetables}">
+                        <span class="icon">🗓</span><span>Create Timetable</span>
+                    </a>
+                    <a class="quick-action" th:href="@{/attendance/teacher}">
+                        <span class="icon">📱</span><span>Start QR Session</span>
+                    </a>
+                    <a class="quick-action" th:href="@{/attendance/reports}">
+                        <span class="icon">📈</span><span>View Reports</span>
+                    </a>
+                    <a class="quick-action" th:href="@{/ai-insights}">
+                        <span class="icon">🧠</span><span>AI Insights</span>
+                    </a>
                 </div>
-            </section>
+            </article>
+        </section>
 
-        </div>
-    </main>
+        <section class="glass-card analytics-card">
+            <header class="card-head">
+                <h2>System Analytics</h2>
+                <p>Lazy-loaded operational trends</p>
+            </header>
+            <div class="chart-grid">
+                <article class="chart-box">
+                    <h3>Students Growth</h3>
+                    <canvas id="studentsGrowthChart"></canvas>
+                </article>
+                <article class="chart-box">
+                    <h3>Attendance Trends</h3>
+                    <canvas id="attendanceTrendChart"></canvas>
+                </article>
+                <article class="chart-box">
+                    <h3>Classes Per Day</h3>
+                    <canvas id="classesPerDayChart"></canvas>
+                </article>
+            </div>
+        </section>
 
-    <!-- Inject Floating Tools Fragment -->
-    <div th:replace="~{fragments/sidebar :: floating-tools}"></div>
+        <section class="split-grid">
+            <article class="glass-card alerts-card">
+                <header class="card-head">
+                    <h2>Alerts & Warnings</h2>
+                    <p>Prioritized operational risks</p>
+                </header>
+                <div class="alert-columns">
+                    <section>
+                        <h3>Low Attendance</h3>
+                        <ul id="lowAttendanceList" class="signal-list"></ul>
+                    </section>
+                    <section>
+                        <h3>System Issues</h3>
+                        <ul id="systemIssueList" class="signal-list"></ul>
+                    </section>
+                    <section>
+                        <h3>Suspicious Activity</h3>
+                        <ul id="suspiciousList" class="signal-list"></ul>
+                    </section>
+                </div>
+            </article>
 
-    <script>
-        (function () {
-            const restoreBtn = document.getElementById('restoreDbBtn');
-            const restoreInput = document.getElementById('restoreDbInput');
+            <article class="glass-card activity-card">
+                <header class="card-head">
+                    <h2>Recent Activity</h2>
+                    <p>Live admin and system actions</p>
+                </header>
+                <ul id="recentActivityList" class="activity-list"></ul>
+            </article>
+        </section>
+    </div>
+</main>
 
-            if (!restoreBtn || !restoreInput || !window.fetch) {
-                return;
-            }
+<div th:replace="~{fragments/sidebar :: floating-tools}"></div>
 
-            restoreBtn.addEventListener('click', () => {
-                restoreInput.click();
-            });
-
-            restoreInput.addEventListener('change', async () => {
-                const file = restoreInput.files && restoreInput.files[0];
-                if (!file) {
-                    return;
-                }
-
-                const formData = new FormData();
-                formData.append('file', file);
-
-                restoreBtn.disabled = true;
-                restoreBtn.textContent = 'Restoring...';
-
-                try {
-                    const response = await fetch('/api/admin/database/restore', {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'Accept': 'application/json'
-                        }
-                    });
-
-                    const payload = await response.json();
-                    if (!response.ok) {
-                        throw new Error(payload.message || 'Restore failed');
-                    }
-
-                    window.alert(payload.message || 'Database restored successfully');
-                    window.location.reload();
-                } catch (error) {
-                    window.alert(error.message || 'Restore failed');
-                } finally {
-                    restoreBtn.disabled = false;
-                    restoreBtn.textContent = 'Restore Backup';
-                    restoreInput.value = '';
-                }
-            });
-        })();
-    </script>
-
+<script th:src="@{/js/admin-dashboard.js}"></script>
 </body>
 </html>

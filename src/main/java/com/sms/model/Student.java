@@ -30,6 +30,11 @@ public class Student extends Person implements Serializable, Comparable<Student>
     private String course;
     private String department;
     private String semester;
+    private String section;
+    @Column(name = "class_group", length = 32)
+    private String classGroup;
+    @Column(name = "batch_group", length = 32)
+    private String batchGroup;
     private String rollNumber;
     private String enrollmentYear;
 
@@ -125,6 +130,30 @@ public class Student extends Person implements Serializable, Comparable<Student>
 
     public void setSemester(String semester) {
         this.semester = semester;
+    }
+
+    public String getSection() {
+        return section;
+    }
+
+    public void setSection(String section) {
+        this.section = section;
+    }
+
+    public String getClassGroup() {
+        return classGroup;
+    }
+
+    public void setClassGroup(String classGroup) {
+        this.classGroup = classGroup;
+    }
+
+    public String getBatchGroup() {
+        return batchGroup;
+    }
+
+    public void setBatchGroup(String batchGroup) {
+        this.batchGroup = batchGroup;
     }
 
     public String getRollNumber() {

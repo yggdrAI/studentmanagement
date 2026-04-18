@@ -19,11 +19,20 @@ import com.sms.service.CustomUserDetailsService;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final TenantContextFilter tenantContextFilter;
+    private final ApiRateLimitFilter apiRateLimitFilter;
+    private final AdminActionAuditFilter adminActionAuditFilter;
     private final CustomUserDetailsService customUserDetailsService;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                          TenantContextFilter tenantContextFilter,
+                          ApiRateLimitFilter apiRateLimitFilter,
+                          AdminActionAuditFilter adminActionAuditFilter,
                           CustomUserDetailsService customUserDetailsService) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.tenantContextFilter = tenantContextFilter;
+        this.apiRateLimitFilter = apiRateLimitFilter;
+        this.adminActionAuditFilter = adminActionAuditFilter;
         this.customUserDetailsService = customUserDetailsService;
     }
 
@@ -54,9 +63,11 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/h2-console/**", "/api/auth/**", "/ws/**", "/topic/**", "/app/**", "/student-login").permitAll()
-                .requestMatchers("/api/student/**").hasRole("STUDENT")
-                .requestMatchers("/api/teacher/**").hasRole("TEACHER")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/teacher/**").hasRole("TEACHER")
+                .requestMatchers("/api/student/**").hasRole("STUDENT")
+                .requestMatchers("/api/analytics/**").hasAuthority("VIEW_ANALYTICS")
+                .requestMatchers("/api/**").denyAll()
                 .requestMatchers("/attendance/scanner").hasRole("STUDENT")
                 .requestMatchers("/attendance/teacher").hasRole("TEACHER")
                 .requestMatchers("/attendance/reports").hasRole("ADMIN")
@@ -75,7 +86,10 @@ public class SecurityConfig {
                 .permitAll()
             );
 
+        http.addFilterBefore(apiRateLimitFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(tenantContextFilter, JwtAuthenticationFilter.class);
+        http.addFilterAfter(adminActionAuditFilter, TenantContextFilter.class);
 
         return http.build();
     }

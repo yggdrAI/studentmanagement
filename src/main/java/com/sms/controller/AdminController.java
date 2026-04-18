@@ -1,12 +1,9 @@
 package com.sms.controller;
 
-import com.sms.model.Student;
-import com.sms.dto.profile.StudentProfileResponseDTO;
-import com.sms.service.StudentService;
-import com.sms.service.StudentProfileService;
-import com.sms.service.DatabaseStatusService;
-import com.sms.service.DatabaseMigrationService;
-import jakarta.validation.Valid;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -17,9 +14,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
+import com.sms.dto.profile.StudentProfileResponseDTO;
+import com.sms.model.Student;
+import com.sms.service.DatabaseMigrationService;
+import com.sms.service.DatabaseStatusService;
+import com.sms.service.StudentProfileService;
+import com.sms.service.StudentService;
+
+import jakarta.validation.Valid;
 
 @Controller
 @PreAuthorize("hasRole('ADMIN')")
@@ -81,6 +83,11 @@ public class AdminController {
         model.addAttribute("averageMap", studentService.getAverageMarksMap(students));
         model.addAttribute("newStudent", new Student());
         return "admin-students";
+    }
+
+    @GetMapping("/admin/timetables")
+    public String manageTimetables() {
+        return "admin-timetables";
     }
 
     @PostMapping("/admin/students")

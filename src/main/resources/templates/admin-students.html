@@ -67,7 +67,25 @@
                                     <option value="Semester 2">Semester 2</option>
                                     <option value="Semester 3">Semester 3</option>
                                     <option value="Semester 4">Semester 4</option>
+                                    <option value="Semester 5">Semester 5</option>
+                                    <option value="Semester 6">Semester 6</option>
+                                    <option value="Semester 7">Semester 7</option>
+                                    <option value="Semester 8">Semester 8</option>
                                 </select>
+                            </div>
+                            <div class="field">
+                                <label for="studentSectionInput">Class Section</label>
+                                <select id="studentSectionInput" name="section">
+                                    <option value="">Select section</option>
+                                    <option value="A">A</option>
+                                    <option value="B">B</option>
+                                    <option value="C">C</option>
+                                    <option value="D">D</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="studentBatchInput">Batch Year</label>
+                                <input id="studentBatchInput" name="batch" type="number" min="2000" max="2100" placeholder="e.g. 2026">
                             </div>
                         </div>
 
@@ -148,6 +166,9 @@
                             <th>Enrollment</th>
                             <th><button class="btn btn-outline" data-sort="email">Email</button></th>
                             <th><button class="btn btn-outline" data-sort="course">Course</button></th>
+                            <th>Semester</th>
+                            <th>Class Group</th>
+                            <th>Batch Group</th>
                             <th><button class="btn btn-outline" data-sort="id">Average Marks</button></th>
                             <th>Actions</th>
                         </tr>

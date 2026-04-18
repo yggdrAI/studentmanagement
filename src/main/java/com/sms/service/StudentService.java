@@ -1,23 +1,5 @@
 package com.sms.service;
 
-import com.sms.dto.student.StudentProfileDTO;
-import com.sms.model.Enrollment;
-import com.sms.model.Student;
-import com.sms.model.Role;
-import com.sms.model.StudentProfile;
-import com.sms.model.User;
-import com.sms.repository.EnrollmentRepository;
-import com.sms.repository.StudentProfileRepository;
-import com.sms.repository.StudentRepository;
-import com.sms.repository.UserRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
-import org.springframework.security.crypto.password.PasswordEncoder;
-
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -25,9 +7,34 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import com.sms.dto.student.StudentProfileDTO;
+import com.sms.model.Enrollment;
+import com.sms.model.Role;
+import com.sms.model.Student;
+import com.sms.model.StudentProfile;
+import com.sms.model.User;
+import com.sms.repository.EnrollmentRepository;
+import com.sms.repository.StudentProfileRepository;
+import com.sms.repository.StudentRepository;
+import com.sms.repository.UserRepository;
 
 @Service
 public class StudentService {
+
+    private static final int BATCH_SIZE = 30;
+    private static final int CLASS_SIZE = 120;
+    private static final Pattern TRAILING_NUMBER_PATTERN = Pattern.compile("(\\d+)$");
 
     private final StudentRepository studentRepository;
     private final EnrollmentRepository enrollmentRepository;
@@ -127,6 +134,7 @@ public class StudentService {
         String derivedEmail = deriveStudentEmail(studentId);
 
         studentToSave.setEmail(derivedEmail);
+        assignClassAndBatchGroups(studentToSave);
 
         if (studentToSave.getUser() == null) {
             User user = userRepository.findByUsername(studentId)
@@ -154,6 +162,27 @@ public class StudentService {
         analyticsRealtimeNotifier.notifyStudentAdded(savedStudent.getId(), savedStudent.getName());
         analyticsCacheService.evictAnalyticsCaches();
         return savedStudent;
+    }
+
+    public int recomputeCohortsForAllStudents() {
+        List<Student> students = studentRepository.findAll();
+        int updated = 0;
+
+        for (Student student : students) {
+            String oldClassGroup = student.getClassGroup();
+            String oldBatchGroup = student.getBatchGroup();
+
+            assignClassAndBatchGroups(student);
+
+            if (!java.util.Objects.equals(oldClassGroup, student.getClassGroup())
+                    || !java.util.Objects.equals(oldBatchGroup, student.getBatchGroup())) {
+                studentRepository.save(student);
+                upsertStudentProfile(student);
+                updated++;
+            }
+        }
+
+        return updated;
     }
 
     public void deleteById(String id) {
@@ -209,6 +238,11 @@ public class StudentService {
         dto.setCourse(student.getCourse());
         dto.setDepartment(student.getDepartment());
         dto.setSemester(student.getSemester());
+        if (student.getSection() != null && !student.getSection().isBlank()) {
+            dto.setDepartment((student.getDepartment() == null || student.getDepartment().isBlank())
+                ? "Section " + student.getSection()
+                : student.getDepartment() + " (Section " + student.getSection() + ")");
+        }
         dto.setRollNumber(student.getRollNumber());
         dto.setEnrollmentYear(student.getEnrollmentYear());
 
@@ -261,11 +295,58 @@ public class StudentService {
         profile.setCourse(student.getCourse());
         profile.setDepartment(student.getDepartment());
         profile.setSemester(student.getSemester());
+        if (student.getSection() != null && !student.getSection().isBlank()) {
+            profile.setSection(student.getSection());
+        } else if (student.getClassGroup() != null && student.getBatchGroup() != null) {
+            profile.setSection(student.getClassGroup() + " / " + student.getBatchGroup());
+        }
+        profile.setAdmissionYear(parseBatchYear(student.getEnrollmentYear()));
         profile.setCollege("Bennett University");
         profile.setValidUpto(LocalDate.now().plusYears(4));
         profile.setIdCardNumber("BU-" + student.getId());
         profile.setUpdatedBy("Admin Create");
 
         studentProfileRepository.save(profile);
+    }
+
+    private Integer parseBatchYear(String batch) {
+        if (batch == null || batch.isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(batch.trim());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private void assignClassAndBatchGroups(Student student) {
+        Integer serial = extractStudentSerial(student.getId());
+        if (serial == null || serial <= 0) {
+            return;
+        }
+
+        int classNumber = ((serial - 1) / CLASS_SIZE) + 1;
+        int batchNumber = (((serial - 1) % CLASS_SIZE) / BATCH_SIZE) + 1;
+
+        student.setClassGroup("Class " + classNumber);
+        student.setBatchGroup("Batch " + batchNumber);
+    }
+
+    private Integer extractStudentSerial(String studentId) {
+        if (studentId == null || studentId.isBlank()) {
+            return null;
+        }
+
+        Matcher matcher = TRAILING_NUMBER_PATTERN.matcher(studentId.trim().toLowerCase());
+        if (!matcher.find()) {
+            return null;
+        }
+
+        try {
+            return Integer.parseInt(matcher.group(1));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 }
