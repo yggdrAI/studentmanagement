@@ -785,6 +785,7 @@
 <script th:inline="javascript">
     const PROFILE_MODE = /*[[${profileMode}]]*/ 'STUDENT';
     const TARGET_STUDENT_ID = /*[[${targetStudentId}]]*/ '';
+    const CAN_ADMIN_EDIT = PROFILE_MODE === 'ADMIN';
 
     let currentProfile = null;
     let originalProfileSnapshot = null;
@@ -867,7 +868,6 @@
 
     const sections = buildSectionsFromSchema();
 
-    const studentEditableFields = new Set(['phone', 'address', 'profileImage']);
     const adminLockedFields = new Set(['enrollmentNumber', 'studentId']);
 
     function dynamicAdmissionYears() {
@@ -949,13 +949,10 @@
     }
 
     function fieldCanEdit(field) {
-        if (!editEnabled) {
+        if (!editEnabled || !CAN_ADMIN_EDIT) {
             return false;
         }
-        if (PROFILE_MODE === 'ADMIN') {
-            return !adminLockedFields.has(field);
-        }
-        return studentEditableFields.has(field);
+        return !adminLockedFields.has(field);
     }
 
     function fieldIsRequired(fieldKey) {
@@ -996,7 +993,7 @@
             return 'Weak';
         }
         if (percentage < 80) {
-            return 'متوسط';
+            return 'Moderate';
         }
         return 'Strong';
     }
@@ -1123,7 +1120,13 @@
         if (type === 'select') {
             const options = getFieldOptions(field.key);
             const normalizedValue = normalize(inputValue);
-            const renderedOptions = options.map((optionValue) => {
+            const safeOptions = options.slice();
+            if (normalizedValue && !safeOptions.includes(normalizedValue)) {
+                // Keep legacy values selectable to prevent false validation failures on save.
+                safeOptions.unshift(normalizedValue);
+            }
+
+            const renderedOptions = safeOptions.map((optionValue) => {
                 const selected = normalizedValue === optionValue ? 'selected' : '';
                 return `<option value="${optionValue}" ${selected}>${optionValue}</option>`;
             }).join('');
@@ -1255,13 +1258,13 @@
         const editButton = document.getElementById('editModeBtn');
         const cancelButton = document.getElementById('cancelBtn');
         const avatarPlus = document.getElementById('avatarPlus');
-        editButton.style.display = 'inline-flex';
+        editButton.style.display = CAN_ADMIN_EDIT ? 'inline-flex' : 'none';
         editButton.textContent = editEnabled
             ? (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: ON' : 'Contact Edit: ON')
             : (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: OFF' : 'Contact Edit: OFF');
-        document.getElementById('saveBtn').style.display = editEnabled ? 'inline-flex' : 'none';
-        cancelButton.style.display = editEnabled ? 'inline-flex' : 'none';
-        avatarPlus.style.display = PROFILE_MODE === 'ADMIN' ? 'inline-flex' : 'none';
+        document.getElementById('saveBtn').style.display = CAN_ADMIN_EDIT && editEnabled ? 'inline-flex' : 'none';
+        cancelButton.style.display = CAN_ADMIN_EDIT && editEnabled ? 'inline-flex' : 'none';
+        avatarPlus.style.display = CAN_ADMIN_EDIT ? 'inline-flex' : 'none';
 
         bindFieldEvents();
     }
@@ -1528,7 +1531,7 @@
         const avatarRemoveAction = document.getElementById('avatarRemoveAction');
 
         avatarShell.addEventListener('click', (event) => {
-            if (PROFILE_MODE !== 'ADMIN') {
+            if (!CAN_ADMIN_EDIT) {
                 return;
             }
             event.stopPropagation();
@@ -1540,7 +1543,7 @@
         avatarUploadAction.addEventListener('click', (event) => {
             event.stopPropagation();
             avatarMenu.classList.remove('show');
-            if (PROFILE_MODE !== 'ADMIN') {
+            if (!CAN_ADMIN_EDIT) {
                 showToast('Only admin can upload profile picture here.');
                 return;
             }
@@ -1550,7 +1553,7 @@
         avatarRemoveAction.addEventListener('click', (event) => {
             event.stopPropagation();
             avatarMenu.classList.remove('show');
-            if (PROFILE_MODE !== 'ADMIN') {
+            if (!CAN_ADMIN_EDIT) {
                 return;
             }
             currentProfile.profileImage = '';
@@ -1599,6 +1602,9 @@
         });
 
         document.getElementById('editModeBtn').addEventListener('click', () => {
+            if (!CAN_ADMIN_EDIT) {
+                return;
+            }
             editEnabled = !editEnabled;
             document.getElementById('editModeBtn').textContent = editEnabled
                 ? (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: ON' : 'Contact Edit: ON')

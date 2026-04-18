@@ -19,6 +19,10 @@ public class MarkAttendanceRequest {
     private Boolean blinkDetected;
     private Boolean headMovementDetected;
     private Integer frameCount;
+    private Double motionParallaxScore;
+    private Double brightnessVariance;
+    private List<List<Double>> frameEmbeddings;
+    private List<String> frameSnapshots;
 
     public MarkAttendanceRequest() {}
 
@@ -139,5 +143,37 @@ public class MarkAttendanceRequest {
 
     public void setFrameCount(Integer frameCount) {
         this.frameCount = frameCount;
+    }
+
+    public Double getMotionParallaxScore() {
+        return motionParallaxScore;
+    }
+
+    public void setMotionParallaxScore(Double motionParallaxScore) {
+        this.motionParallaxScore = motionParallaxScore;
+    }
+
+    public Double getBrightnessVariance() {
+        return brightnessVariance;
+    }
+
+    public void setBrightnessVariance(Double brightnessVariance) {
+        this.brightnessVariance = brightnessVariance;
+    }
+
+    public List<List<Double>> getFrameEmbeddings() {
+        return frameEmbeddings;
+    }
+
+    public void setFrameEmbeddings(List<List<Double>> frameEmbeddings) {
+        this.frameEmbeddings = frameEmbeddings;
+    }
+
+    public List<String> getFrameSnapshots() {
+        return frameSnapshots;
+    }
+
+    public void setFrameSnapshots(List<String> frameSnapshots) {
+        this.frameSnapshots = frameSnapshots;
     }
 }

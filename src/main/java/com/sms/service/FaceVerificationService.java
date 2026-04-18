@@ -2,11 +2,15 @@ package com.sms.service;
 
 import com.sms.model.FaceData;
 import com.sms.repository.FaceDataRepository;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,20 +21,28 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class FaceVerificationService {
 
-    private static final double FACE_MATCH_THRESHOLD = 0.80;
-    private static final String SECURE_MODEL_NAME = "Facenet512";
+    private static final double FACE_MATCH_THRESHOLD = 0.85;
+    private static final String SECURE_MODEL_NAME = "ArcFace-buffalo_l";
+    private static final String REDIS_EMBEDDING_KEY_PREFIX = "face:embedding:";
+    private static final Duration REDIS_EMBEDDING_TTL = Duration.ofHours(12);
 
     private final FaceDataRepository faceDataRepository;
     private final EmbeddingCryptoService embeddingCryptoService;
     private final FaceEmbeddingClientService faceEmbeddingClientService;
+    private final FaceLivenessClientService faceLivenessClientService;
+    private final StringRedisTemplate stringRedisTemplate;
     private final ConcurrentHashMap<String, float[]> faceCache = new ConcurrentHashMap<>();
 
     public FaceVerificationService(FaceDataRepository faceDataRepository,
                                    EmbeddingCryptoService embeddingCryptoService,
-                                   FaceEmbeddingClientService faceEmbeddingClientService) {
+                                   FaceEmbeddingClientService faceEmbeddingClientService,
+                                   FaceLivenessClientService faceLivenessClientService,
+                                   ObjectProvider<StringRedisTemplate> redisTemplateProvider) {
         this.faceDataRepository = faceDataRepository;
         this.embeddingCryptoService = embeddingCryptoService;
         this.faceEmbeddingClientService = faceEmbeddingClientService;
+        this.faceLivenessClientService = faceLivenessClientService;
+        this.stringRedisTemplate = redisTemplateProvider.getIfAvailable();
     }
 
     @Transactional
@@ -56,8 +68,25 @@ public class FaceVerificationService {
                                                Boolean blinkDetected,
                                                Boolean headMovementDetected,
                                                Integer frameCount) {
+        return registerFace(studentId, tenantId, embedding, livenessVerified, livenessPrompt,
+            blinkDetected, headMovementDetected, frameCount, null, null, null);
+    }
+
+    @Transactional
+    public FaceVerificationResult registerFace(String studentId,
+                                               Long tenantId,
+                                               List<Double> embedding,
+                                               Boolean livenessVerified,
+                                               String livenessPrompt,
+                                               Boolean blinkDetected,
+                                               Boolean headMovementDetected,
+                                               Integer frameCount,
+                                               Double motionParallaxScore,
+                                               Double brightnessVariance,
+                                               List<List<Double>> frameEmbeddings) {
         validateEmbedding(embedding);
-        if (!isAntiSpoofSignalValid(livenessVerified, livenessPrompt, blinkDetected, headMovementDetected, frameCount)) {
+        if (!isAntiSpoofSignalValid(livenessVerified, livenessPrompt, blinkDetected, headMovementDetected, frameCount,
+            motionParallaxScore, brightnessVariance, frameEmbeddings, null)) {
             throw new IllegalArgumentException("Liveness verification is required to register a face");
         }
 
@@ -73,7 +102,9 @@ public class FaceVerificationService {
         faceData.setIsActive(true);
 
         faceDataRepository.save(faceData);
-        faceCache.put(cacheKey(studentId, tenantId), vector);
+        String key = cacheKey(studentId, tenantId);
+        faceCache.put(key, vector);
+        putVectorInRedisCache(key, vector);
 
         return new FaceVerificationResult(true, 1.0, true, "Face enrolled successfully");
     }
@@ -103,7 +134,8 @@ public class FaceVerificationService {
         }
 
         List<Double> embedding = faceEmbeddingClientService.generateEmbedding(imageBytes, filename);
-        return registerFace(studentId, tenantId, embedding, livenessVerified, livenessPrompt, blinkDetected, headMovementDetected, frameCount);
+        return registerFace(studentId, tenantId, embedding, livenessVerified, livenessPrompt,
+            blinkDetected, headMovementDetected, frameCount, null, null, null);
     }
 
     public FaceVerificationResult verifyFace(String studentId, List<Double> embedding, Boolean livenessVerified, String livenessPrompt) {
@@ -126,8 +158,41 @@ public class FaceVerificationService {
                                              Boolean blinkDetected,
                                              Boolean headMovementDetected,
                                              Integer frameCount) {
+        return verifyFace(studentId, tenantId, embedding, livenessVerified, livenessPrompt,
+            blinkDetected, headMovementDetected, frameCount, null, null, null);
+    }
+
+    public FaceVerificationResult verifyFace(String studentId,
+                                             Long tenantId,
+                                             List<Double> embedding,
+                                             Boolean livenessVerified,
+                                             String livenessPrompt,
+                                             Boolean blinkDetected,
+                                             Boolean headMovementDetected,
+                                             Integer frameCount,
+                                             Double motionParallaxScore,
+                                             Double brightnessVariance,
+                                             List<List<Double>> frameEmbeddings) {
+        return verifyFace(studentId, tenantId, embedding, livenessVerified, livenessPrompt,
+            blinkDetected, headMovementDetected, frameCount, motionParallaxScore, brightnessVariance,
+            frameEmbeddings, null);
+    }
+
+    public FaceVerificationResult verifyFace(String studentId,
+                                             Long tenantId,
+                                             List<Double> embedding,
+                                             Boolean livenessVerified,
+                                             String livenessPrompt,
+                                             Boolean blinkDetected,
+                                             Boolean headMovementDetected,
+                                             Integer frameCount,
+                                             Double motionParallaxScore,
+                                             Double brightnessVariance,
+                                             List<List<Double>> frameEmbeddings,
+                                             List<String> frameSnapshots) {
         validateEmbedding(embedding);
-        if (!isAntiSpoofSignalValid(livenessVerified, livenessPrompt, blinkDetected, headMovementDetected, frameCount)) {
+        if (!isAntiSpoofSignalValid(livenessVerified, livenessPrompt, blinkDetected, headMovementDetected, frameCount,
+            motionParallaxScore, brightnessVariance, frameEmbeddings, frameSnapshots)) {
             throw new IllegalArgumentException("Liveness verification failed");
         }
 
@@ -188,6 +253,12 @@ public class FaceVerificationService {
             return Optional.of(cached);
         }
 
+        Optional<float[]> redisCached = getVectorFromRedisCache(key);
+        if (redisCached.isPresent()) {
+            faceCache.put(key, redisCached.get());
+            return redisCached;
+        }
+
         return faceDataRepository.findByStudentIdAndTenantId(studentId, normalizeTenantId(tenantId)).map(data -> {
             float[] vector;
             if (data.getEncryptedEmbedding() != null && !data.getEncryptedEmbedding().isBlank()) {
@@ -203,6 +274,7 @@ public class FaceVerificationService {
             }
 
             faceCache.put(key, vector);
+            putVectorInRedisCache(key, vector);
             return vector;
         });
     }
@@ -238,12 +310,19 @@ public class FaceVerificationService {
                                            String livenessPrompt,
                                            Boolean blinkDetected,
                                            Boolean headMovementDetected,
-                                           Integer frameCount) {
+                                           Integer frameCount,
+                                           Double motionParallaxScore,
+                                           Double brightnessVariance,
+                                           List<List<Double>> frameEmbeddings,
+                                           List<String> frameSnapshots) {
         if (!Boolean.TRUE.equals(livenessVerified)) {
             return false;
         }
 
         boolean telemetryProvided = blinkDetected != null || headMovementDetected != null || frameCount != null;
+        boolean advancedTelemetryProvided = motionParallaxScore != null || brightnessVariance != null ||
+            (frameEmbeddings != null && !frameEmbeddings.isEmpty()) ||
+            (frameSnapshots != null && !frameSnapshots.isEmpty());
 
         if (telemetryProvided) {
             if (!Boolean.TRUE.equals(blinkDetected) || !Boolean.TRUE.equals(headMovementDetected)) {
@@ -251,6 +330,21 @@ public class FaceVerificationService {
             }
 
             if (frameCount == null || frameCount < 3) {
+                return false;
+            }
+        }
+
+        if (advancedTelemetryProvided) {
+            FaceLivenessClientService.LivenessResult livenessResult = faceLivenessClientService.verifyLiveness(
+                blinkDetected,
+                headMovementDetected,
+                frameCount,
+                motionParallaxScore,
+                brightnessVariance,
+                frameEmbeddings,
+                frameSnapshots
+            );
+            if (!livenessResult.isPassed()) {
                 return false;
             }
         }
@@ -271,6 +365,48 @@ public class FaceVerificationService {
 
     private String cacheKey(String studentId, Long tenantId) {
         return normalizeTenantId(tenantId) + ":" + studentId;
+    }
+
+    private Optional<float[]> getVectorFromRedisCache(String cacheKey) {
+        if (stringRedisTemplate == null) {
+            return Optional.empty();
+        }
+
+        try {
+            String redisKey = REDIS_EMBEDDING_KEY_PREFIX + cacheKey;
+            String encoded = stringRedisTemplate.opsForValue().get(redisKey);
+            if (encoded == null || encoded.isBlank()) {
+                return Optional.empty();
+            }
+
+            byte[] bytes = Base64.getDecoder().decode(encoded);
+            if (bytes.length == 0 || bytes.length % Float.BYTES != 0) {
+                return Optional.empty();
+            }
+
+            return Optional.of(deserialize(bytes));
+        } catch (Exception ignored) {
+            return Optional.empty();
+        }
+    }
+
+    private void putVectorInRedisCache(String cacheKey, float[] vector) {
+        if (stringRedisTemplate == null || vector == null || vector.length == 0) {
+            return;
+        }
+
+        try {
+            ByteBuffer buffer = ByteBuffer.allocate(vector.length * Float.BYTES);
+            for (float value : vector) {
+                buffer.putFloat(value);
+            }
+
+            String redisKey = REDIS_EMBEDDING_KEY_PREFIX + cacheKey;
+            String encoded = Base64.getEncoder().encodeToString(buffer.array());
+            stringRedisTemplate.opsForValue().set(redisKey, encoded, REDIS_EMBEDDING_TTL);
+        } catch (Exception ignored) {
+            // Redis is a best-effort cache and must not break verification flow.
+        }
     }
 
     public static class FaceVerificationResult {

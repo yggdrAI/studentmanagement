@@ -12,6 +12,9 @@ public class FaceRegistrationRequest {
     private Boolean blinkDetected;
     private Boolean headMovementDetected;
     private Integer frameCount;
+    private Double motionParallaxScore;
+    private Double brightnessVariance;
+    private List<List<Double>> frameEmbeddings;
 
     public List<Double> getFaceEmbedding() {
         return faceEmbedding;
@@ -59,5 +62,29 @@ public class FaceRegistrationRequest {
 
     public void setFrameCount(Integer frameCount) {
         this.frameCount = frameCount;
+    }
+
+    public Double getMotionParallaxScore() {
+        return motionParallaxScore;
+    }
+
+    public void setMotionParallaxScore(Double motionParallaxScore) {
+        this.motionParallaxScore = motionParallaxScore;
+    }
+
+    public Double getBrightnessVariance() {
+        return brightnessVariance;
+    }
+
+    public void setBrightnessVariance(Double brightnessVariance) {
+        this.brightnessVariance = brightnessVariance;
+    }
+
+    public List<List<Double>> getFrameEmbeddings() {
+        return frameEmbeddings;
+    }
+
+    public void setFrameEmbeddings(List<List<Double>> frameEmbeddings) {
+        this.frameEmbeddings = frameEmbeddings;
     }
 }

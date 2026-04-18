@@ -4,9 +4,11 @@ from pathlib import Path
 from typing import Any, Dict
 import tempfile
 import os
+import base64
 
 import joblib
 import numpy as np
+import cv2
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
@@ -32,9 +34,14 @@ except Exception:  # pragma: no cover - optional dependency at runtime
     ARIMA = None
 
 try:
-    from deepface import DeepFace
+    import insightface
 except Exception:  # pragma: no cover - optional dependency at runtime
-    DeepFace = None
+    insightface = None
+
+try:
+    from liveness_v2 import create_liveness_engine
+except Exception:  # pragma: no cover - optional dependency at runtime
+    create_liveness_engine = None
 
 
 ROOT = Path(__file__).resolve().parent
@@ -84,6 +91,8 @@ dl_model = None
 dl_scaler = None
 dl_label_encoder = None
 cf_cache: dict[str, Any] | None = None
+face_model = None
+liveness_v2_engine = None
 
 
 class Meal:
@@ -137,8 +146,18 @@ class BehaviorRequest(BaseModel):
     speed_threshold_kmh: float = Field(default=50.0, ge=1.0, le=300.0)
 
 
+class LivenessRequest(BaseModel):
+    blink_detected: bool = False
+    head_turn_detected: bool = False
+    frame_count: int = Field(default=1, ge=1, le=20)
+    motion_parallax_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    brightness_variance: float = Field(default=0.0, ge=0.0)
+    frame_embeddings: list[list[float]] = Field(default_factory=list)
+    frame_snapshots: list[str] = Field(default_factory=list)
+
+
 def load_models() -> None:
-    global reg_model, clf_model, dl_model, dl_scaler, dl_label_encoder, cf_cache
+    global reg_model, clf_model, dl_model, dl_scaler, dl_label_encoder, cf_cache, face_model, liveness_v2_engine
 
     if REG_MODEL_PATH.exists() and CLF_MODEL_PATH.exists():
         reg_model = joblib.load(REG_MODEL_PATH)
@@ -153,6 +172,20 @@ def load_models() -> None:
 
     if train_cf_from_csv is not None and CF_RATINGS_PATH.exists():
         cf_cache = train_cf_from_csv(CF_RATINGS_PATH)
+
+    if insightface is not None:
+        try:
+            model = insightface.app.FaceAnalysis(name="buffalo_l")
+            model.prepare(ctx_id=-1)
+            face_model = model
+        except Exception:
+            face_model = None
+
+    if create_liveness_engine is not None:
+        try:
+            liveness_v2_engine = create_liveness_engine(ROOT)
+        except Exception:
+            liveness_v2_engine = None
 
 
 def heuristic_predict(payload: PredictRequest) -> tuple[float, str]:
@@ -346,14 +379,17 @@ def health() -> Dict[str, Any]:
     return {
         "status": "ok",
         "models_loaded": bool(reg_model and clf_model),
+        "face_model_loaded": bool(face_model is not None),
+        "face_model": "arcface-buffalo_l" if face_model is not None else "unavailable",
+        "liveness_v2_loaded": bool(liveness_v2_engine is not None),
         "features": FEATURES,
     }
 
 
 @app.post("/embedding")
 async def embedding(file: UploadFile = File(...)) -> Dict[str, Any]:
-    if DeepFace is None:
-        raise HTTPException(status_code=503, detail="DeepFace is not installed in the ML service")
+    if face_model is None:
+        raise HTTPException(status_code=503, detail="InsightFace model is not available in the ML service")
 
     content = await file.read()
     if not content:
@@ -366,27 +402,178 @@ async def embedding(file: UploadFile = File(...)) -> Dict[str, Any]:
             temp.write(content)
             temp_path = temp.name
 
-        embedding_result = DeepFace.represent(
-            img_path=temp_path,
-            model_name="Facenet512",
-            enforce_detection=True,
-        )
+        img = cv2.imread(temp_path)
+        if img is None:
+            raise HTTPException(status_code=400, detail="Unable to decode uploaded image")
 
-        if not embedding_result:
+        faces = face_model.get(img)
+        if not faces:
             raise HTTPException(status_code=422, detail="No face detected in uploaded image")
 
-        vector = embedding_result[0].get("embedding", [])
-        if not vector:
+        best_face = max(faces, key=lambda face: getattr(face, "det_score", 0.0))
+        vector = getattr(best_face, "embedding", None)
+        if vector is None or len(vector) == 0:
             raise HTTPException(status_code=422, detail="Embedding extraction failed")
 
+        embedding_list = vector.tolist() if hasattr(vector, "tolist") else list(vector)
+
         return {
-            "embedding": vector,
-            "dimension": len(vector),
-            "model": "Facenet512",
+            "embedding": embedding_list,
+            "dimension": len(embedding_list),
+            "model": "ArcFace-buffalo_l",
         }
     finally:
         if temp_path and os.path.exists(temp_path):
             os.unlink(temp_path)
+
+
+def cosine_similarity_vector(a: list[float], b: list[float]) -> float:
+    if not a or not b or len(a) != len(b):
+        return 0.0
+
+    arr_a = np.array(a, dtype=float)
+    arr_b = np.array(b, dtype=float)
+
+    norm_a = np.linalg.norm(arr_a)
+    norm_b = np.linalg.norm(arr_b)
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return float(np.dot(arr_a, arr_b) / (norm_a * norm_b))
+
+
+def has_frame_variation(frame_embeddings: list[list[float]]) -> tuple[bool, float]:
+    if len(frame_embeddings) < 2:
+        return False, 1.0
+
+    similarities: list[float] = []
+    for idx in range(1, len(frame_embeddings)):
+        sim = cosine_similarity_vector(frame_embeddings[idx - 1], frame_embeddings[idx])
+        similarities.append(sim)
+
+    min_similarity = min(similarities) if similarities else 1.0
+    # If all frame embeddings are too similar, likely replay/spoof.
+    return min_similarity < 0.995, float(min_similarity)
+
+
+def score_snapshots_with_v2(frame_snapshots: list[str]) -> tuple[float, float, float, float, int]:
+    if liveness_v2_engine is None or not frame_snapshots:
+        return 0.0, 0.0, 0.0, 0.0, 0
+
+    vit_scores: list[float] = []
+    cnn_scores: list[float] = []
+    deepfake_scores: list[float] = []
+    fused_scores: list[float] = []
+
+    for encoded in frame_snapshots:
+        if not encoded:
+            continue
+        try:
+            image_bytes = base64.b64decode(encoded)
+            scores = liveness_v2_engine.predict_from_bytes(image_bytes)
+            vit_scores.append(scores.vit_score)
+            cnn_scores.append(scores.cnn_score)
+            deepfake_scores.append(scores.deepfake_score)
+            fused_scores.append(scores.final_score)
+        except Exception:
+            continue
+
+    if not fused_scores:
+        return 0.0, 0.0, 0.0, 0.0, 0
+
+    return (
+        float(np.mean(vit_scores)),
+        float(np.mean(cnn_scores)),
+        float(np.mean(deepfake_scores)),
+        float(np.mean(fused_scores)),
+        len(fused_scores),
+    )
+
+
+@app.post("/liveness/verify")
+def verify_liveness(data: LivenessRequest) -> Dict[str, Any]:
+    frame_variation_pass, min_similarity = has_frame_variation(data.frame_embeddings)
+
+    blink_pass = bool(data.blink_detected)
+    head_turn_pass = bool(data.head_turn_detected)
+    motion_pass = data.motion_parallax_score >= 0.02
+    frame_count_pass = data.frame_count >= 3
+    light_variation_pass = data.brightness_variance >= 8.0
+
+    vit_score, cnn_score, deepfake_score, v2_score, snapshot_count = score_snapshots_with_v2(data.frame_snapshots)
+    v2_pass = True if snapshot_count == 0 else v2_score >= 0.7
+
+    passed = all([
+        blink_pass,
+        head_turn_pass,
+        motion_pass,
+        frame_count_pass,
+        frame_variation_pass,
+        light_variation_pass,
+        v2_pass,
+    ])
+
+    reasons: list[str] = []
+    if not blink_pass:
+        reasons.append("blink challenge failed")
+    if not head_turn_pass:
+        reasons.append("head turn challenge failed")
+    if not motion_pass:
+        reasons.append("motion parallax too low")
+    if not frame_count_pass:
+        reasons.append("insufficient frames")
+    if not frame_variation_pass:
+        reasons.append("frame embeddings too similar")
+    if not light_variation_pass:
+        reasons.append("brightness variation too low")
+    if not v2_pass:
+        reasons.append("v2 anti-spoof score below threshold")
+
+    return {
+        "passed": passed,
+        "score": 1.0 if passed else max(0.0, 1.0 - (len(reasons) * 0.18)),
+        "reasons": reasons,
+        "signals": {
+            "blink": blink_pass,
+            "head_turn": head_turn_pass,
+            "motion_parallax": motion_pass,
+            "frame_count": frame_count_pass,
+            "frame_variation": frame_variation_pass,
+            "light_variation": light_variation_pass,
+            "min_frame_similarity": round(min_similarity, 6),
+            "vit_score": round(vit_score, 6),
+            "cnn_score": round(cnn_score, 6),
+            "deepfake_score": round(deepfake_score, 6),
+            "v2_fused_score": round(v2_score, 6),
+            "v2_pass": v2_pass,
+            "snapshot_count": snapshot_count,
+        },
+        "source": "liveness-v2",
+    }
+
+
+@app.post("/liveness-v2")
+async def liveness_v2(file: UploadFile = File(...)) -> Dict[str, Any]:
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded image is empty")
+
+    if liveness_v2_engine is None:
+        raise HTTPException(status_code=503, detail="Liveness v2 models are not available")
+
+    try:
+        scores = liveness_v2_engine.predict_from_bytes(content)
+        threshold = 0.7
+        return {
+            "vit_score": round(scores.vit_score, 6),
+            "cnn_score": round(scores.cnn_score, 6),
+            "deepfake_score": round(scores.deepfake_score, 6),
+            "score": round(scores.final_score, 6),
+            "is_real": bool(scores.final_score >= threshold),
+            "threshold": threshold,
+            "source": "liveness-v2-fusion",
+        }
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=f"Liveness v2 inference failed: {error}")
 
 
 @app.post("/predict")

@@ -17,7 +17,7 @@ public class FaceEmbeddingClientService {
 
     private final RestClient restClient;
 
-    public FaceEmbeddingClientService(@Value("${app.face.embedding-service-url:http://localhost:8000}") String baseUrl) {
+    public FaceEmbeddingClientService(@Value("${app.face.embedding-service-url:http://localhost:8001}") String baseUrl) {
         this.restClient = RestClient.builder().baseUrl(baseUrl).build();
     }
 

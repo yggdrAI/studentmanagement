@@ -779,6 +779,29 @@ section.generic-card,
     padding: 20px;
 }
 
+.database-status-card {
+    text-align: left;
+}
+
+.database-status-card .page-header {
+    align-items: flex-start;
+}
+
+.database-status-card .grid-info {
+    justify-items: start;
+}
+
+.database-status-card .data-group {
+    align-items: flex-start;
+}
+
+.database-status-card .data-value {
+    width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.5;
+}
+
 .data-value,
 .field-value,
 .field-input,

@@ -1,6 +1,7 @@
 com\sms\model\ClassSession.class
 com\sms\dto\attendance\FraudAlertDTO.class
 com\sms\dto\diet\DietLogBatchRequest.class
+com\sms\config\WebMvcConfig.class
 com\sms\controller\TeacherAttendanceController.class
 com\sms\model\LoginUser.class
 com\sms\repository\DietLogRepository.class
@@ -14,7 +15,9 @@ com\sms\model\AcademicRecord.class
 com\sms\service\EmbeddingCryptoService.class
 com\sms\dto\dashboard\CreateSubjectRequest.class
 com\sms\service\AnalyticsRealtimeNotifier.class
+com\sms\service\DatabaseStatusService.class
 com\sms\dto\dashboard\DashboardDTO.class
+com\sms\service\DatabaseMigrationService.class
 com\sms\model\FraudLog.class
 com\sms\repository\StudentProfileRepository.class
 com\sms\service\DietMLService.class
@@ -26,6 +29,7 @@ com\sms\dto\attendance\ManualAttendanceRequest$StudentAttendanceRecord.class
 com\sms\model\Teacher.class
 com\sms\service\FaceVerificationService$FaceVerificationResult.class
 com\sms\controller\DigitalIDApi.class
+com\sms\service\ImageUploadService.class
 com\sms\controller\DietPlannerController.class
 com\sms\repository\TaskItemRepository.class
 com\sms\service\AnalyticsCacheService.class
@@ -55,7 +59,9 @@ com\sms\dto\profile\AcademicRecordDTO.class
 com\sms\model\Course.class
 com\sms\service\AttendanceQRTokenService$AttendanceTokenClaims.class
 com\sms\repository\SecurityAuditRepository.class
+com\sms\config\CampusLocationSeeder.class
 com\sms\repository\StudentTaskRepository.class
+com\sms\service\FaceLivenessClientService.class
 com\sms\model\StudentProfile.class
 com\sms\controller\AnalyticsController.class
 com\sms\controller\TeacherApiController.class
@@ -67,6 +73,7 @@ com\sms\service\NotificationService.class
 com\sms\model\TaskItem.class
 com\sms\service\DashboardService.class
 com\sms\service\CampusTrackingService.class
+com\sms\service\DatabaseStatusService$DatabaseStatusSnapshot.class
 com\sms\model\Admin.class
 com\sms\controller\CampusTrackingController.class
 com\sms\repository\AcademicRecordRepository.class
@@ -75,6 +82,7 @@ com\sms\service\DietLogService.class
 com\sms\dto\dashboard\TaskDto.class
 com\sms\dto\attendance\ManualAttendanceRequest.class
 com\sms\service\AntiCheatingService$VPNDetectionResult.class
+com\sms\service\DatabaseMigrationService$ExportedDatabaseBackup.class
 com\sms\service\FileService.class
 com\sms\controller\AdminStudentProfileApiController.class
 com\sms\config\WebSocketConfig.class
@@ -157,6 +165,7 @@ com\sms\controller\StudentProfileApiController.class
 com\sms\controller\StudentAttendanceController.class
 com\sms\dto\dashboard\TimetableUpdateRequest.class
 com\sms\controller\AnalyticsApiController.class
+com\sms\service\FaceLivenessClientService$LivenessResult.class
 com\sms\service\BehaviorAIService.class
 com\sms\service\CustomUserDetailsService.class
 com\sms\service\StudentProfileService.class

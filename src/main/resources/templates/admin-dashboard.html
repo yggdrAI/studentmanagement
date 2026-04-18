@@ -38,6 +38,38 @@
                 </div>
             </section>
 
+            <section class="generic-card database-status-card" style="margin-top: 24px;">
+                <header class="page-header">
+                    <div>
+                        <h2 class="page-title">Database Health</h2>
+                        <p class="page-subtitle">Verify persistence mode, storage path, and row counts at a glance.</p>
+                    </div>
+                </header>
+                <div class="grid-info" th:if="${databaseStatus != null}">
+                    <div class="data-group"><span class="data-label">Source Mode</span><span class="data-value" th:text="${databaseStatus.mode}">h2-file</span></div>
+                    <div class="data-group"><span class="data-label">Source Path</span><span class="data-value" th:text="${databaseStatus.sourcePath}">./data/studentmanagement</span></div>
+                    <div class="data-group"><span class="data-label">Target Path</span><span class="data-value" th:text="${databaseStatus.persistentPath}">./data/studentmanagement</span></div>
+                    <div class="data-group"><span class="data-label">Migration Required</span><span class="data-value" th:text="${databaseStatus.migrationRequired ? 'Yes' : 'No'}">No</span></div>
+                </div>
+                <div class="grid-info" style="margin-top: 14px;" th:if="${databaseStatus != null}">
+                    <div class="data-group"><span class="data-label">Last Migration</span><span class="data-value" th:text="${databaseMigrationMessage}">Migration not attempted</span></div>
+                    <div class="data-group"><span class="data-label">Migration Result</span><span class="data-value" th:text="${databaseMigrationSuccess ? 'Successful' : 'Pending / Failed'}">Successful</span></div>
+                    <div class="data-group"><span class="data-label">Source URL</span><span class="data-value" th:text="${databaseStatus.sourceUrl}">jdbc:h2:file:...</span></div>
+                    <div class="data-group"><span class="data-label">Persistent URL</span><span class="data-value" th:text="${databaseStatus.persistentUrl}">jdbc:h2:file:...</span></div>
+                </div>
+                <div class="grid-info" style="margin-top: 14px;" th:if="${databaseStatus != null}">
+                    <div class="data-group" th:each="entry : ${databaseStatus.tableCounts}">
+                        <span class="data-label" th:text="${entry.key}">student</span>
+                        <span class="data-value" th:text="${entry.value}">0</span>
+                    </div>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top: 18px;">
+                    <a class="btn btn-primary" th:href="@{/api/admin/database/export}">Export DB Now</a>
+                    <button class="btn btn-outline" type="button" id="restoreDbBtn">Restore Backup</button>
+                    <input id="restoreDbInput" type="file" accept=".sql" hidden>
+                </div>
+            </section>
+
             <section class="generic-card" style="margin-top: 24px;">
                 <header class="page-header">
                     <div>
@@ -57,6 +89,58 @@
 
     <!-- Inject Floating Tools Fragment -->
     <div th:replace="~{fragments/sidebar :: floating-tools}"></div>
+
+    <script>
+        (function () {
+            const restoreBtn = document.getElementById('restoreDbBtn');
+            const restoreInput = document.getElementById('restoreDbInput');
+
+            if (!restoreBtn || !restoreInput || !window.fetch) {
+                return;
+            }
+
+            restoreBtn.addEventListener('click', () => {
+                restoreInput.click();
+            });
+
+            restoreInput.addEventListener('change', async () => {
+                const file = restoreInput.files && restoreInput.files[0];
+                if (!file) {
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                restoreBtn.disabled = true;
+                restoreBtn.textContent = 'Restoring...';
+
+                try {
+                    const response = await fetch('/api/admin/database/restore', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    const payload = await response.json();
+                    if (!response.ok) {
+                        throw new Error(payload.message || 'Restore failed');
+                    }
+
+                    window.alert(payload.message || 'Database restored successfully');
+                    window.location.reload();
+                } catch (error) {
+                    window.alert(error.message || 'Restore failed');
+                } finally {
+                    restoreBtn.disabled = false;
+                    restoreBtn.textContent = 'Restore Backup';
+                    restoreInput.value = '';
+                }
+            });
+        })();
+    </script>
 
 </body>
 </html>

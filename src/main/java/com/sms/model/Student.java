@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
@@ -32,6 +33,7 @@ public class Student extends Person implements Serializable, Comparable<Student>
     private String rollNumber;
     private String enrollmentYear;
 
+    @Column(length = 1000)
     private String profileImageUrl;
 
     private Long tenantId = 1L;

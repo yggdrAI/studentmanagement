@@ -37,6 +37,7 @@ import com.sms.repository.SecurityAuditRepository;
 import com.sms.repository.StudentProfileRepository;
 import com.sms.service.DashboardService;
 import com.sms.service.FaceVerificationService;
+import com.sms.service.DatabaseMigrationService;
 import com.sms.service.StudentService;
 
 import jakarta.validation.Valid;
@@ -51,17 +52,20 @@ public class AdminApiController {
     private final StudentProfileRepository studentProfileRepository;
     private final SecurityAuditRepository securityAuditRepository;
     private final FaceVerificationService faceVerificationService;
+    private final DatabaseMigrationService databaseMigrationService;
 
     public AdminApiController(DashboardService dashboardService,
                               StudentService studentService,
                               StudentProfileRepository studentProfileRepository,
                               SecurityAuditRepository securityAuditRepository,
-                              FaceVerificationService faceVerificationService) {
+                              FaceVerificationService faceVerificationService,
+                              DatabaseMigrationService databaseMigrationService) {
         this.dashboardService = dashboardService;
         this.studentService = studentService;
         this.studentProfileRepository = studentProfileRepository;
         this.securityAuditRepository = securityAuditRepository;
         this.faceVerificationService = faceVerificationService;
+        this.databaseMigrationService = databaseMigrationService;
     }
 
     @PostMapping(value = "/upload-face", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -140,6 +144,36 @@ public class AdminApiController {
                 "hasNext", studentsPage.hasNext(),
                 "hasPrevious", studentsPage.hasPrevious()
         ));
+    }
+
+    @GetMapping("/database/export")
+    public ResponseEntity<byte[]> exportDatabase() {
+        try {
+            DatabaseMigrationService.ExportedDatabaseBackup backup = databaseMigrationService.exportCurrentDatabase();
+            return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + backup.fileName())
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(backup.content());
+        } catch (Exception ex) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Database export failed: " + ex.getMessage(), ex);
+        }
+    }
+
+    @PostMapping(value = "/database/restore", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, Object>> restoreDatabase(@RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Backup file is required");
+        }
+
+        try {
+            databaseMigrationService.restoreDatabaseFromScript(file.getBytes());
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", databaseMigrationService.getLastMigrationMessage()
+            ));
+        } catch (Exception ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Database restore failed: " + ex.getMessage(), ex);
+        }
     }
 
     @PostMapping("/students")

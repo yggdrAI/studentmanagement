@@ -1,0 +1,17 @@
+services:
+  face-embedding:
+    build:
+      context: ./ml-api
+      dockerfile: Dockerfile.gpu
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    ports:
+      - "8001:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

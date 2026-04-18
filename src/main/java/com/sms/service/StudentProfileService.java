@@ -30,15 +30,18 @@ public class StudentProfileService {
     private final StudentProfileRepository studentProfileRepository;
     private final StudentDocumentRepository studentDocumentRepository;
     private final AcademicRecordRepository academicRecordRepository;
+    private final ImageUploadService imageUploadService;
 
     public StudentProfileService(StudentRepository studentRepository,
                                  StudentProfileRepository studentProfileRepository,
                                  StudentDocumentRepository studentDocumentRepository,
-                                 AcademicRecordRepository academicRecordRepository) {
+                                 AcademicRecordRepository academicRecordRepository,
+                                 ImageUploadService imageUploadService) {
         this.studentRepository = studentRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.studentDocumentRepository = studentDocumentRepository;
         this.academicRecordRepository = academicRecordRepository;
+        this.imageUploadService = imageUploadService;
     }
 
     @Cacheable(value = "studentProfile", key = "'student:' + #username")
@@ -69,27 +72,57 @@ public class StudentProfileService {
         StudentProfile profile = studentProfileRepository.findByStudentId(normalizedStudentId)
             .orElseGet(() -> createProfileFromStudent(student));
 
+        String fullName = firstNonBlank(request.getFullName(), profile.getFullName(), student.getName());
+        String profileImage = firstNonBlank(request.getProfileImage(), profile.getProfileImage(), student.getProfileImageUrl());
+        
+        // Handle base64 image upload
+        if (profileImage != null && profileImage.startsWith("data:image")) {
+            try {
+                profileImage = imageUploadService.uploadBase64Image(profileImage, normalizedStudentId);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to upload profile image: " + e.getMessage(), e);
+            }
+        }
+        
+        String gender = firstNonBlank(request.getGender(), profile.getGender(), student.getGender());
+        String religion = firstNonBlank(request.getReligion(), profile.getReligion());
+        String bloodGroup = firstNonBlank(request.getBloodGroup(), profile.getBloodGroup());
+        String phone = firstNonBlank(request.getPhone(), profile.getPhone(), student.getPhone());
+        String address = firstNonBlank(request.getAddress(), profile.getAddress(), student.getAddress());
+        String guardianName = firstNonBlank(request.getGuardianName(), profile.getGuardianName());
+        String guardianPhone = firstNonBlank(request.getGuardianPhone(), profile.getGuardianPhone());
+        String college = firstNonBlank(request.getCollege(), profile.getCollege(), "Bennett University");
+        String course = firstNonBlank(request.getCourse(), profile.getCourse(), student.getCourse());
+        String department = firstNonBlank(request.getDepartment(), profile.getDepartment(), student.getDepartment());
+        String semester = firstNonBlank(request.getSemester(), profile.getSemester(), student.getSemester());
+        String section = firstNonBlank(request.getSection(), profile.getSection());
+        Integer admissionYear = request.getAdmissionYear() != null ? request.getAdmissionYear() : profile.getAdmissionYear();
+        Integer passingYear = request.getPassingYear() != null ? request.getPassingYear() : profile.getPassingYear();
+        LocalDate dob = request.getDob() != null ? request.getDob() : (profile.getDob() != null ? profile.getDob() : student.getDob());
+        LocalDate validUpto = request.getValidUpto() != null ? request.getValidUpto() : profile.getValidUpto();
+        String idCardNumber = firstNonBlank(request.getIdCardNumber(), profile.getIdCardNumber(), "BU-" + normalizedStudentId);
+
         profile.setStudentId(normalizedStudentId);
-        profile.setFullName(request.getFullName());
-        profile.setProfileImage(request.getProfileImage());
-        profile.setDob(request.getDob());
-        profile.setGender(request.getGender());
-        profile.setReligion(request.getReligion());
-        profile.setBloodGroup(request.getBloodGroup());
-        profile.setPhone(request.getPhone());
+        profile.setFullName(fullName);
+        profile.setProfileImage(profileImage);
+        profile.setDob(dob);
+        profile.setGender(gender);
+        profile.setReligion(religion);
+        profile.setBloodGroup(bloodGroup);
+        profile.setPhone(phone);
         profile.setEmail(deriveStudentEmail(normalizedStudentId));
-        profile.setAddress(request.getAddress());
-        profile.setGuardianName(request.getGuardianName());
-        profile.setGuardianPhone(request.getGuardianPhone());
-        profile.setCollege(request.getCollege());
-        profile.setCourse(request.getCourse());
-        profile.setDepartment(request.getDepartment());
-        profile.setSemester(request.getSemester());
-        profile.setSection(request.getSection());
-        profile.setAdmissionYear(request.getAdmissionYear());
-        profile.setPassingYear(request.getPassingYear());
-        profile.setValidUpto(request.getValidUpto());
-        profile.setIdCardNumber(request.getIdCardNumber());
+        profile.setAddress(address);
+        profile.setGuardianName(guardianName);
+        profile.setGuardianPhone(guardianPhone);
+        profile.setCollege(college);
+        profile.setCourse(course);
+        profile.setDepartment(department);
+        profile.setSemester(semester);
+        profile.setSection(section);
+        profile.setAdmissionYear(admissionYear);
+        profile.setPassingYear(passingYear);
+        profile.setValidUpto(validUpto);
+        profile.setIdCardNumber(idCardNumber);
         profile.setUpdatedBy(actorUsername);
 
         if (profile.getEnrollmentNumber() == null || profile.getEnrollmentNumber().isBlank()) {
@@ -98,18 +131,18 @@ public class StudentProfileService {
 
         studentProfileRepository.save(profile);
 
-        student.setName(request.getFullName());
+        student.setName(fullName);
         student.setEmail(deriveStudentEmail(normalizedStudentId));
-        student.setPhone(request.getPhone());
-        student.setGender(request.getGender());
-        student.setDob(request.getDob());
-        student.setAddress(request.getAddress());
-        student.setCourse(request.getCourse());
-        student.setDepartment(request.getDepartment());
-        student.setSemester(request.getSemester());
-        student.setProfileImageUrl(request.getProfileImage());
-        if (request.getAdmissionYear() != null) {
-            student.setEnrollmentYear(String.valueOf(request.getAdmissionYear()));
+        student.setPhone(phone);
+        student.setGender(gender);
+        student.setDob(dob);
+        student.setAddress(address);
+        student.setCourse(course);
+        student.setDepartment(department);
+        student.setSemester(semester);
+        student.setProfileImageUrl(profileImage);
+        if (admissionYear != null) {
+            student.setEnrollmentYear(String.valueOf(admissionYear));
         }
         studentRepository.save(student);
 
@@ -126,16 +159,27 @@ public class StudentProfileService {
         StudentProfile profile = studentProfileRepository.findByStudentId(student.getId())
             .orElseGet(() -> createProfileFromStudent(student));
 
+        String profileImage = request.getProfileImage();
+        
+        // Handle base64 image upload
+        if (profileImage != null && profileImage.startsWith("data:image")) {
+            try {
+                profileImage = imageUploadService.uploadBase64Image(profileImage, student.getId());
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to upload profile image: " + e.getMessage(), e);
+            }
+        }
+
         profile.setPhone(request.getPhone());
         profile.setEmail(deriveStudentEmail(student.getId()));
         profile.setAddress(request.getAddress());
-        profile.setProfileImage(request.getProfileImage());
+        profile.setProfileImage(profileImage);
         profile.setUpdatedBy(normalizedUsername);
         studentProfileRepository.save(profile);
 
         student.setPhone(request.getPhone());
         student.setAddress(request.getAddress());
-        student.setProfileImageUrl(request.getProfileImage());
+        student.setProfileImageUrl(profileImage);
         student.setEmail(deriveStudentEmail(student.getId()));
         studentRepository.save(student);
 
@@ -290,6 +334,20 @@ public class StudentProfileService {
             return primary;
         }
         return fallback;
+    }
+
+    private String firstNonBlank(String... candidates) {
+        if (candidates == null || candidates.length == 0) {
+            return null;
+        }
+
+        for (String candidate : candidates) {
+            if (candidate != null && !candidate.isBlank()) {
+                return candidate;
+            }
+        }
+
+        return candidates[candidates.length - 1];
     }
 
     private String deriveStudentEmail(String studentId) {

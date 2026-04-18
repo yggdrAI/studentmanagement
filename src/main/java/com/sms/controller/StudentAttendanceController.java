@@ -129,7 +129,11 @@ public class StudentAttendanceController {
                     markRequest.getLivenessPrompt(),
                     markRequest.getBlinkDetected(),
                     markRequest.getHeadMovementDetected(),
-                    markRequest.getFrameCount()
+                    markRequest.getFrameCount(),
+                    markRequest.getMotionParallaxScore(),
+                    markRequest.getBrightnessVariance(),
+                    markRequest.getFrameEmbeddings(),
+                    markRequest.getFrameSnapshots()
                 );
             } catch (RuntimeException faceError) {
                 antiCheatingService.logViolation(
@@ -442,7 +446,10 @@ public class StudentAttendanceController {
                 request.getLivenessPrompt(),
                 request.getBlinkDetected(),
                 request.getHeadMovementDetected(),
-                request.getFrameCount()
+                request.getFrameCount(),
+                request.getMotionParallaxScore(),
+                request.getBrightnessVariance(),
+                request.getFrameEmbeddings()
             );
 
             Map<String, Object> response = new HashMap<>();

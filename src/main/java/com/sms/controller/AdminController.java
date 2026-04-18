@@ -4,6 +4,8 @@ import com.sms.model.Student;
 import com.sms.dto.profile.StudentProfileResponseDTO;
 import com.sms.service.StudentService;
 import com.sms.service.StudentProfileService;
+import com.sms.service.DatabaseStatusService;
+import com.sms.service.DatabaseMigrationService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -25,16 +27,26 @@ public class AdminController {
 
     private final StudentService studentService;
     private final StudentProfileService studentProfileService;
+    private final DatabaseStatusService databaseStatusService;
+    private final DatabaseMigrationService databaseMigrationService;
 
-    public AdminController(StudentService studentService, StudentProfileService studentProfileService) {
+    public AdminController(StudentService studentService,
+                           StudentProfileService studentProfileService,
+                           DatabaseStatusService databaseStatusService,
+                           DatabaseMigrationService databaseMigrationService) {
         this.studentService = studentService;
         this.studentProfileService = studentProfileService;
+        this.databaseStatusService = databaseStatusService;
+        this.databaseMigrationService = databaseMigrationService;
     }
 
     @GetMapping("/admin/dashboard")
     public String adminDashboard(Authentication authentication, Model model) {
         model.addAttribute("adminName", authentication != null ? authentication.getName() : "admin");
         model.addAttribute("studentCount", studentService.getAllStudents().size());
+        model.addAttribute("databaseStatus", databaseStatusService.getSnapshot());
+        model.addAttribute("databaseMigrationMessage", databaseMigrationService.getLastMigrationMessage());
+        model.addAttribute("databaseMigrationSuccess", databaseMigrationService.isLastMigrationSuccess());
         return "admin-dashboard";
     }
 

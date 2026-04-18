@@ -532,6 +532,8 @@
     let attendanceProcessing = false;
     let fallbackFaceStream = null;
     let resolvedSubjectId = CURRENT_SUBJECT_ID ? Number(CURRENT_SUBJECT_ID) : null;
+    const LIVENESS_FRAME_TARGET = 5;
+    const LIVENESS_FRAME_MIN = 3;
 
     function isMobileDevice() {
         return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768;
@@ -684,35 +686,223 @@
     async function captureFaceEmbedding() {
         await ensureFaceModelsLoaded();
 
-        const prompts = ['Blink twice', 'Turn your head slightly left', 'Smile briefly'];
+        const prompts = ['Blink naturally and turn your head left-right', 'Blink and move your head slightly', 'Blink once and shift your head angle'];
         activeLivenessPrompt = prompts[Math.floor(Math.random() * prompts.length)];
         document.getElementById('facePromptText').textContent = `Liveness prompt: ${activeLivenessPrompt}`;
         showStatus(`👤 ${activeLivenessPrompt} and hold your face inside the frame`, 'info');
 
-        let detection = null;
+        let telemetry = null;
         if (isMobileDevice()) {
             showStatus('🔄 Switching to front camera for face verification...', 'warning');
-            detection = await captureFaceFromFrontCamera();
+            telemetry = await captureFaceFromFrontCamera();
         } else {
             const video = document.querySelector('#reader video') || document.getElementById('cameraVideo');
             if (!video) {
                 throw new Error('Camera stream is unavailable for face verification');
             }
-            detection = await detectFaceWithRetries(video, 8, 300);
-            if (!detection) {
+            telemetry = await collectLivenessTelemetry(video, LIVENESS_FRAME_TARGET, 250);
+            if (!telemetry) {
                 showStatus('🔄 Switching to front camera for face verification...', 'warning');
-                detection = await captureFaceFromFrontCamera();
+                telemetry = await captureFaceFromFrontCamera();
             }
         }
 
-        if (!detection || !detection.descriptor) {
+        if (!telemetry || !Array.isArray(telemetry.faceEmbedding) || telemetry.faceEmbedding.length === 0) {
             throw new Error('No face detected. Center your face and try again.');
         }
 
+        telemetry.livenessPrompt = activeLivenessPrompt;
+        return telemetry;
+    }
+
+    function euclideanDistance(pointA, pointB) {
+        return Math.hypot((pointA.x - pointB.x), (pointA.y - pointB.y));
+    }
+
+    function computeEyeAspectRatio(eye) {
+        if (!eye || eye.length < 6) {
+            return 0;
+        }
+
+        const verticalA = euclideanDistance(eye[1], eye[5]);
+        const verticalB = euclideanDistance(eye[2], eye[4]);
+        const horizontal = euclideanDistance(eye[0], eye[3]);
+        if (horizontal <= 1e-6) {
+            return 0;
+        }
+        return (verticalA + verticalB) / (2.0 * horizontal);
+    }
+
+    function calculateVariance(values) {
+        if (!values || values.length === 0) {
+            return 0;
+        }
+        const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+        return values.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / values.length;
+    }
+
+    function getFaceSnapshotBase64(video, box) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 224;
+        canvas.height = 224;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx || !box) {
+            return '';
+        }
+
+        const margin = 0.25;
+        const sourceX = Math.max(0, box.x - box.width * margin);
+        const sourceY = Math.max(0, box.y - box.height * margin);
+        const sourceW = Math.min(video.videoWidth - sourceX, box.width * (1 + margin * 2));
+        const sourceH = Math.min(video.videoHeight - sourceY, box.height * (1 + margin * 2));
+
+        ctx.drawImage(video, sourceX, sourceY, Math.max(1, sourceW), Math.max(1, sourceH), 0, 0, 224, 224);
+        return canvas.toDataURL('image/jpeg', 0.7).split(',')[1] || '';
+    }
+
+    function getFaceRegionBrightness(video, box) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 80;
+        canvas.height = 80;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx || !box) {
+            return 0;
+        }
+
+        const sourceX = Math.max(0, box.x);
+        const sourceY = Math.max(0, box.y);
+        const sourceW = Math.min(video.videoWidth - sourceX, box.width);
+        const sourceH = Math.min(video.videoHeight - sourceY, box.height);
+
+        ctx.drawImage(video, sourceX, sourceY, Math.max(1, sourceW), Math.max(1, sourceH), 0, 0, 80, 80);
+        const imageData = ctx.getImageData(0, 0, 80, 80).data;
+
+        let total = 0;
+        let count = 0;
+        for (let idx = 0; idx < imageData.length; idx += 4) {
+            const brightness = (0.299 * imageData[idx]) + (0.587 * imageData[idx + 1]) + (0.114 * imageData[idx + 2]);
+            total += brightness;
+            count += 1;
+        }
+
+        return count ? total / count : 0;
+    }
+
+    function averageEmbeddings(embeddings) {
+        if (!embeddings || embeddings.length === 0) {
+            return [];
+        }
+
+        const dimension = embeddings[0].length;
+        const sum = new Array(dimension).fill(0);
+        for (const embedding of embeddings) {
+            for (let idx = 0; idx < dimension; idx++) {
+                sum[idx] += Number(embedding[idx] || 0);
+            }
+        }
+
+        return sum.map(value => value / embeddings.length);
+    }
+
+    function computeHeadYaw(landmarks) {
+        if (!landmarks) {
+            return 0;
+        }
+
+        const leftEye = landmarks.getLeftEye();
+        const rightEye = landmarks.getRightEye();
+        const nose = landmarks.getNose();
+        if (!leftEye || !rightEye || !nose || leftEye.length === 0 || rightEye.length === 0 || nose.length === 0) {
+            return 0;
+        }
+
+        const leftEyeCenterX = leftEye.reduce((acc, p) => acc + p.x, 0) / leftEye.length;
+        const rightEyeCenterX = rightEye.reduce((acc, p) => acc + p.x, 0) / rightEye.length;
+        const eyeCenterX = (leftEyeCenterX + rightEyeCenterX) / 2;
+        const eyeDistance = Math.max(1, Math.abs(rightEyeCenterX - leftEyeCenterX));
+        const noseCenterX = nose.reduce((acc, p) => acc + p.x, 0) / nose.length;
+
+        return (noseCenterX - eyeCenterX) / eyeDistance;
+    }
+
+    async function collectLivenessTelemetry(video, targetFrames = 5, frameDelayMs = 240) {
+        const frameEmbeddings = [];
+        const frameSnapshots = [];
+        const faceCenters = [];
+        const brightnessSamples = [];
+        const earSamples = [];
+        const yawSamples = [];
+
+        for (let index = 0; index < targetFrames; index++) {
+            const detection = await faceapi
+                .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.45 }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+
+            if (detection && detection.descriptor && detection.detection && detection.detection.box) {
+                const descriptor = Array.from(detection.descriptor);
+                frameEmbeddings.push(descriptor);
+
+                const box = detection.detection.box;
+                const centerX = box.x + (box.width / 2);
+                faceCenters.push(centerX);
+
+                const brightness = getFaceRegionBrightness(video, box);
+                brightnessSamples.push(brightness);
+
+                const landmarks = detection.landmarks;
+                if (landmarks) {
+                    const leftEAR = computeEyeAspectRatio(landmarks.getLeftEye());
+                    const rightEAR = computeEyeAspectRatio(landmarks.getRightEye());
+                    earSamples.push((leftEAR + rightEAR) / 2);
+                    yawSamples.push(computeHeadYaw(landmarks));
+                }
+
+                if (frameSnapshots.length < 3) {
+                    const snapshot = getFaceSnapshotBase64(video, box);
+                    if (snapshot) {
+                        frameSnapshots.push(snapshot);
+                    }
+                }
+            }
+
+            if (index < targetFrames - 1) {
+                await new Promise(resolve => setTimeout(resolve, frameDelayMs));
+            }
+        }
+
+        if (frameEmbeddings.length < LIVENESS_FRAME_MIN) {
+            return null;
+        }
+
+        const minCenter = Math.min(...faceCenters);
+        const maxCenter = Math.max(...faceCenters);
+        const motionParallaxScore = Math.abs(maxCenter - minCenter) / Math.max(video.videoWidth || 1, 1);
+        const brightnessVariance = calculateVariance(brightnessSamples);
+
+        const minEAR = earSamples.length ? Math.min(...earSamples) : 0;
+        const maxEAR = earSamples.length ? Math.max(...earSamples) : 0;
+        const blinkDetected = (maxEAR - minEAR) >= 0.03 && minEAR < 0.24;
+
+        const minYaw = yawSamples.length ? Math.min(...yawSamples) : 0;
+        const maxYaw = yawSamples.length ? Math.max(...yawSamples) : 0;
+        const headMovementDetected = Math.abs(maxYaw - minYaw) >= 0.08 || motionParallaxScore >= 0.035;
+
+        const livenessVerified = blinkDetected && headMovementDetected && motionParallaxScore >= 0.02 && brightnessVariance >= 5.0;
+        const faceEmbedding = averageEmbeddings(frameEmbeddings);
+
         return {
-            faceEmbedding: Array.from(detection.descriptor),
-            livenessVerified: true,
-            livenessPrompt: activeLivenessPrompt
+            faceEmbedding,
+            frameEmbeddings,
+            frameCount: frameEmbeddings.length,
+            motionParallaxScore,
+            brightnessVariance,
+            frameSnapshots,
+            blinkDetected,
+            headMovementDetected,
+            livenessVerified
         };
     }
 
@@ -750,14 +940,14 @@
         await video.play();
         enableCameraFocusMode();
 
-        const detectedFace = await detectFaceWithRetries(video, 10, 320);
+        const telemetry = await collectLivenessTelemetry(video, LIVENESS_FRAME_TARGET, 260);
 
         fallbackFaceStream.getTracks().forEach((track) => track.stop());
         fallbackFaceStream = null;
         video.pause();
         video.srcObject = null;
 
-        return detectedFace;
+        return telemetry;
     }
 
     function enableCameraFocusMode() {
@@ -1074,7 +1264,14 @@
                 qrDetectedAtEpochMs: lastQrDetectedAt || Date.now(),
                 faceEmbedding: facePayload.faceEmbedding,
                 livenessVerified: facePayload.livenessVerified,
-                livenessPrompt: facePayload.livenessPrompt
+                livenessPrompt: facePayload.livenessPrompt,
+                blinkDetected: facePayload.blinkDetected,
+                headMovementDetected: facePayload.headMovementDetected,
+                frameCount: facePayload.frameCount,
+                motionParallaxScore: facePayload.motionParallaxScore,
+                brightnessVariance: facePayload.brightnessVariance,
+                frameEmbeddings: facePayload.frameEmbeddings,
+                frameSnapshots: facePayload.frameSnapshots
             };
 
             const data = await window.smsApi.student.attendanceMark(request, getAuthToken());
