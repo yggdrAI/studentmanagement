@@ -198,6 +198,178 @@
             background: rgba(37, 99, 235, 0.22);
         }
 
+        /* Image Viewer Modal */
+        .image-viewer-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-viewer-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(4px);
+        }
+
+        .image-viewer-container {
+            position: relative;
+            z-index: 10;
+            background: rgba(20, 30, 50, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: hidden;
+            animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .image-viewer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            color: #e2e8f0;
+        }
+
+        .image-viewer-header h3 {
+            margin: 0;
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .image-viewer-close {
+            background: none;
+            border: none;
+            color: #e2e8f0;
+            font-size: 2rem;
+            cursor: pointer;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .image-viewer-close:hover {
+            background: rgba(148, 163, 184, 0.2);
+            color: #fff;
+        }
+
+        .image-viewer-content {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            min-height: 300px;
+        }
+
+        .image-viewer-image {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 12px;
+            object-fit: contain;
+            cursor: grab;
+            transition: transform 0.2s ease;
+            user-select: none;
+        }
+
+        .image-viewer-image:active {
+            cursor: grabbing;
+        }
+
+        .image-viewer-footer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+            background: rgba(0, 0, 0, 0.2);
+            flex-wrap: wrap;
+        }
+
+        .image-viewer-btn {
+            background: rgba(37, 99, 235, 0.15);
+            border: 1px solid rgba(37, 99, 235, 0.3);
+            color: #60a5fa;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+
+        .image-viewer-btn:hover {
+            background: rgba(37, 99, 235, 0.25);
+            border-color: rgba(37, 99, 235, 0.5);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+
+        .image-viewer-zoom-level {
+            color: #94a3b8;
+            font-size: 0.875rem;
+            font-weight: 600;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        /* Make avatar clickable and interactive */
+        .id-avatar {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .id-avatar:not(.id-fallback) {
+            box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.3);
+            animation: avatarGlow 2s infinite;
+        }
+
+        @keyframes avatarGlow {
+            0% {
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+            }
+        }
+
+
         .id-fallback {
             display: none;
             align-items: center;
@@ -661,6 +833,26 @@
                     <div class="avatar-menu" id="avatarMenu">
                         <button type="button" id="avatarUploadAction">Upload Photo</button>
                         <button type="button" id="avatarRemoveAction">Remove Photo</button>
+                    </div>
+                </div>
+
+                <!-- Image Viewer Modal -->
+                <div id="imageViewerModal" class="image-viewer-modal" style="display:none;">
+                    <div class="image-viewer-backdrop"></div>
+                    <div class="image-viewer-container">
+                        <div class="image-viewer-header">
+                            <h3>Profile Photo</h3>
+                            <button class="image-viewer-close" id="imageViewerClose" title="Close">×</button>
+                        </div>
+                        <div class="image-viewer-content">
+                            <img id="imageViewerImg" class="image-viewer-image" alt="Profile photo enlarged" src="">
+                        </div>
+                        <div class="image-viewer-footer">
+                            <button class="image-viewer-btn" id="imageViewerZoomIn" title="Zoom in">🔍+</button>
+                            <button class="image-viewer-btn" id="imageViewerZoomOut" title="Zoom out">🔍−</button>
+                            <button class="image-viewer-btn" id="imageViewerReset" title="Reset zoom">Reset</button>
+                            <span class="image-viewer-zoom-level" id="imageViewerZoomLevel">100%</span>
+                        </div>
                     </div>
                 </div>
 
@@ -1599,6 +1791,98 @@
             reader.onerror = () => showToast('Unable to read selected image.');
             reader.readAsDataURL(file);
             imagePicker.value = '';
+        });
+
+        // Image Viewer Modal Initialization
+        const imageViewerModal = document.getElementById('imageViewerModal');
+        const imageViewerImg = document.getElementById('imageViewerImg');
+        const imageViewerClose = document.getElementById('imageViewerClose');
+        const imageViewerZoomIn = document.getElementById('imageViewerZoomIn');
+        const imageViewerZoomOut = document.getElementById('imageViewerZoomOut');
+        const imageViewerReset = document.getElementById('imageViewerReset');
+        const imageViewerZoomLevel = document.getElementById('imageViewerZoomLevel');
+        const imageViewerBackdrop = document.querySelector('.image-viewer-backdrop');
+
+        let currentZoom = 100;
+        const minZoom = 50;
+        const maxZoom = 300;
+        const zoomStep = 10;
+
+        function updateZoomLevel() {
+            imageViewerZoomLevel.textContent = currentZoom + '%';
+            imageViewerImg.style.transform = `scale(${currentZoom / 100})`;
+        }
+
+        function openImageViewer() {
+            if (currentProfile.profileImage) {
+                imageViewerImg.src = currentProfile.profileImage;
+                imageViewerModal.style.display = 'flex';
+                currentZoom = 100;
+                updateZoomLevel();
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeImageViewer() {
+            imageViewerModal.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+        // Open viewer when clicking on the image
+        const idAvatar = document.getElementById('idAvatar');
+        idAvatar.addEventListener('click', openImageViewer);
+
+        // Close viewer
+        imageViewerClose.addEventListener('click', closeImageViewer);
+        imageViewerBackdrop.addEventListener('click', closeImageViewer);
+
+        // Zoom controls
+        imageViewerZoomIn.addEventListener('click', () => {
+            if (currentZoom < maxZoom) {
+                currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
+                updateZoomLevel();
+            }
+        });
+
+        imageViewerZoomOut.addEventListener('click', () => {
+            if (currentZoom > minZoom) {
+                currentZoom = Math.max(currentZoom - zoomStep, minZoom);
+                updateZoomLevel();
+            }
+        });
+
+        imageViewerReset.addEventListener('click', () => {
+            currentZoom = 100;
+            updateZoomLevel();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (imageViewerModal.style.display === 'flex') {
+                if (e.key === 'Escape') {
+                    closeImageViewer();
+                } else if (e.key === '+' || e.key === '=') {
+                    currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
+                    updateZoomLevel();
+                } else if (e.key === '-') {
+                    currentZoom = Math.max(currentZoom - zoomStep, minZoom);
+                    updateZoomLevel();
+                } else if (e.key === '0') {
+                    currentZoom = 100;
+                    updateZoomLevel();
+                }
+            }
+        });
+
+        // Mouse wheel zoom
+        imageViewerImg.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
+            } else {
+                currentZoom = Math.max(currentZoom - zoomStep, minZoom);
+            }
+            updateZoomLevel();
         });
 
         document.getElementById('editModeBtn').addEventListener('click', () => {
