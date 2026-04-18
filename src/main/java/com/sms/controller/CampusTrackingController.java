@@ -1,6 +1,7 @@
 package com.sms.controller;
 
 import com.sms.model.StudentLocation;
+import com.sms.service.BehaviorAIService;
 import com.sms.service.CampusTrackingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -22,9 +23,12 @@ import java.util.Map;
 public class CampusTrackingController {
 
     private final CampusTrackingService campusTrackingService;
+    private final BehaviorAIService behaviorAIService;
 
-    public CampusTrackingController(CampusTrackingService campusTrackingService) {
+    public CampusTrackingController(CampusTrackingService campusTrackingService,
+                                    BehaviorAIService behaviorAIService) {
         this.campusTrackingService = campusTrackingService;
+        this.behaviorAIService = behaviorAIService;
     }
 
     @GetMapping("/live")
@@ -72,6 +76,15 @@ public class CampusTrackingController {
         response.put("subjectId", subjectId);
         response.put("sessionId", sessionId);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/behavior-analysis")
+    public ResponseEntity<Map<String, Object>> getBehaviorAnalysis(
+            @RequestParam(required = false) Long subjectId,
+            @RequestParam(required = false) String sessionId,
+            @RequestParam(defaultValue = "120") int limit) {
+        List<StudentLocation> locations = campusTrackingService.getRecentLocations(subjectId, sessionId, null, limit);
+        return ResponseEntity.ok(behaviorAIService.analyzeLocations(locations));
     }
 
     private Map<String, Object> toMapRow(StudentLocation location, boolean studentView) {

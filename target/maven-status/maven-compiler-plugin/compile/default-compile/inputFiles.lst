@@ -60,6 +60,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\service\FaceVerificationServic
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\CreateSubjectRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\TeacherAttendanceController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\UpcomingClassDto.java
+F:\Coding\studentmanagement\src\main\java\com\sms\service\BehaviorAIService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AttendanceViewController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\diet\DietSuggestionResponse.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\auth\LoginRequest.java

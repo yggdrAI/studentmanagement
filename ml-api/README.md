@@ -22,6 +22,12 @@ pip install -r requirements.txt
 python train_model.py
 ```
 
+Deep learning train:
+
+```bash
+python train_dl.py
+```
+
 The script prints MAE, classification accuracy, and feature importance, then saves:
 
 - `reg_model.pkl`
@@ -70,6 +76,61 @@ The API accepts this payload:
     {"feature": "junk_ratio", "importance": 0.31}
   ],
   "recommendations": []
+}
+```
+
+## Deep learning inference
+
+Endpoint:
+
+```text
+POST /predict-dl
+```
+
+Returns:
+
+```json
+{
+  "health_score": 78.4,
+  "prediction": "healthy",
+  "source": "pytorch-dl"
+}
+```
+
+## Collaborative filtering
+
+Prepare `user_meal_ratings.csv` and call:
+
+```text
+POST /recommend-cf
+```
+
+Payload:
+
+```json
+{
+  "user_id": 1,
+  "top_n": 3
+}
+```
+
+## Behavior anomaly API
+
+Endpoint:
+
+```text
+POST /analyze-behavior
+```
+
+Payload:
+
+```json
+{
+  "points": [
+    {"lat": 28.4506, "lng": 77.5845, "timestamp": 1713410000000},
+    {"lat": 28.4600, "lng": 77.5940, "timestamp": 1713410300000}
+  ],
+  "speed_threshold_kmh": 50
 }
 ```
 

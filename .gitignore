@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+
+# VS Code generated artifacts
+.vscode/
+.VSCodeCounter/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+
+# Java build outputs
+target/
+out/
+*.class

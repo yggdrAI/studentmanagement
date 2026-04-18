@@ -9,6 +9,22 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 try:
+    import torch
+except Exception:  # pragma: no cover - optional dependency at runtime
+    torch = None
+
+try:
+    from cf_recommender import recommend_for_user, train_cf_from_csv
+except Exception:  # pragma: no cover - optional dependency at runtime
+    recommend_for_user = None
+    train_cf_from_csv = None
+
+try:
+    from model_dl import DietDeepModel
+except Exception:  # pragma: no cover - optional dependency at runtime
+    DietDeepModel = None
+
+try:
     from statsmodels.tsa.arima.model import ARIMA
 except Exception:  # pragma: no cover - optional dependency at runtime
     ARIMA = None
@@ -17,6 +33,10 @@ except Exception:  # pragma: no cover - optional dependency at runtime
 ROOT = Path(__file__).resolve().parent
 REG_MODEL_PATH = ROOT / "reg_model.pkl"
 CLF_MODEL_PATH = ROOT / "clf_model.pkl"
+DL_MODEL_PATH = ROOT / "diet_model.pt"
+DL_SCALER_PATH = ROOT / "dl_scaler.pkl"
+DL_LABELS_PATH = ROOT / "dl_labels.pkl"
+CF_RATINGS_PATH = ROOT / "user_meal_ratings.csv"
 
 
 FEATURES = [
@@ -53,6 +73,10 @@ app = FastAPI(title="Diet ML API", version="2.0.0")
 
 reg_model = None
 clf_model = None
+dl_model = None
+dl_scaler = None
+dl_label_encoder = None
+cf_cache: dict[str, Any] | None = None
 
 
 class Meal:
@@ -76,12 +100,52 @@ MEALS = [
 ]
 
 
+class PredictDLRequest(BaseModel):
+    calories: float = Field(ge=0)
+    junk_ratio: float = Field(ge=0, le=1)
+    protein: float = Field(default=0, ge=0)
+    carbs: float = Field(default=0, ge=0)
+    fat: float = Field(default=0, ge=0)
+    meal_time: float = Field(default=12, ge=0, le=23)
+    activity_level: float = Field(default=0, ge=0, le=3)
+    sleep_hours: float = Field(default=7.0, ge=0, le=24)
+    water_intake: float = Field(default=2.0, ge=0)
+    steps: float = Field(default=5000, ge=0)
+    bmi: float = Field(default=23.0, ge=0)
+
+
+class CFRequest(BaseModel):
+    user_id: int
+    top_n: int = Field(default=3, ge=1, le=10)
+
+
+class LocationPoint(BaseModel):
+    lat: float
+    lng: float
+    timestamp: int
+
+
+class BehaviorRequest(BaseModel):
+    points: list[LocationPoint] = Field(default_factory=list)
+    speed_threshold_kmh: float = Field(default=50.0, ge=1.0, le=300.0)
+
+
 def load_models() -> None:
-    global reg_model, clf_model
+    global reg_model, clf_model, dl_model, dl_scaler, dl_label_encoder, cf_cache
 
     if REG_MODEL_PATH.exists() and CLF_MODEL_PATH.exists():
         reg_model = joblib.load(REG_MODEL_PATH)
         clf_model = joblib.load(CLF_MODEL_PATH)
+
+    if torch is not None and DietDeepModel is not None and DL_MODEL_PATH.exists() and DL_SCALER_PATH.exists() and DL_LABELS_PATH.exists():
+        dl_scaler = joblib.load(DL_SCALER_PATH)
+        dl_label_encoder = joblib.load(DL_LABELS_PATH)
+        dl_model = DietDeepModel(input_dim=len(FEATURES), num_classes=len(dl_label_encoder.classes_))
+        dl_model.load_state_dict(torch.load(DL_MODEL_PATH, map_location="cpu"))
+        dl_model.eval()
+
+    if train_cf_from_csv is not None and CF_RATINGS_PATH.exists():
+        cf_cache = train_cf_from_csv(CF_RATINGS_PATH)
 
 
 def heuristic_predict(payload: PredictRequest) -> tuple[float, str]:
@@ -212,6 +276,59 @@ def forecast_future_calories(payload: PredictRequest) -> dict[str, Any]:
     }
 
 
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    radius_km = 6371.0
+    lat1_r = np.radians(lat1)
+    lon1_r = np.radians(lon1)
+    lat2_r = np.radians(lat2)
+    lon2_r = np.radians(lon2)
+    dlat = lat2_r - lat1_r
+    dlon = lon2_r - lon1_r
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat1_r) * np.cos(lat2_r) * np.sin(dlon / 2) ** 2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+    return float(radius_km * c)
+
+
+def analyze_behavior(points: list[LocationPoint], speed_threshold_kmh: float) -> dict[str, Any]:
+    if len(points) < 2:
+        return {
+            "suspicious": False,
+            "reason": "Insufficient location points",
+            "max_speed_kmh": 0.0,
+            "anomaly_score": 0.0,
+        }
+
+    sorted_points = sorted(points, key=lambda item: item.timestamp)
+    speeds: list[float] = []
+    distances: list[float] = []
+
+    for idx in range(1, len(sorted_points)):
+        prev = sorted_points[idx - 1]
+        curr = sorted_points[idx]
+        dist_km = haversine_km(prev.lat, prev.lng, curr.lat, curr.lng)
+        time_hours = max((curr.timestamp - prev.timestamp) / 3_600_000.0, 1e-6)
+        speed_kmh = dist_km / time_hours
+        speeds.append(float(speed_kmh))
+        distances.append(float(dist_km))
+
+    max_speed = max(speeds)
+    suspicious = max_speed > speed_threshold_kmh
+    reason = "Unrealistic movement speed detected" if suspicious else "Movement pattern normal"
+
+    # Basic anomaly score based on 95th percentile speed normalized by threshold.
+    percentile_speed = float(np.percentile(speeds, 95))
+    anomaly_score = min(1.0, percentile_speed / max(speed_threshold_kmh, 1.0))
+
+    return {
+        "suspicious": suspicious,
+        "reason": reason,
+        "max_speed_kmh": round(max_speed, 2),
+        "avg_speed_kmh": round(float(np.mean(speeds)), 2),
+        "total_distance_km": round(float(np.sum(distances)), 3),
+        "anomaly_score": round(anomaly_score, 3),
+    }
+
+
 @app.on_event("startup")
 def startup_event() -> None:
     load_models()
@@ -267,3 +384,64 @@ def predict(data: PredictRequest) -> Dict[str, Any]:
         "explanation": explanation,
         "recommendations": recommendation_rankings,
     }
+
+
+@app.post("/predict-dl")
+def predict_dl(data: PredictDLRequest) -> Dict[str, Any]:
+    if torch is None or DietDeepModel is None or dl_model is None or dl_scaler is None or dl_label_encoder is None:
+        return {
+            "error": "Deep learning model not available. Train with train_dl.py first.",
+            "health_score": None,
+            "prediction": "unknown",
+            "source": "dl-unavailable",
+        }
+
+    raw_features = np.array([[getattr(data, feature) for feature in FEATURES]], dtype=float)
+    scaled = dl_scaler.transform(raw_features)
+    tensor_x = torch.tensor(scaled, dtype=torch.float32)
+
+    with torch.no_grad():
+        score_out, class_out = dl_model(tensor_x)
+        health_score = float(score_out.item())
+        class_idx = int(torch.argmax(class_out, dim=1).item())
+        prediction = str(dl_label_encoder.inverse_transform([class_idx])[0])
+
+    return {
+        "health_score": round(max(0.0, min(100.0, health_score)), 2),
+        "prediction": prediction,
+        "source": "pytorch-dl",
+    }
+
+
+@app.post("/recommend-cf")
+def recommend_cf(data: CFRequest) -> Dict[str, Any]:
+    if recommend_for_user is None or train_cf_from_csv is None:
+        return {
+            "recommended_meals": [],
+            "source": "cf-unavailable",
+            "reason": "CF dependencies unavailable",
+        }
+
+    global cf_cache
+    if cf_cache is None and CF_RATINGS_PATH.exists():
+        cf_cache = train_cf_from_csv(CF_RATINGS_PATH)
+
+    if cf_cache is None:
+        return {
+            "recommended_meals": [],
+            "source": "cf-empty",
+            "reason": "No collaborative rating data available",
+        }
+
+    meals = recommend_for_user(cf_cache, user_id=data.user_id, top_n=data.top_n)
+    return {
+        "recommended_meals": meals,
+        "source": "cf-svd",
+    }
+
+
+@app.post("/analyze-behavior")
+def analyze_behavior_endpoint(data: BehaviorRequest) -> Dict[str, Any]:
+    result = analyze_behavior(data.points, data.speed_threshold_kmh)
+    result["source"] = "behavior-ai-v1"
+    return result
