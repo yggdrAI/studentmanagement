@@ -11,11 +11,10 @@ public class AnalyticsController {
 
     @GetMapping("/ai-insights")
     public String aiInsightsEntry(Authentication authentication) {
-        String role = authentication.getAuthorities().iterator().next().getAuthority();
-        if ("ROLE_ADMIN".equals(role)) {
+        if (hasAuthority(authentication, "ROLE_ADMIN")) {
             return "redirect:/admin/ai-insights";
         }
-        if ("ROLE_TEACHER".equals(role)) {
+        if (hasAuthority(authentication, "ROLE_TEACHER")) {
             return "redirect:/teacher/ai-insights";
         }
         return "redirect:/student/ai-insights";
@@ -40,5 +39,12 @@ public class AnalyticsController {
     public String studentInsights(Model model) {
         model.addAttribute("analyticsRole", "STUDENT");
         return "ai-insights";
+    }
+
+    private boolean hasAuthority(Authentication authentication, String authority) {
+        return authentication != null
+                && authentication.getAuthorities() != null
+                && authentication.getAuthorities().stream()
+                .anyMatch(granted -> authority.equals(granted.getAuthority()));
     }
 }

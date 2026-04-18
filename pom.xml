@@ -110,6 +110,13 @@
             <version>3.0.2</version>
         </dependency>
 
+        <!-- Spreadsheet import -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.5</version>
+        </dependency>
+
         <!-- QR Code Generation -->
         <dependency>
             <groupId>com.google.zxing</groupId>

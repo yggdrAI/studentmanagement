@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Student Import</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/admin-student-import.css}">
+</head>
+<body>
+<div th:replace="~{fragments/sidebar :: sidebar(activeTab='student-import')}"></div>
+
+<main class="content-area" id="maincontent" tabindex="-1">
+    <div class="content-wrapper import-shell">
+        <header class="page-header">
+            <div>
+                <p class="eyebrow">Admin Operations</p>
+                <h1 class="page-title">Bulk Student Import</h1>
+                <p class="dashboard-subtitle">Upload CSV or Excel, validate rows, fix errors, then confirm the batch.</p>
+            </div>
+            <div class="import-actions">
+                <a class="btn btn-outline" th:href="@{/api/admin/import/sample-template}">Download Sample Template</a>
+                <a class="btn btn-outline" th:href="@{/api/admin/import/logs}" id="viewLogsLink">Refresh Logs</a>
+            </div>
+        </header>
+
+        <section class="panel upload-panel">
+            <div id="dropZone" class="drop-zone">
+                <strong>Drag and drop your CSV/XLSX file here</strong>
+                <span>or</span>
+                <button type="button" id="chooseFileBtn" class="btn btn-primary">Choose File</button>
+                <input id="importFileInput" type="file" accept=".csv,.xlsx,.xls" hidden>
+            </div>
+            <div class="upload-meta">
+                <div>Max file size: configurable server-side</div>
+                <div>Accepted: .csv, .xlsx</div>
+                <div id="uploadFileName">No file selected</div>
+            </div>
+            <div class="controls-grid">
+                <label>Duplicate handling
+                    <select id="duplicateStrategy">
+                        <option value="SKIP">Skip duplicates</option>
+                        <option value="OVERWRITE">Overwrite existing</option>
+                        <option value="UPDATE">Update existing records</option>
+                        <option value="REJECT">Reject duplicates</option>
+                    </select>
+                </label>
+                <label>Rollback on failure
+                    <select id="rollbackOnFailure">
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                </label>
+                <button id="uploadBtn" class="btn btn-primary" type="button">Upload and Validate</button>
+            </div>
+            <div class="progress-wrap">
+                <div class="progress-track"><div id="uploadProgressBar" class="progress-fill"></div></div>
+                <div id="uploadProgressLabel">0%</div>
+            </div>
+        </section>
+
+        <section class="panel mapping-panel" id="mappingPanel" hidden>
+            <div class="panel-head">
+                <div>
+                    <h2 class="panel-title">Column Mapping</h2>
+                    <p class="panel-subtitle">Auto-detected mapping is editable. Required fields: Full Name and Enrollment Number.</p>
+                </div>
+                <button id="reapplyMappingBtn" class="btn btn-outline" type="button">Re-run with Mapping</button>
+            </div>
+            <div id="parseWarnings" class="parse-warnings" hidden></div>
+            <div id="mappingGrid" class="mapping-grid"></div>
+        </section>
+
+        <section class="panel summary-panel">
+            <div class="summary-cards">
+                <article class="summary-card"><h3>Total Rows</h3><strong id="totalRowsCount">0</strong></article>
+                <article class="summary-card valid"><h3>Valid Rows</h3><strong id="validRowsCount">0</strong></article>
+                <article class="summary-card invalid"><h3>Invalid Rows</h3><strong id="invalidRowsCount">0</strong></article>
+                <article class="summary-card"><h3>Job</h3><strong id="jobStatus">Idle</strong></article>
+            </div>
+            <div class="summary-actions">
+                <button id="confirmImportBtn" class="btn btn-primary" disabled>Confirm Import</button>
+                <button id="rollbackLastBtn" class="btn btn-outline" type="button">Rollback Last Import</button>
+                <a id="downloadErrorsBtn" class="btn btn-outline" href="#" hidden>Download Error Report</a>
+            </div>
+        </section>
+
+        <section class="panel preview-panel">
+            <div class="panel-head">
+                <div>
+                    <h2 class="panel-title">Preview Rows</h2>
+                    <p class="panel-subtitle">Inline edit invalid values before confirming the import.</p>
+                </div>
+                <input id="previewSearch" class="input" type="search" placeholder="Filter by name or enrollment">
+            </div>
+            <div class="table-wrap">
+                <table class="data-grid">
+                    <thead>
+                        <tr>
+                            <th>Row</th>
+                            <th>Full Name</th>
+                            <th>Enrollment</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Course</th>
+                            <th>Semester</th>
+                            <th>Department</th>
+                            <th>Section/Class</th>
+                            <th>DOB</th>
+                            <th>Gender</th>
+                            <th>Address</th>
+                            <th>Class Group</th>
+                            <th>Batch Group</th>
+                            <th>Status</th>
+                            <th>Error</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="previewBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel logs-panel">
+            <div class="panel-head">
+                <div>
+                    <h2 class="panel-title">Import Logs</h2>
+                    <p class="panel-subtitle">Recent batches, counts, and outcomes.</p>
+                </div>
+            </div>
+            <div id="logsList" class="logs-list"></div>
+        </section>
+    </div>
+</main>
+
+<div th:replace="~{fragments/sidebar :: floating-tools}"></div>
+<script th:src="@{/js/admin-student-import.js}"></script>
+</body>
+</html>

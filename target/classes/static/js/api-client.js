@@ -23,6 +23,8 @@
         });
     }
 
+    window.smsClearAuthTokens = clearAuthTokens;
+
     function isTokenExpired(token) {
         var payload = decodeJwtPayload(token);
         if (!payload || !payload.exp) {

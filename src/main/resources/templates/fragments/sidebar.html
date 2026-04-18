@@ -57,6 +57,7 @@
         <nav class="nav-links" aria-label="Sidebar Links">
             <a href="/dashboard" class="nav-item" th:classappend="${activeTab == 'dashboard'} ? 'active' : ''">Dashboard</a>
             <a href="/admin/students" class="nav-item" sec:authorize="hasRole('ADMIN')" th:classappend="${activeTab == 'students'} ? 'active' : ''">Manage Students</a>
+            <a href="/admin/import/students" class="nav-item" sec:authorize="hasRole('ADMIN')" th:classappend="${activeTab == 'student-import'} ? 'active' : ''">Bulk Student Import</a>
             <a href="/teachers" class="nav-item" sec:authorize="hasRole('ADMIN')" th:classappend="${activeTab == 'teachers'} ? 'active' : ''">Manage Teachers</a>
             <a href="/ai-insights" class="nav-item" th:classappend="${activeTab == 'analytics'} ? 'active' : ''">AI Insights</a>
             <a href="/courses" class="nav-item" sec:authorize="hasRole('ADMIN')" th:classappend="${activeTab == 'courses'} ? 'active' : ''">Manage Courses</a>
@@ -90,9 +91,36 @@
         <button type="button" class="tool-btn" aria-label="Application Menu">⋮⋮</button>
         <button type="button" id="userSettingsBtn" class="tool-btn" aria-label="User Settings" aria-expanded="false" aria-controls="userSettingsModal">⚙</button>
         <!-- Logout Form using Spring Security -->
-        <form th:action="@{/logout}" method="post" style="margin-top: 24px;">
+        <form id="smsLogoutForm" th:action="@{/logout}" method="post" style="margin-top: 24px;">
             <button type="submit" class="tool-btn" aria-label="Logout" style="color: #dc2626; width: 48px;">🚪</button>
         </form>
+
+        <script>
+            (function () {
+                var logoutForm = document.getElementById('smsLogoutForm');
+                if (!logoutForm) {
+                    return;
+                }
+
+                logoutForm.addEventListener('submit', function (event) {
+                    event.preventDefault();
+
+                    if (window.smsClearAuthTokens) {
+                        window.smsClearAuthTokens();
+                    }
+
+                    fetch('/logout', {
+                        method: 'POST',
+                        headers: {
+                            Accept: 'text/html'
+                        },
+                        credentials: 'same-origin'
+                    }).finally(function () {
+                        window.location.replace('/login?logout');
+                    });
+                });
+            })();
+        </script>
 
         <div id="userSettingsModal" class="user-settings-modal" role="dialog" aria-modal="true" aria-labelledby="userSettingsTitle" hidden>
             <section class="user-settings-window">

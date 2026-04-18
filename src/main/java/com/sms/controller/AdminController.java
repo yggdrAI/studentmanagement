@@ -82,12 +82,22 @@ public class AdminController {
         model.addAttribute("profileMap", profileMap);
         model.addAttribute("averageMap", studentService.getAverageMarksMap(students));
         model.addAttribute("newStudent", new Student());
-        return "admin-students";
+        return "admin-students-react";
     }
 
     @GetMapping("/admin/timetables")
     public String manageTimetables() {
         return "admin-timetables";
+    }
+
+    @GetMapping("/admin/import/students")
+    public String importStudents() {
+        return "admin-student-import";
+    }
+
+    @GetMapping("/admin/students/react")
+    public String studentsReactHierarchy() {
+        return "admin-students-react";
     }
 
     @PostMapping("/admin/students")

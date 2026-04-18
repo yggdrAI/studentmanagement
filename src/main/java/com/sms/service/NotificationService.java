@@ -49,4 +49,13 @@ public class NotificationService {
                 "startsAt", startsAt != null ? startsAt : ""
         ));
     }
+    public void notifyBulkImport(String username, Long jobId, int successCount, String status) {
+        notifyUser(username, Map.of(
+            "type", "BULK_IMPORT_COMPLETE",
+            "jobId", jobId,
+            "successCount", successCount,
+            "status", status != null ? status : "FINISHED",
+            "message", "Bulk import completed: " + successCount + " students created"
+        ));
+    }
 }

@@ -1,6 +1,22 @@
 (function () {
     "use strict";
 
+    if (!window.smsApi || !window.smsApi.analytics) {
+        console.error("AI Insights bootstrap failed: window.smsApi.analytics is unavailable.");
+        window.addEventListener("DOMContentLoaded", function () {
+            const toastStack = document.getElementById("toastStack");
+            if (!toastStack) {
+                return;
+            }
+            const item = document.createElement("div");
+            item.className = "toast error";
+            item.textContent = "AI Insights failed to initialize. Reload the page.";
+            toastStack.appendChild(item);
+            setTimeout(() => item.remove(), 4500);
+        });
+        return;
+    }
+
     const app = document.getElementById("aiApp");
     const role = app?.getAttribute("data-role") || "ADMIN";
 

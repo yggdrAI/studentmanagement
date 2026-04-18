@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Hierarchy React</title>
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/admin-students-react.css}">
+</head>
+<body>
+<div th:replace="~{fragments/sidebar :: sidebar(activeTab='students')}"></div>
+
+<main class="content-area" id="maincontent" tabindex="-1">
+    <div class="content-wrapper">
+        <div id="reactHierarchyRoot"></div>
+    </div>
+</main>
+
+<script type="module" th:src="@{/js/admin-students-react-app.js}"></script>
+</body>
+</html>

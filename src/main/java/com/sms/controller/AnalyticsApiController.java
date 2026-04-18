@@ -43,7 +43,7 @@ public class AnalyticsApiController {
                                        @RequestParam(name = "to", required = false)
                                        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
                                        Authentication authentication) {
-        String role = authentication.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "");
+        String role = resolveRole(authentication);
         return aiAnalyticsService.buildDashboard(role, authentication.getName(), course, semester, section, from, to);
     }
 
@@ -83,8 +83,7 @@ public class AnalyticsApiController {
     @GetMapping("/student-summary/{studentId}")
     public Map<String, Object> studentSummary(@PathVariable String studentId,
                                               Authentication authentication) {
-        String role = authentication.getAuthorities().iterator().next().getAuthority();
-        if ("ROLE_STUDENT".equals(role)) {
+        if (hasAuthority(authentication, "ROLE_STUDENT")) {
             Map<String, Object> own = aiAnalyticsService.buildDashboard("STUDENT", authentication.getName(), null, null, null, null, null);
             Object tagsObj = own.get("studentTags");
             if (tagsObj instanceof java.util.List<?> tags) {
@@ -93,7 +92,7 @@ public class AnalyticsApiController {
                     throw new IllegalArgumentException("Not allowed to access this profile analytics");
                 }
             }
-        } else if ("ROLE_TEACHER".equals(role)) {
+        } else if (hasAuthority(authentication, "ROLE_TEACHER")) {
             Map<String, Object> own = aiAnalyticsService.buildDashboard("TEACHER", authentication.getName(), null, null, null, null, null);
             Object tagsObj = own.get("studentTags");
             if (tagsObj instanceof java.util.List<?> tags) {
@@ -104,5 +103,22 @@ public class AnalyticsApiController {
             }
         }
         return aiAnalyticsService.buildStudentAiSummary(studentId);
+    }
+
+    private String resolveRole(Authentication authentication) {
+        if (hasAuthority(authentication, "ROLE_ADMIN")) {
+            return "ADMIN";
+        }
+        if (hasAuthority(authentication, "ROLE_TEACHER")) {
+            return "TEACHER";
+        }
+        return "STUDENT";
+    }
+
+    private boolean hasAuthority(Authentication authentication, String authority) {
+        return authentication != null
+                && authentication.getAuthorities() != null
+                && authentication.getAuthorities().stream()
+                .anyMatch(granted -> authority.equals(granted.getAuthority()));
     }
 }

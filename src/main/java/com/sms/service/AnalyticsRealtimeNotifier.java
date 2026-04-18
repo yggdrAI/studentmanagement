@@ -48,6 +48,16 @@ public class AnalyticsRealtimeNotifier {
         publish("analytics:feed", "/topic/analytics/feed", event);
     }
 
+    public void notifyStudentBulkImport(Long jobId, int successCount) {
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("type", "STUDENT_BULK_IMPORT");
+        event.put("jobId", jobId);
+        event.put("successCount", successCount);
+        event.put("message", "Bulk import completed: " + successCount + " students created");
+        event.put("timestamp", LocalDateTime.now().toString());
+        publish("analytics:feed", "/topic/analytics/feed", event);
+    }
+
     @Scheduled(fixedDelay = 6000)
     public void publishLiveSnapshot() {
         publish("analytics:live", "/topic/analytics/live", aiAnalyticsService.buildLiveSnapshot());
