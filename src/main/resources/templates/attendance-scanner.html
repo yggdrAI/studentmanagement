@@ -587,7 +587,7 @@
 
     function registerPwa() {
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js').catch((error) => {
+            navigator.serviceWorker.register('/service-worker.js?v=2').catch((error) => {
                 console.debug('Service worker registration failed:', error);
             });
         }
@@ -1077,16 +1077,7 @@
                 livenessPrompt: facePayload.livenessPrompt
             };
 
-            const response = await fetch('/api/student/attendance/mark', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + getAuthToken()
-                },
-                body: JSON.stringify(request)
-            });
-
-            const data = await response.json();
+            const data = await window.smsApi.student.attendanceMark(request, getAuthToken());
             showLoader(false);
 
             if (data.success) {
@@ -1186,12 +1177,7 @@
             return;
         }
         
-        fetch(`/api/student/attendance/check-today?subjectId=${subjectId}`, {
-            headers: {
-                'Authorization': 'Bearer ' + getAuthToken()
-            }
-        })
-        .then(response => response.json())
+        window.smsApi.student.attendanceCheckToday(subjectId, getAuthToken())
         .then(data => {
             const el = document.getElementById('todayAttendance');
             
@@ -1223,8 +1209,7 @@
         registerPwa();
         document.body.classList.add('has-bottom-nav');
         if (!resolvedSubjectId) {
-            fetch('/api/student/timetable', { headers: { Accept: 'application/json' } })
-                .then((response) => response.ok ? response.json() : [])
+            window.smsApi.student.timetable()
                 .then((items) => {
                     const first = Array.isArray(items) ? items.find(item => item && item.courseId) : null;
                     if (first && first.courseId) {

@@ -223,21 +223,36 @@ public class DashboardService {
         return classSessionRepository
                 .findTop10ByStudentIdAndStartsAtAfterOrderByStartsAtAsc(studentId, LocalDateTime.now())
                 .stream()
-                .map(session -> {
-                    UpcomingClassDto dto = new UpcomingClassDto();
-                    dto.setSessionId(session.getId());
-                    dto.setCourseId(session.getCourse() != null ? session.getCourse().getId() : null);
-                    dto.setTitle(session.getTitle());
-                    dto.setRoom(session.getRoom());
-                    dto.setStartsAt(session.getStartsAt());
-                    dto.setEndsAt(session.getEndsAt());
-                    dto.setCourseCode(session.getCourse() != null ? session.getCourse().getCode() : null);
-                    dto.setFacultyName(session.getCourse() != null && session.getCourse().getTeacher() != null
-                            ? session.getCourse().getTeacher().getName()
-                            : "N/A");
-                    return dto;
-                })
+                .map(this::toUpcomingClassDto)
                 .toList();
+    }
+
+    @Transactional
+    @CacheEvict(value = {"dashboardSummary", "upcomingClasses"}, allEntries = true)
+    public UpcomingClassDto rescheduleStudentSession(String studentId,
+                                                     Long sessionId,
+                                                     LocalDateTime startsAt,
+                                                     LocalDateTime endsAt) {
+        if (startsAt == null || endsAt == null || !endsAt.isAfter(startsAt)) {
+            throw new IllegalArgumentException("Invalid class timings");
+        }
+
+        ClassSession session = classSessionRepository.findById(Objects.requireNonNull(sessionId, "sessionId is required"))
+                .orElseThrow(() -> new EntityNotFoundException("Class session not found: " + sessionId));
+
+        if (session.getStudent() == null || !Objects.equals(session.getStudent().getId(), studentId)) {
+            throw new AccessDeniedException("Session does not belong to student " + studentId);
+        }
+
+        if (classSessionRepository.existsOverlappingSession(studentId, sessionId, startsAt, endsAt)) {
+            throw new IllegalStateException("This class overlaps with another session on your timetable");
+        }
+
+        session.setStartsAt(startsAt);
+        session.setEndsAt(endsAt);
+
+        ClassSession saved = classSessionRepository.save(session);
+        return toUpcomingClassDto(saved);
     }
 
     @Transactional(readOnly = true)
@@ -406,6 +421,21 @@ public class DashboardService {
                 .stream()
                 .map(studentTask -> studentTask.getTask().getId())
                 .collect(java.util.stream.Collectors.toCollection(HashSet::new));
+    }
+
+    private UpcomingClassDto toUpcomingClassDto(ClassSession session) {
+        UpcomingClassDto dto = new UpcomingClassDto();
+        dto.setSessionId(session.getId());
+        dto.setCourseId(session.getCourse() != null ? session.getCourse().getId() : null);
+        dto.setTitle(session.getTitle());
+        dto.setRoom(session.getRoom());
+        dto.setStartsAt(session.getStartsAt());
+        dto.setEndsAt(session.getEndsAt());
+        dto.setCourseCode(session.getCourse() != null ? session.getCourse().getCode() : null);
+        dto.setFacultyName(session.getCourse() != null && session.getCourse().getTeacher() != null
+                ? session.getCourse().getTeacher().getName()
+                : "N/A");
+        return dto;
     }
 
     private double round(double value) {

@@ -12,6 +12,11 @@ public record DietSuggestionResponse(
         double mlScore,
         String mlPrediction,
         String mlSource,
-        List<DailyCaloriePoint> weeklyCalories
+        String recommendation,
+        String recommendationReason,
+        String futureRisk,
+        List<DailyCaloriePoint> weeklyCalories,
+        List<java.util.Map<String, Object>> explanation,
+        List<java.util.Map<String, Object>> recommendations
 ) {
 }

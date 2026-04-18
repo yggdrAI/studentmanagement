@@ -38,11 +38,16 @@ public class DietAIService {
                 caloriesToday,
                 nextMeal,
                 Math.round(weeklyAverage * 10.0) / 10.0,
-            highCalorieDays,
-            0.0,
-            "moderate",
-            "heuristic",
-            List.of()
+                highCalorieDays,
+                0.0,
+                "moderate",
+                "heuristic",
+            "Balanced Meal",
+            "Heuristic suggestion based on your current intake",
+            "Calorie intake likely stable tomorrow",
+                List.of(),
+                List.of(),
+                List.of()
         );
     }
 }

@@ -1,0 +1,78 @@
+.ai-app.flagship-ai {
+    width: min(1380px, calc(100% - 28px));
+    padding: 18px;
+    border-radius: 24px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    background: linear-gradient(160deg, rgba(15, 23, 42, 0.68), rgba(2, 6, 23, 0.82));
+    box-shadow: 0 26px 60px rgba(2, 6, 23, 0.45);
+}
+
+.ai-app.flagship-ai .top-shell,
+.ai-app.flagship-ai .filters-panel,
+.ai-app.flagship-ai .metric-card,
+.ai-app.flagship-ai .smart-card,
+.ai-app.flagship-ai .chart-card,
+.ai-app.flagship-ai .student-list-panel,
+.ai-app.flagship-ai .feed-panel {
+    border-radius: 18px;
+}
+
+.ai-app.flagship-ai .top-shell {
+    padding: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: linear-gradient(140deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.82));
+}
+
+.ai-app.flagship-ai .title-wrap h1 {
+    font-size: clamp(1.8rem, 3vw, 2.4rem);
+    letter-spacing: 0.01em;
+}
+
+.ai-app.flagship-ai .subtitle {
+    max-width: 720px;
+}
+
+.ai-app.flagship-ai .metrics-grid {
+    gap: 14px;
+}
+
+.ai-app.flagship-ai .metric-card {
+    background: linear-gradient(155deg, rgba(30, 41, 59, 0.65), rgba(15, 23, 42, 0.88));
+    border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.ai-app.flagship-ai .metric-value {
+    font-size: clamp(1.8rem, 2.8vw, 2.2rem);
+}
+
+.ai-app.flagship-ai .smart-card {
+    background: linear-gradient(155deg, rgba(30, 41, 59, 0.72), rgba(15, 23, 42, 0.9));
+    border-color: rgba(148, 163, 184, 0.18);
+}
+
+.ai-app.flagship-ai .smart-card:hover {
+    transform: translateY(-3px) scale(1.01);
+}
+
+.ai-app.flagship-ai .chart-card {
+    min-height: 260px;
+    background: linear-gradient(160deg, rgba(30, 41, 59, 0.67), rgba(15, 23, 42, 0.86));
+}
+
+.ai-app.flagship-ai .chart-viewport,
+.ai-app.flagship-ai .heatmap-viewport {
+    border-radius: 14px;
+    border-color: rgba(148, 163, 184, 0.24);
+    background: rgba(15, 23, 42, 0.58);
+}
+
+.ai-app.flagship-ai .fab {
+    background: linear-gradient(135deg, #3b82f6, #22c55e);
+}
+
+@media (max-width: 1040px) {
+    .ai-app.flagship-ai {
+        width: min(1380px, calc(100% - 16px));
+        padding: 12px;
+    }
+}

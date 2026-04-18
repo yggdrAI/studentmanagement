@@ -19,8 +19,22 @@
                 } catch (_err) {
                     document.documentElement.setAttribute('data-theme', 'light');
                 }
+
+                if (!window.__SMS_UI_SYSTEM_BOOTSTRAPPED) {
+                    window.__SMS_UI_SYSTEM_BOOTSTRAPPED = true;
+                    var styleLink = document.createElement('link');
+                    styleLink.rel = 'stylesheet';
+                    styleLink.href = '/css/smart-campus-ui.css';
+                    document.head.appendChild(styleLink);
+
+                    var uiScript = document.createElement('script');
+                    uiScript.src = '/js/smart-campus-ui.js';
+                    uiScript.defer = true;
+                    document.head.appendChild(uiScript);
+                }
             })();
         </script>
+        <script th:src="@{/js/api-client.js}"></script>
         <!-- Logo -->
         <div class="logo-container">
             <a href="/dashboard" class="logo-placeholder" aria-label="Bennett University Logo">
@@ -51,12 +65,20 @@
             <a href="/attendance/teacher" class="nav-item" sec:authorize="hasRole('TEACHER')" th:classappend="${activeTab == 'attendance'} ? 'active' : ''">🎓 Teacher Attendance</a>
             <a href="/attendance/reports" class="nav-item" sec:authorize="hasRole('ADMIN')" th:classappend="${activeTab == 'reports'} ? 'active' : ''">Attendance Reports</a>
             <a href="/cafeteria" class="nav-item" th:classappend="${activeTab == 'cafeteria'} ? 'active' : ''">Cafeteria</a>
+            <a href="/campus-map" class="nav-item" th:classappend="${activeTab == 'map'} ? 'active' : ''">🗺 Live Campus Map</a>
             <a href="/exam-schedules" class="nav-item" th:classappend="${activeTab == 'exams'} ? 'active' : ''">Exam Schedules</a>
             <a href="/reports" class="nav-item" sec:authorize="hasRole('ADMIN')" th:classappend="${activeTab == 'reports'} ? 'active' : ''">Reports</a>
             <a href="/holidays" class="nav-item" th:classappend="${activeTab == 'holidays'} ? 'active' : ''">Holidays</a>
             <a href="/services" class="nav-item" th:classappend="${activeTab == 'services'} ? 'active' : ''">Services</a>
             <a href="/enrollment" class="nav-item" sec:authorize="hasRole('ADMIN')" th:classappend="${activeTab == 'enrollment'} ? 'active' : ''">Enrollment</a>
             <a href="/student/digital-id" class="nav-item" sec:authorize="hasRole('STUDENT')" th:classappend="${activeTab == 'digital-id'} ? 'active' : ''">🪪 Digital ID Card</a>
+        </nav>
+
+        <nav class="bottom-nav-global sc-mobile-only" aria-label="Smart Campus mobile navigation">
+            <a href="/dashboard" th:classappend="${activeTab == 'dashboard'} ? 'active' : ''">Home</a>
+            <a href="/attendance/scanner" th:classappend="${activeTab == 'attendance'} ? 'active' : ''">Scan</a>
+            <a href="/cafeteria" th:classappend="${activeTab == 'cafeteria'} ? 'active' : ''">Cafeteria</a>
+            <a href="/student/profile" th:classappend="${activeTab == 'profile' || activeTab == 'digital-id'} ? 'active' : ''">Profile</a>
         </nav>
     </aside>
 

@@ -554,6 +554,87 @@ public class StudentAttendanceController {
         }
     }
 
+    @PostMapping("/geofence/check")
+    public ResponseEntity<Map<String, Object>> checkGeofence(@RequestBody Map<String, Double> request) {
+        try {
+            Double latitude = request != null ? request.get("latitude") : null;
+            Double longitude = request != null ? request.get("longitude") : null;
+
+            if (latitude == null || longitude == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "message", "latitude and longitude are required"
+                ));
+            }
+
+            List<CampusLocation> activeLocations = campusLocationRepository.findAllActive();
+            if (activeLocations.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                        "success", false,
+                        "message", "No active campus locations configured",
+                        "inside", false
+                ));
+            }
+
+            CampusLocation closestLocation = geolocationService.findClosestLocation(latitude, longitude, activeLocations);
+            if (closestLocation == null) {
+                return ResponseEntity.ok(Map.of(
+                        "success", false,
+                        "message", "Unable to resolve closest campus location",
+                        "inside", false
+                ));
+            }
+
+            double distanceMeters = geolocationService.calculateDistanceMeters(
+                    latitude,
+                    longitude,
+                    closestLocation.getLatitude(),
+                    closestLocation.getLongitude()
+            );
+            boolean inside = geolocationService.isInsideGeofence(latitude, longitude, closestLocation);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("inside", inside);
+            response.put("distanceMeters", Math.round(distanceMeters));
+            response.put("radiusMeters", closestLocation.getRadiusMeters());
+            response.put("closestLocation", closestLocation.getName());
+            response.put("message", inside
+                    ? "Inside campus attendance zone"
+                    : "Outside campus attendance zone");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
+    @GetMapping("/metrics")
+    public ResponseEntity<Map<String, Object>> getAttendanceMetrics(@RequestParam Long subjectId,
+                                                                     Authentication auth) {
+        try {
+            String studentId = auth.getName();
+            AttendanceService.WeightedAttendanceMetrics metrics =
+                    attendanceService.getWeightedAttendanceMetrics(studentId, subjectId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("subjectId", subjectId);
+            response.put("studentId", studentId);
+            response.put("weightedAttendance", metrics.getWeightedPercentage());
+            response.put("presentCount", metrics.getPresentCount());
+            response.put("lateCount", metrics.getLateCount());
+            response.put("absentCount", metrics.getAbsentCount());
+            response.put("suspiciousCount", metrics.getSuspiciousCount());
+            response.put("faceVerificationEnforced", metrics.isFaceVerificationEnforced());
+            response.put("engine", "weighted-v2");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     /**
      * Public endpoint to verify QR (for scanner app)
         * Students verify a teacher-issued QR before marking attendance

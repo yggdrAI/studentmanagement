@@ -199,11 +199,14 @@
         });
 
         try {
-            const response = await fetch(`/api/admin/students?${params.toString()}`);
-            if (!response.ok) {
-                throw new Error("Failed to load students");
-            }
-            const payload = await response.json();
+            const payload = await window.smsApi.admin.students.list({
+                page: state.page,
+                size: state.size,
+                search: state.search,
+                course: state.course,
+                sortBy: state.sortBy,
+                sortDir: state.sortDir
+            });
             state.items = payload.items || [];
             state.totalPages = payload.totalPages || 0;
             state.totalElements = payload.totalElements || 0;
@@ -362,14 +365,10 @@
             name: state.formData.name.trim()
         };
 
-        const response = await fetch("/api/admin/students", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            const message = await extractError(response, "Unable to create student");
+        try {
+            await window.smsApi.admin.students.create(payload);
+        } catch (error) {
+            const message = error && error.message ? error.message : 'Unable to create student';
             toast(message, "error");
             return;
         }
@@ -398,11 +397,9 @@
             return;
         }
 
-        const response = await fetch(`/api/admin/students/${encodeURIComponent(state.pendingDeleteId)}`, {
-            method: "DELETE"
-        });
-
-        if (!response.ok) {
+        try {
+            await window.smsApi.admin.students.remove(state.pendingDeleteId);
+        } catch (_error) {
             toast("Delete failed", "error");
             return;
         }
@@ -417,18 +414,13 @@
             return;
         }
         const ids = Array.from(state.selected);
-        const response = await fetch("/api/admin/students/bulk-delete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ids })
-        });
-
-        if (!response.ok) {
+        let payload;
+        try {
+            payload = await window.smsApi.admin.students.bulkDelete(ids);
+        } catch (_error) {
             toast("Bulk delete failed", "error");
             return;
         }
-
-        const payload = await response.json();
         toast(`Deleted ${payload.deleted || 0} students`, "success");
         state.selected.clear();
         fetchStudents();
@@ -472,11 +464,7 @@
 
     async function fetchActivity() {
         try {
-            const response = await fetch("/api/admin/students/activity?limit=8");
-            if (!response.ok) {
-                throw new Error("Failed");
-            }
-            const rows = await response.json();
+            const rows = await window.smsApi.admin.students.activity(8);
             if (!rows.length) {
                 refs.audits.innerHTML = "<li class='audit-item'>No recent audit events.</li>";
                 return;

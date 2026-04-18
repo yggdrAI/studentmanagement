@@ -293,7 +293,15 @@ function updateSuggestionCard(data) {
     panel.classList.add('risk-' + normalizedRisk);
 
     title.textContent = 'AI Suggestion for ' + (data.nextMeal || 'next meal') + ' (' + (data.caloriesToday || 0) + ' kcal today)';
-    text.textContent = data.suggestion || 'No suggestion available right now.';
+    const recommendation = data.recommendation || '';
+    const recommendationReason = data.recommendationReason || '';
+    const futureRisk = data.futureRisk || '';
+    const primarySuggestion = data.suggestion || 'No suggestion available right now.';
+    const recommendationLine = recommendation
+        ? ' Recommended meal: ' + recommendation + (recommendationReason ? ' (' + recommendationReason + ').' : '.')
+        : '';
+    const forecastLine = futureRisk ? ' Forecast: ' + futureRisk + '.' : '';
+    text.textContent = primarySuggestion + recommendationLine + forecastLine;
 
     const mlPrediction = document.getElementById('mlPrediction');
     const mlScore = document.getElementById('mlScore');
@@ -317,6 +325,41 @@ function updateSuggestionCard(data) {
     }
 
     renderHealthScoreChart(Number(data.mlScore || 0));
+    renderExplanationList(data.explanation);
+    renderRecommendationsList(data.recommendations);
+}
+
+function renderExplanationList(explanation) {
+    const container = document.getElementById('mlExplanationList');
+    if (!container) {
+        return;
+    }
+
+    const rows = Array.isArray(explanation) ? explanation : [];
+    container.innerHTML = rows.length === 0
+        ? '<li class="ai-list-empty">No explanation details available yet.</li>'
+        : rows.map((item) => {
+            const feature = escapeHtml(item.feature || 'feature');
+            const importance = Number(item.importance || 0);
+            return '<li><strong>' + feature + '</strong><span>' + importance.toFixed(4) + '</span></li>';
+        }).join('');
+}
+
+function renderRecommendationsList(recommendations) {
+    const container = document.getElementById('mlRecommendationsList');
+    if (!container) {
+        return;
+    }
+
+    const rows = Array.isArray(recommendations) ? recommendations : [];
+    container.innerHTML = rows.length === 0
+        ? '<li class="ai-list-empty">No meal recommendations available yet.</li>'
+        : rows.map((item) => {
+            const meal = escapeHtml(item.meal_name || item.mealName || 'Meal');
+            const reason = escapeHtml(item.reason || 'Balanced choice');
+            const score = Number(item.score || 0).toFixed(1);
+            return '<li><div><strong>' + meal + '</strong><p>' + reason + '</p></div><span>' + score + '</span></li>';
+        }).join('');
 }
 
 function showToast(message) {
@@ -494,13 +537,7 @@ async function fetchSuggestion() {
     }
 
     try {
-        const response = await fetch('/api/student/diet/suggestion', {
-            headers: { 'Accept': 'application/json' }
-        });
-        if (!response.ok) {
-            return;
-        }
-        const payload = await response.json();
+        const payload = await window.smsApi.student.dietSuggestion();
         updateSuggestionCard(payload);
     } catch (error) {
         console.error('Unable to load AI suggestion:', error);
@@ -519,21 +556,9 @@ async function persistDietLog(payload, options = {}) {
     const silent = options.silent === true;
 
     try {
-        const response = await fetch('/api/student/diet/log-batch', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            return;
-        }
-
-        const suggestion = await response.json();
+        const suggestion = await window.smsApi.student.dietLogBatch(payload);
         updateSuggestionCard(suggestion);
+        await window.smsApi.student.dietExportDataset();
         if (!silent) {
             showToast('Diet log updated and AI insights refreshed.');
         }

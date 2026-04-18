@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
     <link rel="stylesheet" th:href="@{/css/ai-insights.css}">
+    <link rel="stylesheet" th:href="@{/css/ai-insights-flagship.css}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -14,7 +15,7 @@
 
 <main class="content-area" id="maincontent" tabindex="-1">
 <div class="content-wrapper ai-content">
-<div class="ai-app app-enter" id="aiApp" th:attr="data-role=${analyticsRole}">
+<div class="ai-app app-enter flagship-ai" id="aiApp" th:attr="data-role=${analyticsRole}">
     <header class="top-shell">
         <div class="title-wrap">
             <p class="eyebrow">Next-Generation Intelligence</p>
@@ -204,6 +205,16 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.getRegistrations()
+                .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+                .then(() => navigator.serviceWorker.register('/service-worker.js?v=2', { updateViaCache: 'none' }))
+                .catch((error) => console.debug('Service worker recovery skipped:', error));
+        });
+    }
+</script>
 <script th:src="@{/js/ai-insights.js}"></script>
 </body>
 </html>

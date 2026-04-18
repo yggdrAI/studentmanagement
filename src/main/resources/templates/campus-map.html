@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Campus Map</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+    <style>
+        .map-shell {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .map-hero,
+        .map-card {
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            border-radius: 16px;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .map-view {
+            min-height: 460px;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            overflow: hidden;
+        }
+
+        .map-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .map-canvas.leaflet-container {
+            background: #0f172a;
+        }
+
+        .marker-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.6rem;
+        }
+
+        .marker-chip {
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            background: rgba(15, 23, 42, 0.6);
+            color: #e2e8f0;
+            padding: 0.7rem;
+            font-size: 0.82rem;
+        }
+
+        .map-toolbar {
+            margin-top: 0.8rem;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.6rem;
+        }
+
+        .map-toolbar select,
+        .map-toolbar input,
+        .map-toolbar button {
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(15, 23, 42, 0.72);
+            color: #e2e8f0;
+            padding: 0.55rem 0.65rem;
+            font-size: 0.82rem;
+        }
+
+        .map-toolbar button {
+            cursor: pointer;
+            font-weight: 700;
+            background: linear-gradient(135deg, #2563eb, #22c55e);
+            border-color: transparent;
+        }
+
+        .map-status {
+            margin-top: 0.6rem;
+            color: #cbd5e1;
+            font-size: 0.82rem;
+        }
+
+        .map-alert {
+            margin-top: 0.7rem;
+            border-radius: 10px;
+            padding: 0.65rem 0.75rem;
+            font-size: 0.82rem;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            color: #e2e8f0;
+            background: rgba(15, 23, 42, 0.7);
+        }
+
+        .map-alert.error {
+            border-color: rgba(239, 68, 68, 0.5);
+            color: #fecaca;
+        }
+
+        .legend-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .legend-chip::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            display: inline-block;
+        }
+
+        .legend-chip.verified::before {
+            background: #22c55e;
+        }
+
+        .legend-chip.suspicious::before {
+            background: #ef4444;
+        }
+
+        .legend-chip.pending::before {
+            background: #f59e0b;
+        }
+
+        @media (max-width: 860px) {
+            .map-toolbar {
+                grid-template-columns: 1fr;
+            }
+
+            .marker-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/sidebar :: sidebar(activeTab='map')}"></div>
+
+<main class="content-area" id="maincontent" tabindex="-1">
+    <div class="content-wrapper">
+        <header class="page-header">
+            <div>
+                <h1 class="page-title">Live Campus Map</h1>
+                <p class="dashboard-subtitle">Track attendance zones, markers, and suspicious movement signals.</p>
+            </div>
+        </header>
+
+        <section class="map-shell">
+            <article class="map-hero">
+                <h2 style="margin-top: 0;">Campus Intelligence Layer</h2>
+                <p style="margin: 0.25rem 0 0; color: #94a3b8;">Live markers and attendance zone heatmap powered by real campus tracking API.</p>
+                <div class="map-toolbar">
+                    <select id="statusFilter" aria-label="Filter status">
+                        <option value="">All status</option>
+                        <option value="verified">Verified</option>
+                        <option value="suspicious">Suspicious</option>
+                        <option value="outside">Outside zone</option>
+                    </select>
+                    <input id="subjectFilter" type="number" min="1" placeholder="Subject ID (optional)" aria-label="Subject filter">
+                    <input id="sessionFilter" type="text" placeholder="Session ID (optional)" aria-label="Session filter">
+                    <button id="refreshMapBtn" type="button">Refresh Map</button>
+                </div>
+                <p class="map-status" id="mapStatus">Loading live campus data...</p>
+                <div class="map-alert" id="mapAlert" hidden></div>
+            </article>
+
+            <article class="map-card">
+                <div class="map-view">
+                    <div id="campusMap" class="map-canvas" role="img" aria-label="Live campus map"></div>
+                </div>
+            </article>
+
+            <article class="map-card">
+                <h3 style="margin-top: 0;">Live Zone Signals</h3>
+                <div class="marker-grid">
+                    <div class="marker-chip"><span class="legend-chip verified">Verified</span> <strong id="summaryVerified">0</strong></div>
+                    <div class="marker-chip"><span class="legend-chip suspicious">Suspicious</span> <strong id="summarySuspicious">0</strong></div>
+                    <div class="marker-chip"><span class="legend-chip pending">Total Markers</span> <strong id="summaryTotal">0</strong></div>
+                </div>
+            </article>
+        </section>
+    </div>
+</main>
+
+<div th:replace="~{fragments/sidebar :: floating-tools}"></div>
+
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+<script th:inline="javascript">
+    const MAPBOX_ACCESS_TOKEN = /*[[${mapboxAccessToken}]]*/ '';
+    const USE_MAPBOX = Boolean(MAPBOX_ACCESS_TOKEN && MAPBOX_ACCESS_TOKEN.trim());
+    const CAMPUS_STUDENT_VIEW = /*[[${campusStudentView}]]*/ false;
+    const CAMPUS_VIEWER_ROLE = /*[[${campusViewerRole}]]*/ 'GUEST';
+
+    let map;
+    let markerLayer;
+    let mapPollHandle;
+    let stompClient;
+    let socketConnected = false;
+    let livePoints = [];
+    let liveRefreshDebounce;
+    let lastGeoJson = { type: 'FeatureCollection', features: [] };
+    let leafletMap;
+    let leafletClusterLayer;
+    let leafletHeatLayer;
+
+    function getFilters() {
+        const subjectIdRaw = document.getElementById('subjectFilter').value.trim();
+        const sessionId = document.getElementById('sessionFilter').value.trim();
+        const status = document.getElementById('statusFilter').value;
+        return {
+            subjectId: subjectIdRaw ? Number(subjectIdRaw) : null,
+            sessionId: sessionId || null,
+            status: status || null
+        };
+    }
+
+    function setStatus(text) {
+        const el = document.getElementById('mapStatus');
+        if (el) {
+            el.textContent = text;
+        }
+    }
+
+    function setAlert(message, isError) {
+        const alert = document.getElementById('mapAlert');
+        if (!alert) {
+            return;
+        }
+
+        if (!message) {
+            alert.hidden = true;
+            alert.textContent = '';
+            alert.classList.remove('error');
+            return;
+        }
+
+        alert.hidden = false;
+        alert.textContent = message;
+        alert.classList.toggle('error', Boolean(isError));
+    }
+
+    function markerColor(point) {
+        if (point.suspicious) {
+            return '#ef4444';
+        }
+        if (point.locationVerified) {
+            return '#22c55e';
+        }
+        return '#f59e0b';
+    }
+
+    function redactStudentId(studentId) {
+        if (!studentId) {
+            return 'Student #0000';
+        }
+        const numeric = Math.abs(String(studentId).split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 10000);
+        return 'Student #' + String(numeric).padStart(4, '0');
+    }
+
+    function displayStudentId(point) {
+        if (CAMPUS_STUDENT_VIEW) {
+            return redactStudentId(point.studentId);
+        }
+        return point.studentId || 'Unknown';
+    }
+
+    function pointMatchesFilter(point, filters) {
+        if (filters.subjectId && Number(point.subjectId) !== Number(filters.subjectId)) {
+            return false;
+        }
+        if (filters.sessionId && String(point.sessionId || '') !== String(filters.sessionId)) {
+            return false;
+        }
+        if (filters.status === 'verified' && !point.locationVerified) {
+            return false;
+        }
+        if (filters.status === 'suspicious' && !point.suspicious) {
+            return false;
+        }
+        if (filters.status === 'outside' && point.locationVerified) {
+            return false;
+        }
+        return true;
+    }
+
+    function markerId(point, index) {
+        if (point.id !== undefined && point.id !== null) {
+            return String(point.id);
+        }
+        return String(point.studentId || 'unknown') + ':' + String(point.recordedAt || index);
+    }
+
+    function toGeoJson(points) {
+        const filters = getFilters();
+        return {
+            type: 'FeatureCollection',
+            features: points
+                .filter((point) => Number.isFinite(Number(point.longitude)) && Number.isFinite(Number(point.latitude)))
+                .filter((point) => pointMatchesFilter(point, filters))
+                .map((point, index) => ({
+                    type: 'Feature',
+                    id: markerId(point, index),
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [Number(point.longitude), Number(point.latitude)]
+                    },
+                    properties: {
+                        studentId: displayStudentId(point),
+                        subjectId: point.subjectId || '-',
+                        sessionId: point.sessionId || '-',
+                        recordedAt: point.recordedAt || '-',
+                        suspicious: Boolean(point.suspicious),
+                        locationVerified: Boolean(point.locationVerified),
+                        color: markerColor(point)
+                    }
+                }))
+        };
+    }
+
+    function updateSummary(summary) {
+        document.getElementById('summaryTotal').textContent = String(summary.total || 0);
+        document.getElementById('summaryVerified').textContent = String(summary.verified || 0);
+        document.getElementById('summarySuspicious').textContent = String(summary.suspicious || 0);
+    }
+
+    function popupHtml(properties) {
+        return '<strong>Student:</strong> ' + properties.studentId + '<br>' +
+            '<strong>Subject:</strong> ' + properties.subjectId + '<br>' +
+            '<strong>Session:</strong> ' + properties.sessionId + '<br>' +
+            '<strong>Verified:</strong> ' + (String(properties.locationVerified) === 'true' ? 'Yes' : 'No') + '<br>' +
+            '<strong>Suspicious:</strong> ' + (String(properties.suspicious) === 'true' ? 'Yes' : 'No') + '<br>' +
+            '<strong>Recorded:</strong> ' + properties.recordedAt;
+    }
+
+    async function fetchLiveData() {
+        const filters = getFilters();
+        const params = new URLSearchParams();
+        params.set('limit', '250');
+
+        if (filters.subjectId) {
+            params.set('subjectId', String(filters.subjectId));
+        }
+        if (filters.sessionId) {
+            params.set('sessionId', filters.sessionId);
+        }
+        if (filters.status) {
+            params.set('status', filters.status);
+        }
+
+        const queryObject = {
+            limit: 250,
+            subjectId: filters.subjectId,
+            sessionId: filters.sessionId,
+            status: filters.status
+        };
+
+        const [points, summary] = await Promise.all([
+            window.smsApi.campus.liveMap(queryObject),
+            window.smsApi.campus.summary(queryObject)
+        ]);
+
+        return { points: Array.isArray(points) ? points : [], summary };
+    }
+
+    function animateToGeoJson(nextGeo) {
+        if (!USE_MAPBOX) {
+            renderLeafletGeo(nextGeo, false);
+            lastGeoJson = nextGeo;
+            return;
+        }
+
+        const source = map.getSource('students');
+        const clusterSource = map.getSource('students-cluster');
+        if (!source || !clusterSource) {
+            return;
+        }
+
+        const prevById = new Map();
+        lastGeoJson.features.forEach((feature) => {
+            prevById.set(String(feature.id), feature);
+        });
+
+        const duration = 420;
+        const startTime = performance.now();
+
+        function frame(now) {
+            const elapsed = now - startTime;
+            const t = Math.min(1, elapsed / duration);
+            const eased = t * (2 - t);
+
+            const animatedFeatures = nextGeo.features.map((nextFeature) => {
+                const prev = prevById.get(String(nextFeature.id));
+                if (!prev) {
+                    return nextFeature;
+                }
+
+                const [fromLng, fromLat] = prev.geometry.coordinates;
+                const [toLng, toLat] = nextFeature.geometry.coordinates;
+                const lng = fromLng + (toLng - fromLng) * eased;
+                const lat = fromLat + (toLat - fromLat) * eased;
+
+                return {
+                    ...nextFeature,
+                    geometry: {
+                        ...nextFeature.geometry,
+                        coordinates: [lng, lat]
+                    }
+                };
+            });
+
+            const animatedGeo = { type: 'FeatureCollection', features: animatedFeatures };
+            source.setData(animatedGeo);
+            clusterSource.setData(animatedGeo);
+
+            if (t < 1) {
+                requestAnimationFrame(frame);
+            } else {
+                lastGeoJson = nextGeo;
+            }
+        }
+
+        requestAnimationFrame(frame);
+    }
+
+    function renderLeafletGeo(geo, shouldFit) {
+        if (!leafletMap || !leafletClusterLayer) {
+            return;
+        }
+
+        leafletClusterLayer.clearLayers();
+        const heatPoints = [];
+        const latLngs = [];
+
+        geo.features.forEach((feature) => {
+            const [lng, lat] = feature.geometry.coordinates;
+            const p = feature.properties;
+            const marker = L.circleMarker([lat, lng], {
+                radius: 6,
+                color: '#ffffff',
+                weight: 1,
+                fillColor: p.color || '#3b82f6',
+                fillOpacity: 0.92
+            });
+
+            marker.bindPopup(popupHtml(p));
+            leafletClusterLayer.addLayer(marker);
+
+            latLngs.push([lat, lng]);
+            heatPoints.push([lat, lng, p.suspicious ? 1 : 0.65]);
+        });
+
+        if (leafletHeatLayer) {
+            leafletMap.removeLayer(leafletHeatLayer);
+        }
+
+        if (typeof L.heatLayer === 'function' && heatPoints.length) {
+            leafletHeatLayer = L.heatLayer(heatPoints, {
+                radius: 22,
+                blur: 16,
+                maxZoom: 17,
+                gradient: {
+                    0.2: '#3b82f6',
+                    0.45: '#22c55e',
+                    0.7: '#f59e0b',
+                    1.0: '#ef4444'
+                }
+            }).addTo(leafletMap);
+        }
+
+        if (shouldFit && latLngs.length) {
+            leafletMap.fitBounds(latLngs, { padding: [36, 36], maxZoom: 16 });
+        }
+    }
+
+    function upsertLivePoint(point) {
+        const id = markerId(point, 0);
+        const index = livePoints.findIndex((entry) => markerId(entry, 0) === id);
+        if (index >= 0) {
+            livePoints[index] = { ...livePoints[index], ...point };
+        } else {
+            livePoints.unshift(point);
+            if (livePoints.length > 300) {
+                livePoints = livePoints.slice(0, 300);
+            }
+        }
+    }
+
+    function refreshFromLivePoints() {
+        const geo = toGeoJson(livePoints);
+        animateToGeoJson(geo);
+        updateSummary({
+            total: geo.features.length,
+            verified: geo.features.filter((feature) => feature.properties.locationVerified).length,
+            suspicious: geo.features.filter((feature) => feature.properties.suspicious).length
+        });
+        setStatus('Live stream update at ' + new Date().toLocaleTimeString());
+    }
+
+    function connectLiveSocket() {
+        if (typeof SockJS === 'undefined' || typeof Stomp === 'undefined') {
+            setStatus('Realtime SDK unavailable. Running in low-latency polling mode.');
+            return;
+        }
+
+        try {
+            const socket = new SockJS('/ws');
+            stompClient = Stomp.over(socket);
+            stompClient.debug = null;
+
+            stompClient.connect({}, () => {
+                socketConnected = true;
+                setStatus('Realtime socket connected (' + CAMPUS_VIEWER_ROLE + ').');
+
+                stompClient.subscribe('/topic/locations', (message) => {
+                    try {
+                        const payload = JSON.parse(message.body || '{}');
+                        upsertLivePoint(payload);
+                        refreshFromLivePoints();
+                    } catch (_error) {
+                        if (liveRefreshDebounce) {
+                            clearTimeout(liveRefreshDebounce);
+                        }
+                        liveRefreshDebounce = window.setTimeout(() => refreshMapData(false), 250);
+                    }
+                });
+            }, () => {
+                socketConnected = false;
+                setStatus('Realtime socket disconnected. Fallback polling active.');
+            });
+        } catch (_error) {
+            socketConnected = false;
+            setStatus('Realtime socket unavailable. Fallback polling active.');
+        }
+    }
+
+    function mountMapLayers() {
+        if (!USE_MAPBOX) {
+            return;
+        }
+
+        if (map.getSource('students')) {
+            return;
+        }
+
+        map.addSource('students', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] }
+        });
+
+        map.addSource('students-cluster', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] },
+            cluster: true,
+            clusterMaxZoom: 17,
+            clusterRadius: 44
+        });
+
+        map.addLayer({
+            id: 'students-heat',
+            type: 'heatmap',
+            source: 'students',
+            maxzoom: 18,
+            paint: {
+                'heatmap-weight': 1,
+                'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 0.8, 15, 2],
+                'heatmap-color': [
+                    'interpolate',
+                    ['linear'],
+                    ['heatmap-density'],
+                    0, 'rgba(59,130,246,0)',
+                    0.25, 'rgba(59,130,246,0.35)',
+                    0.5, 'rgba(34,197,94,0.45)',
+                    0.75, 'rgba(245,158,11,0.55)',
+                    1, 'rgba(239,68,68,0.65)'
+                ],
+                'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 8, 15, 26]
+            }
+        });
+
+        map.addLayer({
+            id: 'students-points',
+            type: 'circle',
+            source: 'students',
+            paint: {
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 4, 14, 8],
+                'circle-color': ['get', 'color'],
+                'circle-stroke-color': '#ffffff',
+                'circle-stroke-width': 1.2,
+                'circle-opacity': 0.95
+            }
+        });
+
+        map.addLayer({
+            id: 'students-clusters',
+            type: 'circle',
+            source: 'students-cluster',
+            filter: ['has', 'point_count'],
+            paint: {
+                'circle-color': [
+                    'step',
+                    ['get', 'point_count'],
+                    '#3b82f6',
+                    20, '#22c55e',
+                    60, '#f59e0b',
+                    120, '#ef4444'
+                ],
+                'circle-radius': [
+                    'step',
+                    ['get', 'point_count'],
+                    16,
+                    20, 22,
+                    60, 28,
+                    120, 34
+                ],
+                'circle-stroke-width': 1.4,
+                'circle-stroke-color': '#ffffff',
+                'circle-opacity': 0.9
+            }
+        });
+
+        map.addLayer({
+            id: 'students-cluster-count',
+            type: 'symbol',
+            source: 'students-cluster',
+            filter: ['has', 'point_count'],
+            layout: {
+                'text-field': ['get', 'point_count_abbreviated'],
+                'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+                'text-size': 12
+            },
+            paint: {
+                'text-color': '#ffffff'
+            }
+        });
+
+        map.addLayer({
+            id: 'students-unclustered',
+            type: 'circle',
+            source: 'students-cluster',
+            filter: ['!', ['has', 'point_count']],
+            paint: {
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 4, 14, 8],
+                'circle-color': ['get', 'color'],
+                'circle-stroke-color': '#ffffff',
+                'circle-stroke-width': 1.2,
+                'circle-opacity': 0.96
+            }
+        });
+
+        map.on('click', 'students-clusters', (event) => {
+            const feature = event.features && event.features[0];
+            if (!feature) {
+                return;
+            }
+
+            const clusterId = feature.properties.cluster_id;
+            map.getSource('students-cluster').getClusterExpansionZoom(clusterId, (error, zoom) => {
+                if (error) {
+                    return;
+                }
+
+                map.easeTo({ center: feature.geometry.coordinates, zoom: zoom + 0.4, duration: 450 });
+            });
+        });
+
+        map.on('click', 'students-unclustered', (event) => {
+            const feature = event.features && event.features[0];
+            if (!feature) {
+                return;
+            }
+
+            const p = feature.properties;
+            new mapboxgl.Popup({ closeButton: true })
+                .setLngLat(feature.geometry.coordinates)
+                .setHTML(popupHtml(p))
+                .addTo(map);
+        });
+
+            map.on('mouseenter', 'students-clusters', () => { map.getCanvas().style.cursor = 'pointer'; });
+            map.on('mouseleave', 'students-clusters', () => { map.getCanvas().style.cursor = ''; });
+            map.on('mouseenter', 'students-unclustered', () => { map.getCanvas().style.cursor = 'pointer'; });
+            map.on('mouseleave', 'students-unclustered', () => { map.getCanvas().style.cursor = ''; });
+    }
+
+    function fitMapToPoints(features) {
+        if (!features.length) {
+            return;
+        }
+
+        if (!USE_MAPBOX && leafletMap) {
+            const latLngs = features.map((feature) => [feature.geometry.coordinates[1], feature.geometry.coordinates[0]]);
+            leafletMap.fitBounds(latLngs, { padding: [36, 36], maxZoom: 16 });
+            return;
+        }
+
+        const bounds = new mapboxgl.LngLatBounds();
+        features.forEach((feature) => bounds.extend(feature.geometry.coordinates));
+        map.fitBounds(bounds, { padding: 60, duration: 600, maxZoom: 16 });
+    }
+
+    async function refreshMapData(shouldFit) {
+        try {
+            setAlert('', false);
+            setStatus('Refreshing live campus feed...');
+            const data = await fetchLiveData();
+            livePoints = data.points;
+            const geo = toGeoJson(data.points);
+            updateSummary(data.summary || {});
+
+            if (USE_MAPBOX) {
+                animateToGeoJson(geo);
+            } else {
+                renderLeafletGeo(geo, shouldFit);
+                lastGeoJson = geo;
+            }
+
+            if (shouldFit) {
+                fitMapToPoints(geo.features);
+            }
+
+            setStatus('Live feed updated at ' + new Date().toLocaleTimeString() + (socketConnected ? ' (socket live)' : ' (polling)'));
+        } catch (error) {
+            setStatus('Live feed unavailable');
+            setAlert(error.message || 'Failed to refresh campus map.', true);
+        }
+    }
+
+    function initMap() {
+        if (USE_MAPBOX) {
+            mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
+            map = new mapboxgl.Map({
+                container: 'campusMap',
+                style: 'mapbox://styles/mapbox/dark-v11',
+                center: [77.5946, 12.9716],
+                zoom: 13,
+                pitch: 35,
+                bearing: -10
+            });
+
+            map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+            map.on('load', async () => {
+                markerLayer = true;
+                mountMapLayers();
+                await refreshMapData(true);
+                connectLiveSocket();
+                mapPollHandle = window.setInterval(() => refreshMapData(false), 45000);
+            });
+            return;
+        }
+
+        if (typeof L === 'undefined') {
+            setStatus('Map engine unavailable.');
+            setAlert('Leaflet failed to load. Please check internet connectivity for CDN assets.', true);
+            return;
+        }
+
+        setAlert('Running in OpenStreetMap mode (no Mapbox token required).', false);
+        setStatus('OpenStreetMap fallback active. Connecting live stream...');
+
+        leafletMap = L.map('campusMap', {
+            zoomControl: true,
+            preferCanvas: true
+        }).setView([12.9716, 77.5946], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(leafletMap);
+
+        leafletClusterLayer = L.markerClusterGroup({
+            disableClusteringAtZoom: 17,
+            maxClusterRadius: 44,
+            animate: true
+        });
+        leafletMap.addLayer(leafletClusterLayer);
+
+        map = leafletMap;
+        markerLayer = true;
+        refreshMapData(true);
+        connectLiveSocket();
+        mapPollHandle = window.setInterval(() => refreshMapData(false), 45000);
+    }
+
+    document.getElementById('refreshMapBtn').addEventListener('click', () => {
+        if (!map || !markerLayer) {
+            return;
+        }
+        refreshMapData(true);
+    });
+
+    document.getElementById('statusFilter').addEventListener('change', () => map && refreshMapData(true));
+    document.getElementById('subjectFilter').addEventListener('change', () => map && refreshMapData(true));
+    document.getElementById('sessionFilter').addEventListener('change', () => map && refreshMapData(true));
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && mapPollHandle) {
+            window.clearInterval(mapPollHandle);
+            mapPollHandle = null;
+            return;
+        }
+
+        if (!document.hidden && map && markerLayer && !mapPollHandle) {
+            refreshMapData(false);
+            mapPollHandle = window.setInterval(() => refreshMapData(false), 45000);
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', initMap);
+</script>
+
+</body>
+</html>

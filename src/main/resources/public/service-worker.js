@@ -3,10 +3,14 @@
  * Enables offline support, caching, and fast loading
  */
 
-const CACHE_VERSION = 'v1-bennett-sms';
+const CACHE_VERSION = 'v2-bennett-sms';
 const CACHE_URLS = [
   '/',
   '/student/dashboard',
+  '/ai-insights',
+  '/student/ai-insights',
+  '/teacher/ai-insights',
+  '/admin/ai-insights',
   '/student/attendance',
   '/student/profile',
   '/css/dashboard.css',
@@ -95,9 +99,45 @@ self.addEventListener('fetch', (event) => {
             console.log('[ServiceWorker] Using cached:', request.url);
             return cachedResponse;
           }
-          return new Response('Offline - Resource not available', {
-            status: 503,
-            statusText: 'Service Unavailable'
+
+          if (request.mode === 'navigate') {
+            return caches.match('/student/dashboard').then((fallbackPage) => {
+              if (fallbackPage) {
+                return fallbackPage;
+              }
+
+              return new Response(`<!doctype html>
+                <html lang="en">
+                <head>
+                  <meta charset="utf-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1">
+                  <title>Offline</title>
+                  <style>
+                    body { margin: 0; font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: grid; place-items: center; }
+                    .card { max-width: 28rem; padding: 24px; border-radius: 16px; background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(148, 163, 184, 0.2); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25); }
+                    h1 { margin: 0 0 10px; font-size: 1.4rem; }
+                    p { margin: 0; line-height: 1.5; color: #cbd5e1; }
+                  </style>
+                </head>
+                <body>
+                  <div class="card">
+                    <h1>Offline mode</h1>
+                    <p>The requested page is not cached yet. Reconnect once to load the latest app shell.</p>
+                  </div>
+                </body>
+                </html>`, {
+                status: 200,
+                headers: { 'Content-Type': 'text/html; charset=utf-8' }
+              });
+            });
+          }
+
+          return new Response(JSON.stringify({
+            status: 'offline',
+            message: 'Resource unavailable while offline'
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json; charset=utf-8' }
           });
         });
       })

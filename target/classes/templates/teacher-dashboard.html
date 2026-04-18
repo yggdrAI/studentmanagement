@@ -300,7 +300,7 @@
 
         function registerDashboardPwa() {
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/service-worker.js').catch((error) => {
+                navigator.serviceWorker.register('/service-worker.js?v=2').catch((error) => {
                     console.debug('Service worker registration failed:', error);
                 });
             }
@@ -365,11 +365,9 @@
 
             try {
                 liveStatsState.subjectId = subjectId;
-                const response = await fetch(`/api/teacher/attendance/session-stats?subjectId=${encodeURIComponent(subjectId)}`,
-                    { headers: { 'Accept': 'application/json' } });
-                const data = await response.json();
+                const data = await window.smsApi.teacher.attendance.sessionStats(subjectId);
 
-                if (!response.ok || data.error) {
+                if (data && data.error) {
                     throw new Error(data.error || 'Failed to load live stats');
                 }
 
@@ -452,15 +450,7 @@
             }
             params.set('limit', '200');
 
-            const response = await fetch(`/api/campus/live?${params.toString()}`, {
-                headers: { 'Accept': 'application/json' }
-            });
-
-            if (!response.ok) {
-                return;
-            }
-
-            const locations = await response.json();
+            const locations = await window.smsApi.get(`/api/campus/live?${params.toString()}`);
             liveStatsState.markers.forEach((marker) => marker.remove());
             liveStatsState.markers.clear();
             locations.forEach(upsertMarker);
@@ -486,15 +476,7 @@
 
         async function refreshFraudSummary() {
             try {
-                const response = await fetch('/api/teacher/fraud/summary', {
-                    headers: { 'Accept': 'application/json' }
-                });
-
-                if (!response.ok) {
-                    return;
-                }
-
-                const data = await response.json();
+                const data = await window.smsApi.teacher.fraud.summary();
                 document.getElementById('fraudApprovedCount').textContent = data.approved ?? 0;
                 document.getElementById('fraudSuspiciousCount').textContent = data.suspicious ?? 0;
                 document.getElementById('fraudRejectedCount').textContent = data.rejected ?? 0;

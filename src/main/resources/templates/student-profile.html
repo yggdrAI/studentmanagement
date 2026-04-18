@@ -6,6 +6,7 @@
     <title>Student Profile ERP</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/profile-flagship.css}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <style>
@@ -628,9 +629,9 @@
         }
     </style>
 </head>
-<body>
+<body class="profile-flagship-page">
 
-<div th:replace="~{fragments/sidebar :: sidebar(activeTab='dashboard')}"></div>
+<div th:replace="~{fragments/sidebar :: sidebar(activeTab='profile')}"></div>
 
 <main class="content-area" id="maincontent" tabindex="-1">
     <div class="content-wrapper student-profile-page">
@@ -1348,13 +1349,7 @@
         }
 
         try {
-            const response = await fetch(`/api/analytics/student-summary/${encodeURIComponent(sid)}`, {
-                headers: { Accept: 'application/json' }
-            });
-            if (!response.ok) {
-                throw new Error('AI summary unavailable');
-            }
-            const summary = await response.json();
+            const summary = await window.smsApi.analytics.studentSummary(sid);
             document.getElementById('profileAiSummaryText').textContent = summary.aiSummary || 'AI summary generated.';
 
             const performance = (summary.performanceSeries || []).map((x) => Number(x.performance || 0)).slice(-16);
@@ -1479,17 +1474,7 @@
 
         const payload = collectPayload();
 
-        const response = await fetch(apiBase(), {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            throw new Error('Unable to save profile updates');
-        }
-
-        currentProfile = await response.json();
+        currentProfile = await window.smsApi.student.profile.update(apiBase(), payload);
         if (!isAuto) {
             editEnabled = false;
             document.getElementById('editModeBtn').textContent = 'Edit Mode: OFF';
@@ -1501,11 +1486,7 @@
     }
 
     async function loadProfile() {
-        const response = await fetch(apiBase(), { headers: { Accept: 'application/json' } });
-        if (!response.ok) {
-            throw new Error('Unable to fetch profile data');
-        }
-        currentProfile = await response.json();
+        currentProfile = await window.smsApi.student.profile.get(apiBase());
         originalProfileSnapshot = JSON.parse(JSON.stringify(currentProfile));
         renderProfile();
         await loadAiSummary();

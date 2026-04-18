@@ -1,0 +1,79 @@
+body.profile-flagship-page .content-area {
+    padding: 18px 22px;
+}
+
+body.profile-flagship-page .student-profile-page {
+    width: min(1400px, 100%);
+    padding: 20px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    box-shadow: 0 24px 60px rgba(2, 6, 23, 0.4);
+}
+
+body.profile-flagship-page .hero-bar {
+    padding: 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: linear-gradient(155deg, rgba(30, 41, 59, 0.72), rgba(15, 23, 42, 0.9));
+}
+
+body.profile-flagship-page .hero-title {
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+    color: #e2e8f0;
+}
+
+body.profile-flagship-page .hero-subtitle {
+    color: #94a3b8;
+}
+
+body.profile-flagship-page .glass-card {
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: linear-gradient(160deg, rgba(15, 23, 42, 0.72), rgba(2, 6, 23, 0.86));
+    box-shadow: 0 18px 40px rgba(2, 6, 23, 0.36);
+}
+
+body.profile-flagship-page .panel,
+body.profile-flagship-page .panel h2,
+body.profile-flagship-page .field-value,
+body.profile-flagship-page .field-input,
+body.profile-flagship-page .field-label,
+body.profile-flagship-page .meta-line,
+body.profile-flagship-page .smart-hints,
+body.profile-flagship-page .status-pill {
+    color: #e2e8f0;
+}
+
+body.profile-flagship-page .field-card,
+body.profile-flagship-page .mini-chart-card,
+body.profile-flagship-page .ai-summary-card,
+body.profile-flagship-page .documents-table {
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(30, 41, 59, 0.6);
+}
+
+body.profile-flagship-page .documents-table th,
+body.profile-flagship-page .documents-table td {
+    color: #e2e8f0;
+}
+
+body.profile-flagship-page .tab-btn {
+    border-color: rgba(148, 163, 184, 0.28);
+    background: rgba(30, 41, 59, 0.6);
+    color: #e2e8f0;
+}
+
+body.profile-flagship-page .tab-btn.active {
+    background: linear-gradient(135deg, #3b82f6, #22c55e);
+}
+
+body.profile-flagship-page .badge {
+    background: rgba(30, 41, 59, 0.62);
+}
+
+body.profile-flagship-page .ai-summary-title {
+    color: #93c5fd;
+}
+
+body.profile-flagship-page .toast {
+    background: linear-gradient(135deg, #15803d, #22c55e);
+    border-color: #16a34a;
+}

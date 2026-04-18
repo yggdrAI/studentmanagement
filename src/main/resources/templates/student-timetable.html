@@ -6,46 +6,494 @@
     <title>Student Timetable</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.5/main.min.css">
     <style>
-        .timetable-shell {
+        :root {
+            --tt-bg-1: #0f172a;
+            --tt-bg-2: #111827;
+            --tt-panel: rgba(15, 23, 42, 0.68);
+            --tt-panel-soft: rgba(30, 41, 59, 0.54);
+            --tt-border: rgba(148, 163, 184, 0.3);
+            --tt-text: #e2e8f0;
+            --tt-muted: #94a3b8;
+            --tt-primary: #3b82f6;
+            --tt-success: #22c55e;
+            --tt-warning: #f59e0b;
+            --tt-danger: #ef4444;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at 12% 10%, rgba(59, 130, 246, 0.2), transparent 38%),
+                radial-gradient(circle at 86% 16%, rgba(34, 197, 94, 0.16), transparent 32%),
+                linear-gradient(165deg, var(--tt-bg-1), var(--tt-bg-2));
+        }
+
+        .tt-shell {
             display: grid;
             gap: 1rem;
         }
 
-        .session-card {
-            border: 1px solid rgba(148, 163, 184, 0.35);
-            border-radius: 16px;
+        .tt-hero,
+        .tt-panel {
+            border: 1px solid var(--tt-border);
+            border-radius: 18px;
+            background: var(--tt-panel);
+            color: var(--tt-text);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            box-shadow: 0 20px 48px rgba(2, 6, 23, 0.34);
+        }
+
+        .tt-hero {
             padding: 1rem;
-            background: linear-gradient(180deg, #ffffff, #f8fbff);
-            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+            display: grid;
+            gap: 0.95rem;
+        }
+
+        .tt-toolbar {
             display: grid;
             grid-template-columns: 1fr auto;
             gap: 0.8rem;
             align-items: center;
         }
 
-        .session-title {
+        .tt-toolbar-title {
             margin: 0;
-            font-size: 1.05rem;
-            color: #0f172a;
+            font-size: 1.1rem;
+            line-height: 1.35;
         }
 
-        .session-meta {
-            margin: 0.3rem 0 0;
-            color: #475569;
-            font-size: 0.9rem;
+        .tt-toolbar-subtitle {
+            margin: 0.25rem 0 0;
+            color: var(--tt-muted);
+            font-size: 0.88rem;
+        }
+
+        .tt-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .tt-btn {
+            border: 1px solid var(--tt-border);
+            border-radius: 12px;
+            background: var(--tt-panel-soft);
+            color: var(--tt-text);
+            font-weight: 700;
+            font-size: 0.78rem;
+            letter-spacing: 0.01em;
+            padding: 0.56rem 0.82rem;
+            cursor: pointer;
+            transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease;
+        }
+
+        .tt-btn:hover {
+            transform: translateY(-1px);
+            border-color: rgba(96, 165, 250, 0.75);
+        }
+
+        .tt-btn.active {
+            background: linear-gradient(135deg, #2563eb, #22c55e);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .tt-nav {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 0.7rem;
+        }
+
+        .tt-date-label {
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.94rem;
+            color: #bfdbfe;
+            letter-spacing: 0.01em;
+        }
+
+        .tt-day-strip {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 0.45rem;
+        }
+
+        .tt-day-chip {
+            border-radius: 12px;
+            border: 1px solid var(--tt-border);
+            background: rgba(15, 23, 42, 0.48);
+            color: var(--tt-text);
+            padding: 0.42rem 0.38rem;
+            font-size: 0.74rem;
+            text-align: center;
+            line-height: 1.35;
+            cursor: pointer;
+            transition: transform 180ms ease, border-color 180ms ease;
+        }
+
+        .tt-day-chip:hover {
+            transform: translateY(-1px);
+            border-color: rgba(96, 165, 250, 0.82);
+        }
+
+        .tt-day-chip.active {
+            border-color: rgba(96, 165, 250, 1);
+            background: rgba(37, 99, 235, 0.28);
+            box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.25);
+        }
+
+        .tt-day-chip strong {
+            display: block;
+            font-size: 0.82rem;
+            color: #fff;
+        }
+
+        .tt-alert {
+            border-radius: 12px;
+            border: 1px solid rgba(251, 191, 36, 0.45);
+            background: rgba(245, 158, 11, 0.16);
+            color: #fef3c7;
+            padding: 0.55rem 0.7rem;
+            font-size: 0.82rem;
+            display: none;
+        }
+
+        .tt-panel {
+            padding: 1rem;
+        }
+
+        .tt-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.8rem;
+            margin-bottom: 0.85rem;
+        }
+
+        .tt-panel-title {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .tt-panel-subtitle {
+            margin: 0.2rem 0 0;
+            color: var(--tt-muted);
+            font-size: 0.82rem;
+        }
+
+        .tt-timeline {
+            display: grid;
+            gap: 0.78rem;
+        }
+
+        .tt-slot {
+            border: 1px solid var(--tt-border);
+            border-radius: 16px;
+            background: rgba(15, 23, 42, 0.55);
+            padding: 0.9rem;
+            display: grid;
+            grid-template-columns: 132px 1fr;
+            gap: 0.9rem;
+            animation: tt-fade-up 260ms ease both;
+        }
+
+        .tt-slot.ongoing {
+            border-color: rgba(34, 197, 94, 0.78);
+            background: rgba(22, 163, 74, 0.17);
+            box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.2) inset;
+        }
+
+        .tt-slot.starting {
+            border-color: rgba(245, 158, 11, 0.75);
+            background: rgba(245, 158, 11, 0.15);
+        }
+
+        .tt-slot.completed {
+            opacity: 0.8;
+        }
+
+        .tt-time-rail {
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.74);
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            padding: 0.56rem;
+            display: grid;
+            align-content: center;
+            gap: 0.26rem;
+            text-align: center;
+            font-size: 0.76rem;
+            color: var(--tt-muted);
+        }
+
+        .tt-time-rail strong {
+            color: #dbeafe;
+            font-size: 0.88rem;
+        }
+
+        .tt-subject {
+            margin: 0;
+            font-size: 1.02rem;
+            color: #fff;
+        }
+
+        .tt-submeta {
+            margin: 0.25rem 0 0;
+            font-size: 0.85rem;
+            color: var(--tt-muted);
+        }
+
+        .tt-detail-grid {
+            margin-top: 0.65rem;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.5rem;
+            font-size: 0.82rem;
+            color: #dbeafe;
+        }
+
+        .tt-badge-row {
+            margin-top: 0.66rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+
+        .tt-badge {
+            border-radius: 999px;
+            padding: 0.2rem 0.58rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            border: 1px solid transparent;
+        }
+
+        .tt-badge.ongoing {
+            color: #86efac;
+            border-color: rgba(34, 197, 94, 0.55);
+            background: rgba(22, 163, 74, 0.2);
+        }
+
+        .tt-badge.upcoming {
+            color: #93c5fd;
+            border-color: rgba(59, 130, 246, 0.56);
+            background: rgba(37, 99, 235, 0.22);
+        }
+
+        .tt-badge.starting {
+            color: #fde68a;
+            border-color: rgba(245, 158, 11, 0.55);
+            background: rgba(217, 119, 6, 0.24);
+        }
+
+        .tt-badge.completed {
+            color: #cbd5e1;
+            border-color: rgba(148, 163, 184, 0.48);
+            background: rgba(100, 116, 139, 0.22);
+        }
+
+        .tt-badge.attendance-marked {
+            color: #86efac;
+            border-color: rgba(34, 197, 94, 0.56);
+            background: rgba(22, 163, 74, 0.2);
+        }
+
+        .tt-badge.attendance-pending {
+            color: #fcd34d;
+            border-color: rgba(245, 158, 11, 0.5);
+            background: rgba(245, 158, 11, 0.2);
+        }
+
+        .tt-badge.attendance-unknown {
+            color: #cbd5e1;
+            border-color: rgba(148, 163, 184, 0.4);
+            background: rgba(71, 85, 105, 0.28);
+        }
+
+        .tt-progress {
+            margin-top: 0.7rem;
+            height: 6px;
+            border-radius: 999px;
+            background: rgba(51, 65, 85, 0.8);
+            overflow: hidden;
+        }
+
+        .tt-progress > span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #3b82f6, #22c55e);
+            transition: width 320ms ease;
+        }
+
+        .tt-slot-actions {
+            margin-top: 0.75rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.45rem;
+            flex-wrap: wrap;
+        }
+
+        .tt-week {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 0.62rem;
+        }
+
+        .tt-week-day {
+            border: 1px solid var(--tt-border);
+            border-radius: 14px;
+            background: rgba(15, 23, 42, 0.5);
+            min-height: 200px;
+            padding: 0.62rem;
+            display: grid;
+            align-content: start;
+            gap: 0.48rem;
+        }
+
+        .tt-week-day.today {
+            border-color: rgba(59, 130, 246, 0.8);
+            background: rgba(37, 99, 235, 0.18);
+        }
+
+        .tt-week-day h4 {
+            margin: 0;
+            font-size: 0.8rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #bfdbfe;
+        }
+
+        .tt-week-class {
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: rgba(30, 41, 59, 0.6);
+            padding: 0.44rem;
+            font-size: 0.72rem;
+            color: #e2e8f0;
+            line-height: 1.35;
+        }
+
+        .tt-week-class strong {
+            display: block;
+            font-size: 0.74rem;
+            color: #fff;
         }
 
         .timeline-empty {
             border-radius: 14px;
-            border: 1px dashed #cbd5e1;
-            padding: 1rem;
-            color: #475569;
+            border: 1px dashed rgba(148, 163, 184, 0.5);
+            padding: 1.1rem;
+            color: var(--tt-muted);
+            background: rgba(15, 23, 42, 0.44);
+        }
+
+        #calendarGrid {
+            min-height: 620px;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .fc .fc-toolbar-title {
+            color: #e2e8f0;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .fc-theme-standard td,
+        .fc-theme-standard th,
+        .fc-theme-standard .fc-scrollgrid {
+            border-color: rgba(148, 163, 184, 0.25);
+        }
+
+        .fc .fc-timegrid-slot-label,
+        .fc .fc-col-header-cell-cushion,
+        .fc .fc-timegrid-axis-cushion {
+            color: #bfdbfe;
+            font-weight: 600;
+            font-size: 0.78rem;
+        }
+
+        .fc .fc-timegrid-slot,
+        .fc .fc-daygrid-day {
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        .fc .fc-event {
+            border: 0;
+            border-radius: 10px;
+            padding: 2px 4px;
+            font-weight: 600;
+        }
+
+        .tt-toast-stack {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            z-index: 1700;
+            display: grid;
+            gap: 0.42rem;
+        }
+
+        .tt-toast {
+            border-radius: 12px;
+            padding: 0.62rem 0.74rem;
+            color: #fff;
+            font-size: 0.78rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.46);
+            animation: tt-fade-up 180ms ease;
+        }
+
+        @keyframes tt-fade-up {
+            from {
+                opacity: 0;
+                transform: translateY(14px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 980px) {
+            .tt-toolbar {
+                grid-template-columns: 1fr;
+            }
+
+            .tt-actions {
+                justify-content: flex-start;
+            }
+
+            .tt-day-strip {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+
+            .tt-week {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
         }
 
         @media (max-width: 768px) {
-            .session-card {
+            .tt-slot {
                 grid-template-columns: 1fr;
+            }
+
+            .tt-detail-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tt-week {
+                grid-template-columns: 1fr;
+            }
+
+            .tt-day-strip {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
     </style>
@@ -59,84 +507,729 @@
         <header class="page-header">
             <div>
                 <h1 class="page-title">Class Timetable & Attendance</h1>
-                <p class="dashboard-subtitle">See upcoming classes and scan attendance directly from each session.</p>
+                <p class="dashboard-subtitle">Interactive timeline with current-class detection, attendance signals, and weekly planning.</p>
             </div>
         </header>
 
-        <section class="generic-card">
-            <h2>Upcoming Schedule</h2>
-            <div id="timetableList" class="timetable-shell"></div>
+        <section class="tt-shell">
+            <article class="tt-hero">
+                <div class="tt-toolbar">
+                    <div>
+                        <h2 class="tt-toolbar-title">Premium Schedule System</h2>
+                        <p class="tt-toolbar-subtitle">Switch day, scan attendance, and track class flow in real time.</p>
+                    </div>
+                    <div class="tt-actions">
+                        <button type="button" id="refreshBtn" class="tt-btn">Refresh</button>
+                        <button type="button" id="timelineViewBtn" class="tt-btn active">Timeline</button>
+                        <button type="button" id="weekViewBtn" class="tt-btn">Week View</button>
+                        <button type="button" id="calendarViewBtn" class="tt-btn">Calendar Grid</button>
+                    </div>
+                </div>
+
+                <div class="tt-nav">
+                    <button type="button" id="prevDayBtn" class="tt-btn">Previous</button>
+                    <div id="dateLabel" class="tt-date-label">-</div>
+                    <button type="button" id="nextDayBtn" class="tt-btn">Next</button>
+                </div>
+
+                <div id="dayStrip" class="tt-day-strip" aria-label="Day strip"></div>
+                <div id="startingSoonAlert" class="tt-alert"></div>
+                <div id="geofenceAlert" class="tt-alert" style="display: none;"></div>
+            </article>
+
+            <article class="tt-panel" id="timelinePanel">
+                <header class="tt-panel-header">
+                    <div>
+                        <h3 class="tt-panel-title">Daily Timeline</h3>
+                        <p class="tt-panel-subtitle">Current class is highlighted automatically.</p>
+                    </div>
+                </header>
+                <div id="timelineList" class="tt-timeline"></div>
+            </article>
+
+            <article class="tt-panel" id="weekPanel" style="display: none;">
+                <header class="tt-panel-header">
+                    <div>
+                        <h3 class="tt-panel-title">Weekly Planner</h3>
+                        <p class="tt-panel-subtitle">Compact week layout for quick overview.</p>
+                    </div>
+                </header>
+                <div id="weekGrid" class="tt-week"></div>
+            </article>
+
+            <article class="tt-panel" id="calendarPanel" style="display: none;">
+                <header class="tt-panel-header">
+                    <div>
+                        <h3 class="tt-panel-title">Drag-and-Drop Calendar</h3>
+                        <p class="tt-panel-subtitle">Google-style week/day planner with live rescheduling.</p>
+                    </div>
+                </header>
+                <div id="calendarGrid"></div>
+            </article>
         </section>
     </div>
 </main>
 
 <div th:replace="~{fragments/sidebar :: floating-tools}"></div>
 
+<div id="ttToastStack" class="tt-toast-stack" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.5/main.min.js"></script>
+
 <script>
-    function formatDateTime(value) {
+    const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    const state = {
+        sessions: [],
+        attendanceByCourse: {},
+        selectedDate: startOfDay(new Date()),
+        viewMode: 'timeline',
+        notifiedIds: new Set(),
+        notificationPermissionAsked: false,
+        calendar: null,
+        wsClient: null
+    };
+
+    function startOfDay(date) {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }
+
+    function plusDays(date, amount) {
+        const d = new Date(date);
+        d.setDate(d.getDate() + amount);
+        return d;
+    }
+
+    function sameDay(a, b) {
+        return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    }
+
+    function parseDate(value) {
         const date = new Date(value);
-        if (Number.isNaN(date.getTime())) {
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function readableDate(value) {
+        const date = parseDate(value);
+        if (!date) {
             return 'TBA';
         }
-        return date.toLocaleString([], {
-            weekday: 'short',
+
+        return date.toLocaleDateString([], {
+            weekday: 'long',
             month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
+            day: 'numeric'
         });
     }
 
-    function renderTimetable(items) {
-        const list = document.getElementById('timetableList');
-        list.innerHTML = '';
+    function readableTime(value) {
+        const date = parseDate(value);
+        if (!date) {
+            return 'N/A';
+        }
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
 
-        if (!items.length) {
-            list.innerHTML = '<div class="timeline-empty">No upcoming classes found.</div>';
+    function sessionStatus(session) {
+        const now = new Date();
+        const start = parseDate(session.startsAt);
+        const end = parseDate(session.endsAt);
+
+        if (!start || !end) {
+            return 'upcoming';
+        }
+
+        if (now >= start && now <= end) {
+            return 'ongoing';
+        }
+
+        if (now > end) {
+            return 'completed';
+        }
+
+        const minutesToStart = Math.round((start.getTime() - now.getTime()) / 60000);
+        if (minutesToStart >= 0 && minutesToStart <= 10) {
+            return 'starting';
+        }
+
+        return 'upcoming';
+    }
+
+    function statusLabel(status) {
+        if (status === 'ongoing') return 'Ongoing';
+        if (status === 'completed') return 'Completed';
+        if (status === 'starting') return 'Starting Soon';
+        return 'Upcoming';
+    }
+
+    function progressWidth(session, status) {
+        if (status === 'completed') {
+            return 100;
+        }
+        if (status === 'starting') {
+            return 20;
+        }
+        if (status === 'ongoing') {
+            const start = parseDate(session.startsAt);
+            const end = parseDate(session.endsAt);
+            if (!start || !end || end <= start) {
+                return 64;
+            }
+
+            const now = Date.now();
+            const ratio = (now - start.getTime()) / (end.getTime() - start.getTime());
+            const bounded = Math.max(0.1, Math.min(1, ratio));
+            return Math.round(bounded * 100);
+        }
+        return 10;
+    }
+
+    function attendanceState(session) {
+        if (!session || !session.courseId) {
+            return 'unknown';
+        }
+
+        const info = state.attendanceByCourse[String(session.courseId)];
+        if (!info) {
+            return 'unknown';
+        }
+
+        return info.marked ? 'marked' : 'pending';
+    }
+
+    function attendanceText(session) {
+        const status = attendanceState(session);
+        if (status === 'marked') {
+            return 'Attendance Marked';
+        }
+        if (status === 'pending') {
+            return 'Attendance Pending';
+        }
+        return 'Attendance Unknown';
+    }
+
+    function attendanceClass(session) {
+        const status = attendanceState(session);
+        if (status === 'marked') {
+            return 'attendance-marked';
+        }
+        if (status === 'pending') {
+            return 'attendance-pending';
+        }
+        return 'attendance-unknown';
+    }
+
+    function uniqueCourses(sessions) {
+        const seen = new Set();
+        const result = [];
+        sessions.forEach((session) => {
+            const id = session && session.courseId ? String(session.courseId) : '';
+            if (id && !seen.has(id)) {
+                seen.add(id);
+                result.push(id);
+            }
+        });
+        return result;
+    }
+
+    function showToast(message) {
+        const stack = document.getElementById('ttToastStack');
+        const node = document.createElement('div');
+        node.className = 'tt-toast';
+        node.textContent = message;
+        stack.appendChild(node);
+        window.setTimeout(() => node.remove(), 3200);
+    }
+
+    function calendarColorForStatus(status) {
+        if (status === 'ongoing') return '#22c55e';
+        if (status === 'starting') return '#f59e0b';
+        if (status === 'completed') return '#64748b';
+        return '#3b82f6';
+    }
+
+    function toCalendarEvent(session) {
+        const status = sessionStatus(session);
+        return {
+            id: String(session.sessionId || ''),
+            title: (session.courseCode || 'COURSE') + ' • ' + (session.title || 'Class Session'),
+            start: session.startsAt,
+            end: session.endsAt,
+            backgroundColor: calendarColorForStatus(status),
+            borderColor: calendarColorForStatus(status),
+            extendedProps: {
+                sessionId: session.sessionId,
+                courseId: session.courseId,
+                courseCode: session.courseCode,
+                title: session.title
+            }
+        };
+    }
+
+    async function handleCalendarMove(info) {
+        const sessionId = info.event.id;
+        if (!sessionId) {
+            info.revert();
             return;
         }
 
-        items.forEach((session) => {
+        const start = info.event.start;
+        const end = info.event.end || new Date(start.getTime() + 60 * 60 * 1000);
+
+        try {
+            await window.smsApi.student.timetableUpdate(sessionId, {
+                startsAt: start.toISOString(),
+                endsAt: end.toISOString()
+            });
+            showToast('Session updated in timetable');
+            await loadTimetable();
+        } catch (_error) {
+            info.revert();
+            showToast('Unable to update this class slot');
+        }
+    }
+
+    function renderCalendar() {
+        if (!window.FullCalendar) {
+            return;
+        }
+
+        const root = document.getElementById('calendarGrid');
+        if (!root) {
+            return;
+        }
+
+        const events = state.sessions.map(toCalendarEvent).filter((event) => event.id);
+        if (!state.calendar) {
+            state.calendar = new FullCalendar.Calendar(root, {
+                initialView: 'timeGridWeek',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'timeGridWeek,timeGridDay'
+                },
+                height: 'auto',
+                editable: true,
+                eventDurationEditable: true,
+                eventStartEditable: true,
+                events,
+                eventDrop: handleCalendarMove,
+                eventResize: handleCalendarMove,
+                eventClick: (info) => {
+                    const session = info.event.extendedProps || {};
+                    const subjectIdParam = session.courseId ? 'subjectId=' + encodeURIComponent(String(session.courseId)) : '';
+                    const sessionIdParam = session.sessionId ? 'sessionId=' + encodeURIComponent(String(session.sessionId)) : '';
+                    const joinQuery = [subjectIdParam, sessionIdParam].filter(Boolean).join('&');
+                    const joinHref = '/attendance/scanner' + (joinQuery ? '?' + joinQuery : '');
+                    window.location.href = joinHref;
+                }
+            });
+            state.calendar.render();
+            return;
+        }
+
+        state.calendar.removeAllEvents();
+        state.calendar.addEventSource(events);
+    }
+
+    function connectRealtimeNotifications() {
+        if (state.wsClient || typeof SockJS === 'undefined' || typeof Stomp === 'undefined') {
+            return;
+        }
+
+        try {
+            const socket = new SockJS('/ws');
+            const client = Stomp.over(socket);
+            client.debug = function () { return undefined; };
+
+            client.connect({}, () => {
+                state.wsClient = client;
+                client.subscribe('/user/queue/notifications', (message) => {
+                    try {
+                        const payload = JSON.parse(message.body || '{}');
+                        const reminderId = 'user:' + String(payload.sessionId || payload.startsAt || payload.message || Date.now());
+                        if (state.notifiedIds.has(reminderId)) {
+                            return;
+                        }
+                        state.notifiedIds.add(reminderId);
+
+                        const text = payload.message || 'New class reminder';
+                        showToast(text);
+                        if (navigator.vibrate) {
+                            navigator.vibrate([120, 60, 120]);
+                        }
+                    } catch (_error) {
+                        showToast('Live reminder received');
+                    }
+                });
+
+                client.subscribe('/topic/notifications', (message) => {
+                    try {
+                        const payload = JSON.parse(message.body || '{}');
+                        const reminderId = 'ws:' + String(payload.sessionId || payload.startsAt || payload.message || Date.now());
+                        if (state.notifiedIds.has(reminderId)) {
+                            return;
+                        }
+                        state.notifiedIds.add(reminderId);
+
+                        const text = payload.message || 'New class reminder';
+                        showToast(text);
+                        if (navigator.vibrate) {
+                            navigator.vibrate([120, 60, 120]);
+                        }
+                    } catch (_error) {
+                        showToast('Live reminder received');
+                    }
+                });
+            });
+        } catch (_error) {
+            // Silent fallback to local reminder polling
+        }
+    }
+
+    async function refreshGeofenceState() {
+        const alert = document.getElementById('geofenceAlert');
+        if (!alert || !navigator.geolocation) {
+            return;
+        }
+
+        const getPosition = () => new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 7000,
+                maximumAge: 30000
+            });
+        });
+
+        try {
+            const position = await getPosition();
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            const response = await window.smsApi.student.attendanceGeofenceCheck(latitude, longitude);
+
+            if (!response || response.success !== true) {
+                alert.style.display = 'none';
+                return;
+            }
+
+            const label = (response.closestLocation || 'Campus') + ' • ' + Math.round(Number(response.distanceMeters || 0)) + 'm';
+            if (response.inside) {
+                alert.style.display = 'block';
+                alert.textContent = 'Geofence: inside zone (' + label + ')';
+                alert.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+                alert.style.background = 'rgba(22, 163, 74, 0.16)';
+                alert.style.color = '#bbf7d0';
+            } else {
+                alert.style.display = 'block';
+                alert.textContent = 'Geofence: outside zone (' + label + ')';
+                alert.style.borderColor = 'rgba(239, 68, 68, 0.45)';
+                alert.style.background = 'rgba(239, 68, 68, 0.14)';
+                alert.style.color = '#fecaca';
+            }
+        } catch (_error) {
+            alert.style.display = 'none';
+        }
+    }
+
+    function updateDateLabel() {
+        document.getElementById('dateLabel').textContent = readableDate(state.selectedDate);
+    }
+
+    function renderDayStrip() {
+        const root = document.getElementById('dayStrip');
+        root.innerHTML = '';
+
+        const base = startOfDay(state.selectedDate);
+        for (let offset = -3; offset <= 3; offset += 1) {
+            const d = plusDays(base, offset);
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'tt-day-chip' + (sameDay(d, base) ? ' active' : '');
+            chip.innerHTML = '<strong>' + DAY_NAMES[d.getDay()] + '</strong>' + d.getDate();
+            chip.onclick = () => {
+                state.selectedDate = startOfDay(d);
+                renderAll();
+            };
+            root.appendChild(chip);
+        }
+    }
+
+    function sessionsForSelectedDay() {
+        return state.sessions
+            .filter((session) => {
+                const start = parseDate(session.startsAt);
+                return start ? sameDay(startOfDay(start), state.selectedDate) : false;
+            })
+            .sort((a, b) => {
+                const aStart = parseDate(a.startsAt);
+                const bStart = parseDate(b.startsAt);
+                return (aStart ? aStart.getTime() : 0) - (bStart ? bStart.getTime() : 0);
+            });
+    }
+
+    function renderTimeline() {
+        const list = document.getElementById('timelineList');
+        const sessions = sessionsForSelectedDay();
+        list.innerHTML = '';
+
+        if (!sessions.length) {
+            list.innerHTML = '<div class="timeline-empty">No classes scheduled for this day.</div>';
+            return;
+        }
+
+        sessions.forEach((session, index) => {
+            const status = sessionStatus(session);
+            const progress = progressWidth(session, status);
+
             const card = document.createElement('article');
-            card.className = 'session-card';
+            card.className = 'tt-slot ' + status;
+            card.style.animationDelay = (index * 70) + 'ms';
 
-            const details = document.createElement('div');
-            details.innerHTML =
-                '<h3 class="session-title">' + (session.title || 'Class Session') + '</h3>' +
-                '<p class="session-meta">' + (session.courseCode || 'SUBJECT') + ' | ' + (session.facultyName || 'Faculty TBA') + '</p>' +
-                '<p class="session-meta">' + formatDateTime(session.startsAt) + ' - ' + formatDateTime(session.endsAt) + '</p>' +
-                '<p class="session-meta">Room: ' + (session.room || 'TBA') + '</p>';
+            const subjectIdParam = session.courseId ? 'subjectId=' + encodeURIComponent(String(session.courseId)) : '';
+            const sessionIdParam = session.sessionId ? 'sessionId=' + encodeURIComponent(String(session.sessionId)) : '';
+            const joinQuery = [subjectIdParam, sessionIdParam].filter(Boolean).join('&');
+            const joinHref = '/attendance/scanner' + (joinQuery ? '?' + joinQuery : '');
 
-            const action = document.createElement('a');
-            const params = new URLSearchParams();
-            if (session.courseId) {
-                params.set('subjectId', String(session.courseId));
-            }
-            if (session.sessionId) {
-                params.set('sessionId', String(session.sessionId));
-            }
-            action.href = '/attendance/scanner?' + params.toString();
-            action.className = 'btn btn-primary';
-            action.textContent = 'Scan Attendance';
+            card.innerHTML =
+                '<aside class="tt-time-rail">' +
+                '<strong>' + readableTime(session.startsAt) + '</strong>' +
+                '<span>to</span>' +
+                '<strong>' + readableTime(session.endsAt) + '</strong>' +
+                '</aside>' +
+                '<section>' +
+                '<h4 class="tt-subject">' + (session.title || 'Class Session') + '</h4>' +
+                '<p class="tt-submeta">' + (session.courseCode || 'COURSE') + '</p>' +
+                '<div class="tt-detail-grid">' +
+                '<div>Faculty: ' + (session.facultyName || 'TBA') + '</div>' +
+                '<div>Room: ' + (session.room || 'TBA') + '</div>' +
+                '</div>' +
+                '<div class="tt-badge-row">' +
+                '<span class="tt-badge ' + status + '">' + statusLabel(status) + '</span>' +
+                '<span class="tt-badge ' + attendanceClass(session) + '">' + attendanceText(session) + '</span>' +
+                '</div>' +
+                '<div class="tt-progress"><span style="width:' + progress + '%"></span></div>' +
+                '<div class="tt-slot-actions">' +
+                ((status === 'ongoing' || status === 'starting' || status === 'upcoming')
+                    ? '<a class="tt-btn active" href="' + joinHref + '">Join Class</a>'
+                    : '<a class="tt-btn" href="' + joinHref + '">Open Session</a>') +
+                '</div>' +
+                '</section>';
 
-            card.appendChild(details);
-            card.appendChild(action);
             list.appendChild(card);
         });
     }
 
-    async function loadTimetable() {
-        const response = await fetch('/api/student/timetable', { headers: { Accept: 'application/json' } });
-        if (!response.ok) {
-            document.getElementById('timetableList').innerHTML = '<div class="timeline-empty">Failed to load timetable.</div>';
+    function weekRangeStart(date) {
+        const d = startOfDay(date);
+        const delta = d.getDay() === 0 ? -6 : 1 - d.getDay();
+        return plusDays(d, delta);
+    }
+
+    function renderWeekView() {
+        const root = document.getElementById('weekGrid');
+        root.innerHTML = '';
+
+        const weekStart = weekRangeStart(state.selectedDate);
+        for (let i = 0; i < 7; i += 1) {
+            const dayDate = plusDays(weekStart, i);
+            const isToday = sameDay(dayDate, startOfDay(new Date()));
+            const col = document.createElement('article');
+            col.className = 'tt-week-day' + (isToday ? ' today' : '');
+
+            const daySessions = state.sessions
+                .filter((session) => {
+                    const start = parseDate(session.startsAt);
+                    return start ? sameDay(startOfDay(start), dayDate) : false;
+                })
+                .sort((a, b) => {
+                    const aStart = parseDate(a.startsAt);
+                    const bStart = parseDate(b.startsAt);
+                    return (aStart ? aStart.getTime() : 0) - (bStart ? bStart.getTime() : 0);
+                });
+
+            let html = '<h4>' + DAY_NAMES[dayDate.getDay()] + ' ' + dayDate.getDate() + '</h4>';
+            if (!daySessions.length) {
+                html += '<div class="tt-week-class">No classes</div>';
+            } else {
+                daySessions.forEach((session) => {
+                    html +=
+                        '<div class="tt-week-class">' +
+                        '<strong>' + readableTime(session.startsAt) + '</strong>' +
+                        (session.courseCode || 'COURSE') + '<br>' +
+                        (session.title || 'Class Session') +
+                        '</div>';
+                });
+            }
+
+            col.innerHTML = html;
+            root.appendChild(col);
+        }
+    }
+
+    function renderStartingSoonAlert() {
+        const alert = document.getElementById('startingSoonAlert');
+        const now = new Date();
+
+        const soon = state.sessions.find((session) => {
+            const start = parseDate(session.startsAt);
+            if (!start) {
+                return false;
+            }
+            const minutes = Math.round((start.getTime() - now.getTime()) / 60000);
+            return minutes >= 0 && minutes <= 10;
+        });
+
+        if (!soon) {
+            alert.style.display = 'none';
+            alert.textContent = '';
             return;
         }
 
-        const data = await response.json();
-        renderTimetable(Array.isArray(data) ? data : []);
+        const minutes = Math.max(0, Math.round((parseDate(soon.startsAt).getTime() - now.getTime()) / 60000));
+        alert.style.display = 'block';
+        alert.textContent = (soon.courseCode || 'CLASS') + ' starts in ' + minutes + ' minute' + (minutes === 1 ? '' : 's') + '.';
     }
 
-    loadTimetable();
+    function maybeNotifyStartingSoon() {
+        const now = new Date();
+        const candidates = state.sessions.filter((session) => {
+            const start = parseDate(session.startsAt);
+            if (!start) {
+                return false;
+            }
+            const minutes = Math.round((start.getTime() - now.getTime()) / 60000);
+            return minutes >= 0 && minutes <= 10;
+        });
+
+        candidates.forEach((session) => {
+            const id = String(session.sessionId || session.startsAt || session.title);
+            if (state.notifiedIds.has(id)) {
+                return;
+            }
+            state.notifiedIds.add(id);
+            const label = (session.courseCode || 'Class') + ' starts soon';
+            showToast(label);
+
+            if ('Notification' in window) {
+                if (Notification.permission === 'granted') {
+                    new Notification('Class reminder', {
+                        body: (session.title || 'Class Session') + ' at ' + readableTime(session.startsAt)
+                    });
+                } else if (Notification.permission === 'default' && !state.notificationPermissionAsked) {
+                    state.notificationPermissionAsked = true;
+                    Notification.requestPermission();
+                }
+            }
+        });
+    }
+
+    async function loadAttendanceForVisibleSessions() {
+        const visible = sessionsForSelectedDay();
+        const courseIds = uniqueCourses(visible);
+
+        await Promise.all(courseIds.map(async (courseId) => {
+            if (state.attendanceByCourse[courseId]) {
+                return;
+            }
+
+            try {
+                const result = await window.smsApi.student.attendanceCheckToday(courseId);
+                state.attendanceByCourse[courseId] = {
+                    marked: Boolean(result && result.alreadyMarked),
+                    payload: result || null
+                };
+            } catch (_error) {
+                state.attendanceByCourse[courseId] = {
+                    marked: false,
+                    payload: null,
+                    failed: true
+                };
+            }
+        }));
+    }
+
+    function toggleView(mode) {
+        state.viewMode = mode;
+        document.getElementById('timelinePanel').style.display = mode === 'timeline' ? 'block' : 'none';
+        document.getElementById('weekPanel').style.display = mode === 'week' ? 'block' : 'none';
+        document.getElementById('calendarPanel').style.display = mode === 'calendar' ? 'block' : 'none';
+        document.getElementById('timelineViewBtn').classList.toggle('active', mode === 'timeline');
+        document.getElementById('weekViewBtn').classList.toggle('active', mode === 'week');
+        document.getElementById('calendarViewBtn').classList.toggle('active', mode === 'calendar');
+
+        if (mode === 'calendar') {
+            renderCalendar();
+        }
+    }
+
+    async function renderAll() {
+        updateDateLabel();
+        renderDayStrip();
+        renderStartingSoonAlert();
+        await loadAttendanceForVisibleSessions();
+        renderTimeline();
+        renderWeekView();
+        renderCalendar();
+        maybeNotifyStartingSoon();
+    }
+
+    async function loadTimetable() {
+        try {
+            const data = await window.smsApi.student.timetable();
+            state.sessions = Array.isArray(data) ? data : [];
+            if (!state.sessions.length) {
+                document.getElementById('timelineList').innerHTML = '<div class="timeline-empty">No upcoming classes found.</div>';
+            }
+            await renderAll();
+        } catch (_error) {
+            document.getElementById('timelineList').innerHTML = '<div class="timeline-empty">Failed to load timetable.</div>';
+            state.sessions = [];
+            renderWeekView();
+        }
+    }
+
+    function bindEvents() {
+        document.getElementById('prevDayBtn').addEventListener('click', async () => {
+            state.selectedDate = startOfDay(plusDays(state.selectedDate, -1));
+            await renderAll();
+        });
+
+        document.getElementById('nextDayBtn').addEventListener('click', async () => {
+            state.selectedDate = startOfDay(plusDays(state.selectedDate, 1));
+            await renderAll();
+        });
+
+        document.getElementById('timelineViewBtn').addEventListener('click', () => toggleView('timeline'));
+        document.getElementById('weekViewBtn').addEventListener('click', () => toggleView('week'));
+        document.getElementById('calendarViewBtn').addEventListener('click', () => toggleView('calendar'));
+        document.getElementById('refreshBtn').addEventListener('click', async () => {
+            showToast('Refreshing timetable...');
+            await loadTimetable();
+            await refreshGeofenceState();
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        bindEvents();
+        connectRealtimeNotifications();
+        await loadTimetable();
+        await refreshGeofenceState();
+        window.setInterval(async () => {
+            renderStartingSoonAlert();
+            maybeNotifyStartingSoon();
+            if (state.viewMode === 'timeline') {
+                renderTimeline();
+            }
+            if (state.viewMode === 'calendar') {
+                renderCalendar();
+            }
+            await refreshGeofenceState();
+        }, 60000);
+    });
 </script>
 
 </body>

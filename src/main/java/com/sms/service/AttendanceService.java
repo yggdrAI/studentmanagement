@@ -164,6 +164,50 @@ public class AttendanceService {
         return new AttendanceStats(present, absent, late, records.size());
     }
 
+    public WeightedAttendanceMetrics getWeightedAttendanceMetrics(String studentId, Long subjectId) {
+        List<Attendance> records = attendanceRepository
+                .findByStudentIdAndSubjectIdOrderByAttendanceDateDesc(studentId, subjectId);
+
+        if (records.isEmpty()) {
+            return new WeightedAttendanceMetrics(0.0, 0, 0, 0, 0, true);
+        }
+
+        int presentCount = 0;
+        int absentCount = 0;
+        int lateCount = 0;
+        int suspiciousCount = 0;
+        double earnedWeight = 0.0;
+
+        for (Attendance record : records) {
+            String status = record.getStatus() != null ? record.getStatus().trim().toUpperCase() : "ABSENT";
+            switch (status) {
+                case "PRESENT" -> {
+                    presentCount++;
+                    earnedWeight += 1.0;
+                }
+                case "LATE" -> {
+                    lateCount++;
+                    earnedWeight += 0.5;
+                }
+                default -> absentCount++;
+            }
+
+            if (Boolean.FALSE.equals(record.getLocationVerified())) {
+                suspiciousCount++;
+            }
+        }
+
+        double weightedPercentage = (earnedWeight * 100.0) / records.size();
+        return new WeightedAttendanceMetrics(
+                Math.round(weightedPercentage * 100.0) / 100.0,
+                presentCount,
+                lateCount,
+                absentCount,
+                suspiciousCount,
+                true
+        );
+    }
+
     /**
      * Update attendance status (for admin/teacher corrections)
      */
@@ -221,5 +265,35 @@ public class AttendanceService {
 
         public String getStudentId() { return studentId; }
         public String getStatus() { return status; }
+    }
+
+    public static class WeightedAttendanceMetrics {
+        private final double weightedPercentage;
+        private final int presentCount;
+        private final int lateCount;
+        private final int absentCount;
+        private final int suspiciousCount;
+        private final boolean faceVerificationEnforced;
+
+        public WeightedAttendanceMetrics(double weightedPercentage,
+                                         int presentCount,
+                                         int lateCount,
+                                         int absentCount,
+                                         int suspiciousCount,
+                                         boolean faceVerificationEnforced) {
+            this.weightedPercentage = weightedPercentage;
+            this.presentCount = presentCount;
+            this.lateCount = lateCount;
+            this.absentCount = absentCount;
+            this.suspiciousCount = suspiciousCount;
+            this.faceVerificationEnforced = faceVerificationEnforced;
+        }
+
+        public double getWeightedPercentage() { return weightedPercentage; }
+        public int getPresentCount() { return presentCount; }
+        public int getLateCount() { return lateCount; }
+        public int getAbsentCount() { return absentCount; }
+        public int getSuspiciousCount() { return suspiciousCount; }
+        public boolean isFaceVerificationEnforced() { return faceVerificationEnforced; }
     }
 }

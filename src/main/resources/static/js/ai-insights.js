@@ -175,11 +175,7 @@
     async function refreshSummary() {
         const query = buildSummaryQuery();
         try {
-            const response = await fetch(`/api/analytics/summary?${query}`);
-            if (!response.ok) {
-                throw new Error("Failed to load AI analytics summary");
-            }
-            state.summary = await response.json();
+            state.summary = await window.smsApi.analytics.summary(query);
             state.displayedRows = 0;
             renderSummary();
             toast("AI insights synchronized", "success");
@@ -190,10 +186,7 @@
 
     async function sendLeadershipDigest() {
         try {
-            const response = await fetch("/api/analytics/reports/digest", { method: "POST" });
-            if (!response.ok) {
-                throw new Error("Failed to queue leadership digest");
-            }
+            await window.smsApi.analytics.sendDigest();
             toast("Digest queued for delivery", "success");
         } catch (error) {
             toast(error.message || "Unable to send digest", "error");
@@ -621,9 +614,7 @@
 
     async function pollLiveSnapshot() {
         try {
-            const response = await fetch("/api/analytics/live");
-            if (!response.ok) return;
-            const payload = await response.json();
+            const payload = await window.smsApi.analytics.live();
             animateNumber(refs.metricActive, Number(payload.activeStudents || 0));
         } catch (_error) {
             // no-op fallback

@@ -501,10 +501,7 @@
             return;
         }
 
-        fetch(`/api/teacher/attendance/subject/${encodeURIComponent(subjectId)}/students`, {
-            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
-        })
-        .then(response => response.json())
+        window.smsApi.teacher.attendance.subjectStudents(subjectId, getAuthToken())
         .then(data => renderStudentList(Array.isArray(data) ? data : []))
         .catch(error => {
             console.error('Error loading subject students:', error);
@@ -513,10 +510,7 @@
     }
 
     function loadTeacherSubjects() {
-        fetch('/api/teacher/attendance/subjects', {
-            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
-        })
-        .then(response => response.json())
+        window.smsApi.teacher.attendance.subjects(getAuthToken())
         .then(data => {
             teacherSubjects = Array.isArray(data) ? data : [];
             renderSubjectOptions();
@@ -560,15 +554,7 @@
             expiryMinutes: parseInt(expiryMinutes)
         };
 
-        fetch('/api/teacher/attendance/generate-qr', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + getAuthToken()
-            },
-            body: JSON.stringify(request)
-        })
-        .then(response => response.json())
+        window.smsApi.teacher.attendance.generateQr(request, getAuthToken())
         .then(data => {
             showLoader(false);
             
@@ -652,10 +638,7 @@
                 return;
             }
 
-            fetch(`/api/teacher/attendance/session-stats?subjectId=${subjectId}`, {
-                headers: { 'Authorization': 'Bearer ' + getAuthToken() }
-            })
-            .then(response => response.json())
+            window.smsApi.teacher.attendance.sessionStats(subjectId)
             .then(data => {
                 document.getElementById('presentCount').textContent = data.presentCount;
                 document.getElementById('totalScanned').textContent = data.totalExpected;
@@ -671,10 +654,7 @@
      * Update attendance list
      */
     function updateAttendanceList(subjectId) {
-        fetch(`/api/teacher/attendance/records?subjectId=${subjectId}`, {
-            headers: { 'Authorization': 'Bearer ' + getAuthToken() }
-        })
-        .then(response => response.json())
+        window.smsApi.teacher.attendance.records(subjectId, getAuthToken())
         .then(records => {
             const list = document.getElementById('attendanceList');
             
@@ -718,15 +698,7 @@
             attendanceRecords: records
         };
 
-        fetch('/api/teacher/attendance/manual', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + getAuthToken()
-            },
-            body: JSON.stringify(request)
-        })
-        .then(response => response.json())
+        window.smsApi.teacher.attendance.manual(request, getAuthToken())
         .then(data => {
             if (data.success) {
                 alert('✅ ' + data.message);

@@ -22,6 +22,16 @@
                 </div>
             </header>
 
+            <section class="generic-card" style="padding: 18px; text-align: left; margin-bottom: 16px;">
+                <h2 style="margin-bottom: 10px; font-size: 1.1rem;">Quick Actions</h2>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    <a href="/attendance/scanner" class="btn btn-primary">Scan Attendance</a>
+                    <a href="/student/timetable" class="btn btn-primary">Today Classes</a>
+                    <a href="/ai-insights" class="btn btn-primary">AI Alerts</a>
+                    <a href="/cafeteria" class="btn btn-primary">Open Cafeteria</a>
+                </div>
+            </section>
+
             <section class="student-info-card" id="studentInfoCard">
                 <div class="student-info-title-wrap">
                     <h2 id="studentName">Loading student profile...</h2>
@@ -80,6 +90,11 @@
                 </div>
                 <div id="taskBoard" class="task-board"></div>
             </section>
+
+            <section class="generic-card" style="padding: 18px; text-align: left; margin-top: 16px;">
+                <h2 style="margin-bottom: 8px; font-size: 1.1rem;">Recent Activity</h2>
+                <div id="recentActivityList" class="timeline-list"></div>
+            </section>
         </div>
     </main>
 
@@ -88,21 +103,22 @@
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
     <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.getRegistrations()
+                    .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+                    .then(() => navigator.serviceWorker.register('/service-worker.js?v=2', { updateViaCache: 'none' }))
+                    .catch((error) => console.debug('Service worker recovery skipped:', error));
+            });
+        }
+    </script>
+    <script>
         let stompClient = null;
         let pollHandle = null;
 
         async function loadDashboard() {
             try {
-                const response = await fetch('/api/student/dashboard', {
-                    headers: { 'Accept': 'application/json' }
-                });
-
-                if (!response.ok) {
-                    showStatus('Unable to load dashboard data.', true);
-                    return;
-                }
-
-                const dashboard = await response.json();
+                const dashboard = await window.smsApi.student.dashboard();
                 renderDashboard(dashboard);
                 showStatus('Dashboard synchronized.', false);
             } catch (error) {
@@ -130,6 +146,7 @@
             renderSubjects(dashboard.subjects || []);
             renderTasks(dashboard.tasks || []);
             renderUpcomingClasses(dashboard.upcomingClasses || []);
+            renderRecentActivity(dashboard.tasks || [], dashboard.upcomingClasses || []);
         }
 
         function showStatus(message, isError) {
@@ -219,18 +236,7 @@
                     button.onclick = async () => {
                         try {
                             button.disabled = true;
-                            const completeResponse = await fetch('/api/student/task/' + task.id + '/complete', {
-                                method: 'POST',
-                                headers: { 'Accept': 'application/json' }
-                            });
-
-                            if (!completeResponse.ok) {
-                                showStatus('Failed to complete task. Please retry.', true);
-                                button.disabled = false;
-                                return;
-                            }
-
-                            const updatedDashboard = await completeResponse.json();
+                            const updatedDashboard = await window.smsApi.student.completeTask(task.id);
                             renderDashboard(updatedDashboard);
                             showStatus('Task marked as complete.', false);
                         } catch (error) {
@@ -269,6 +275,33 @@
                         '<div class="timeline-meta">' + escapeHtml(formatDateTime(session.startsAt)) + ' | ' + escapeHtml(session.room || 'TBA') + '</div>' +
                     '</div>';
                 timeline.appendChild(item);
+            });
+        }
+
+        function renderRecentActivity(tasks, upcomingClasses) {
+            const list = document.getElementById('recentActivityList');
+            if (!list) {
+                return;
+            }
+
+            list.innerHTML = '';
+            const completedCount = tasks.filter((task) => task.status === 'COMPLETED').length;
+            const items = [
+                { icon: '&#9989;', title: 'Completed Tasks', meta: completedCount + ' tasks completed this term.' },
+                { icon: '&#128197;', title: 'Upcoming Sessions', meta: String(upcomingClasses.length) + ' classes in your timeline.' },
+                { icon: '&#129504;', title: 'AI Monitoring', meta: 'Insights are tracking attendance and task rhythm.' }
+            ];
+
+            items.forEach((entry) => {
+                const item = document.createElement('article');
+                item.className = 'timeline-item';
+                item.innerHTML =
+                    '<div class="timeline-icon">' + entry.icon + '</div>' +
+                    '<div class="timeline-content">' +
+                        '<div class="timeline-title">' + entry.title + '</div>' +
+                        '<div class="timeline-meta">' + entry.meta + '</div>' +
+                    '</div>';
+                list.appendChild(item);
             });
         }
 
