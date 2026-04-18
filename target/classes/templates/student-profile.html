@@ -1086,6 +1086,14 @@
             if (!errorEl) {
                 return;
             }
+
+            const editable = !input.disabled;
+            if (!editable || !isFieldDirty(key, input.value)) {
+                errorEl.textContent = '';
+                errorEl.classList.remove('show');
+                return;
+            }
+
             const message = getValidationMessage(key, input.value);
             if (message) {
                 hasErrors = true;
@@ -1097,6 +1105,15 @@
             }
         });
         return hasErrors;
+    }
+
+    function isFieldDirty(fieldKey, currentValue) {
+        if (!originalProfileSnapshot) {
+            return true;
+        }
+
+        const originalValue = originalProfileSnapshot[fieldKey];
+        return normalize(currentValue) !== normalize(originalValue);
     }
 
     function buildFieldCard(field, value) {

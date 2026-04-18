@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -54,6 +55,23 @@ public class TeacherAttendanceController {
             throw new IllegalArgumentException("Subject does not belong to authenticated teacher");
         }
         return course;
+    }
+
+    private Long resolveTenantId(HttpServletRequest request) {
+        Object tenantAttr = request.getAttribute("tenantId");
+        if (tenantAttr instanceof Number number) {
+            return number.longValue();
+        }
+
+        String tenantHeader = request.getHeader("X-Tenant-Id");
+        if (tenantHeader != null && !tenantHeader.isBlank()) {
+            try {
+                return Long.parseLong(tenantHeader);
+            } catch (NumberFormatException ignored) {
+                return 1L;
+            }
+        }
+        return 1L;
     }
 
     @GetMapping("/subjects")
@@ -141,10 +159,12 @@ public class TeacherAttendanceController {
     @PostMapping("/manual")
     public ResponseEntity<Map<String, Object>> markManualAttendance(
             @RequestBody ManualAttendanceRequest request,
-            Authentication auth) {
+            Authentication auth,
+            HttpServletRequest httpRequest) {
         try {
             Course course = resolveTeacherCourse(auth, request.getSubjectId());
             Long teacherId = course.getTeacher().getId();
+            Long tenantId = resolveTenantId(httpRequest);
             
             LocalDate attendanceDate = LocalDate.parse(
                 request.getAttendanceDate(),
@@ -165,7 +185,8 @@ public class TeacherAttendanceController {
                 request.getSubjectId(),
                 teacherId,
                 attendanceDate,
-                records
+                records,
+                tenantId
             );
 
             Map<String, Object> response = new HashMap<>();
@@ -193,16 +214,18 @@ public class TeacherAttendanceController {
     public ResponseEntity<Map<String, Object>> getSessionStats(
             @RequestParam Long subjectId,
             @RequestParam(required = false) String date,
-            Authentication auth) {
+            Authentication auth,
+            HttpServletRequest httpRequest) {
         try {
             resolveTeacherCourse(auth, subjectId);
+            Long tenantId = resolveTenantId(httpRequest);
             LocalDate attendanceDate = date != null ? 
                 LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE) : 
                 LocalDate.now();
 
-            List<Attendance> records = attendanceService.getAttendanceForDate(subjectId, attendanceDate);
+            List<Attendance> records = attendanceService.getAttendanceForDate(subjectId, attendanceDate, tenantId);
             AttendanceService.AttendanceStats stats = 
-                attendanceService.getAttendanceStats(subjectId, attendanceDate);
+                attendanceService.getAttendanceStats(subjectId, attendanceDate, tenantId);
 
             long locationVerifiedCount = records.stream()
                 .filter(record -> Boolean.TRUE.equals(record.getLocationVerified()))
@@ -236,14 +259,16 @@ public class TeacherAttendanceController {
     public ResponseEntity<List<Map<String, Object>>> getAttendanceRecords(
             @RequestParam Long subjectId,
             @RequestParam(required = false) String date,
-            Authentication auth) {
+            Authentication auth,
+            HttpServletRequest httpRequest) {
         try {
             resolveTeacherCourse(auth, subjectId);
+            Long tenantId = resolveTenantId(httpRequest);
             LocalDate attendanceDate = date != null ? 
                 LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE) : 
                 LocalDate.now();
 
-            List<Attendance> records = attendanceService.getAttendanceForDate(subjectId, attendanceDate);
+            List<Attendance> records = attendanceService.getAttendanceForDate(subjectId, attendanceDate, tenantId);
 
             List<Map<String, Object>> response = new ArrayList<>();
             for (Attendance record : records) {

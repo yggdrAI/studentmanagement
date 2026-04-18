@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.sms.dto.auth.LoginRequest;
 import com.sms.dto.auth.LoginResponse;
+import com.sms.model.User;
+import com.sms.repository.UserRepository;
 import com.sms.service.JwtService;
 
 import jakarta.validation.Valid;
@@ -23,10 +25,12 @@ public class ApiAuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final UserRepository userRepository;
 
-    public ApiAuthController(AuthenticationManager authenticationManager, JwtService jwtService) {
+    public ApiAuthController(AuthenticationManager authenticationManager, JwtService jwtService, UserRepository userRepository) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
+        this.userRepository = userRepository;
     }
 
     @PostMapping("/login")
@@ -36,13 +40,16 @@ public class ApiAuthController {
         );
 
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        String token = jwtService.generateToken(userDetails);
+        Long tenantId = userRepository.findByUsername(userDetails.getUsername())
+            .map(User::getTenantId)
+            .orElse(1L);
         String role = userDetails.getAuthorities().stream()
             .map(GrantedAuthority::getAuthority)
             .filter(authority -> authority.startsWith("ROLE_"))
             .map(authority -> authority.substring("ROLE_".length()))
             .findFirst()
             .orElse("STUDENT");
+        String token = jwtService.generateToken(userDetails.getUsername(), role, tenantId);
         long expiresAt = jwtService.extractExpiration(token).getTime();
 
         return ResponseEntity.ok(new LoginResponse(token, role, expiresAt));

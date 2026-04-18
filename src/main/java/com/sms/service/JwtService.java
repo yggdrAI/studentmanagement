@@ -20,6 +20,7 @@ import io.jsonwebtoken.security.Keys;
 public class JwtService {
 
     private static final String ROLE_CLAIM = "role";
+    private static final String TENANT_CLAIM = "tenant_id";
 
     @Value("${app.jwt.secret}")
     private String jwtSecret;
@@ -35,14 +36,19 @@ public class JwtService {
             .findFirst()
             .orElse("STUDENT");
 
-        return generateToken(userDetails.getUsername(), role);
+        return generateToken(userDetails.getUsername(), role, 1L);
         }
 
-        public String generateToken(String username, String role) {
+    public String generateToken(String username, String role) {
+        return generateToken(username, role, 1L);
+    }
+
+    public String generateToken(String username, String role, Long tenantId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMillis);
         Map<String, Object> claims = new HashMap<>();
         claims.put(ROLE_CLAIM, role);
+        claims.put(TENANT_CLAIM, tenantId == null ? 1L : tenantId);
 
         return Jwts.builder()
             .claims(claims)
@@ -60,6 +66,21 @@ public class JwtService {
     public String extractRole(String token) {
         Object claim = extractAllClaims(token).get(ROLE_CLAIM);
         return claim != null ? claim.toString() : null;
+    }
+
+    public Long extractTenantId(String token) {
+        Object claim = extractAllClaims(token).get(TENANT_CLAIM);
+        if (claim == null) {
+            return 1L;
+        }
+        if (claim instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(claim.toString());
+        } catch (NumberFormatException ignored) {
+            return 1L;
+        }
     }
 
     public Date extractExpiration(String token) {

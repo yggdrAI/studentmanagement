@@ -3,6 +3,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\config\SecurityConfig.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\DashboardService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\TeacherService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\campus\CampusLocationUpdateDTO.java
+F:\Coding\studentmanagement\src\main\java\com\sms\service\FaceEmbeddingClientService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\QRService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\SecurityAudit.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\StudentLocation.java
@@ -51,6 +52,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\service\StudentService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminApiController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\auth\LoginResponse.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\Teacher.java
+F:\Coding\studentmanagement\src\main\java\com\sms\service\EmbeddingCryptoService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\FraudLogRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AnalyticsController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\AnalyticsReportService.java
@@ -138,6 +140,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\repository\StudentProfileRepos
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\DietAIService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\profile\StudentDocumentDTO.java
+F:\Coding\studentmanagement\src\main\java\com\sms\model\Tenant.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\AssignTeacherRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\StudentProfile.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\TeacherApiController.java

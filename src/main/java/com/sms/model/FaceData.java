@@ -9,6 +9,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.LocalDateTime;
 
@@ -17,7 +18,9 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "face_data", indexes = {
-    @Index(name = "idx_face_student_id", columnList = "student_id", unique = true)
+    @Index(name = "idx_face_student_tenant", columnList = "student_id, tenant_id", unique = true)
+}, uniqueConstraints = {
+    @UniqueConstraint(name = "uk_face_student_tenant", columnNames = {"student_id", "tenant_id"})
 })
 public class FaceData {
 
@@ -25,18 +28,25 @@ public class FaceData {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "student_id", nullable = false, unique = true)
+    @Column(name = "student_id", nullable = false)
     private String studentId;
+
+    @Column(name = "tenant_id", nullable = false)
+    private Long tenantId = 1L;
 
     @Lob
     @Column(name = "embedding_vector", nullable = false)
     private byte[] embeddingVector;
 
+    @Lob
+    @Column(name = "encrypted_embedding", nullable = true, length = 120000)
+    private String encryptedEmbedding;
+
     @Column(name = "embedding_dimension", nullable = false)
-    private Integer embeddingDimension = 128;
+    private Integer embeddingDimension = 512;
 
     @Column(name = "face_model", nullable = false)
-    private String faceModel = "face-api.js";
+    private String faceModel = "Facenet512";
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
@@ -55,8 +65,12 @@ public class FaceData {
     public void setId(Long id) { this.id = id; }
     public String getStudentId() { return studentId; }
     public void setStudentId(String studentId) { this.studentId = studentId; }
+    public Long getTenantId() { return tenantId; }
+    public void setTenantId(Long tenantId) { this.tenantId = tenantId; }
     public byte[] getEmbeddingVector() { return embeddingVector; }
     public void setEmbeddingVector(byte[] embeddingVector) { this.embeddingVector = embeddingVector; }
+    public String getEncryptedEmbedding() { return encryptedEmbedding; }
+    public void setEncryptedEmbedding(String encryptedEmbedding) { this.encryptedEmbedding = encryptedEmbedding; }
     public Integer getEmbeddingDimension() { return embeddingDimension; }
     public void setEmbeddingDimension(Integer embeddingDimension) { this.embeddingDimension = embeddingDimension; }
     public String getFaceModel() { return faceModel; }

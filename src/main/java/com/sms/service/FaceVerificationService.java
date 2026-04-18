@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,44 +17,122 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class FaceVerificationService {
 
-    private static final double FACE_MATCH_THRESHOLD = 0.75;
+    private static final double FACE_MATCH_THRESHOLD = 0.80;
+    private static final String SECURE_MODEL_NAME = "Facenet512";
 
     private final FaceDataRepository faceDataRepository;
+    private final EmbeddingCryptoService embeddingCryptoService;
+    private final FaceEmbeddingClientService faceEmbeddingClientService;
     private final ConcurrentHashMap<String, float[]> faceCache = new ConcurrentHashMap<>();
 
-    public FaceVerificationService(FaceDataRepository faceDataRepository) {
+    public FaceVerificationService(FaceDataRepository faceDataRepository,
+                                   EmbeddingCryptoService embeddingCryptoService,
+                                   FaceEmbeddingClientService faceEmbeddingClientService) {
         this.faceDataRepository = faceDataRepository;
+        this.embeddingCryptoService = embeddingCryptoService;
+        this.faceEmbeddingClientService = faceEmbeddingClientService;
     }
 
     @Transactional
     public FaceVerificationResult registerFace(String studentId, List<Double> embedding, Boolean livenessVerified, String livenessPrompt) {
+        return registerFace(studentId, 1L, embedding, livenessVerified, livenessPrompt, null, null, null);
+    }
+
+    @Transactional
+    public FaceVerificationResult registerFace(String studentId,
+                                               Long tenantId,
+                                               List<Double> embedding,
+                                               Boolean livenessVerified,
+                                               String livenessPrompt) {
+        return registerFace(studentId, tenantId, embedding, livenessVerified, livenessPrompt, null, null, null);
+    }
+
+    @Transactional
+    public FaceVerificationResult registerFace(String studentId,
+                                               Long tenantId,
+                                               List<Double> embedding,
+                                               Boolean livenessVerified,
+                                               String livenessPrompt,
+                                               Boolean blinkDetected,
+                                               Boolean headMovementDetected,
+                                               Integer frameCount) {
         validateEmbedding(embedding);
-        if (!Boolean.TRUE.equals(livenessVerified)) {
+        if (!isAntiSpoofSignalValid(livenessVerified, livenessPrompt, blinkDetected, headMovementDetected, frameCount)) {
             throw new IllegalArgumentException("Liveness verification is required to register a face");
         }
 
         float[] vector = toFloatArray(embedding);
-        FaceData faceData = faceDataRepository.findByStudentId(studentId).orElseGet(FaceData::new);
+        FaceData faceData = faceDataRepository.findByStudentIdAndTenantId(studentId, normalizeTenantId(tenantId)).orElseGet(FaceData::new);
+        String encrypted = embeddingCryptoService.encryptEmbedding(vector);
         faceData.setStudentId(studentId);
-        faceData.setEmbeddingVector(serialize(vector));
+        faceData.setTenantId(normalizeTenantId(tenantId));
+        faceData.setEncryptedEmbedding(encrypted);
+        faceData.setEmbeddingVector(encrypted.getBytes(StandardCharsets.UTF_8));
         faceData.setEmbeddingDimension(vector.length);
-        faceData.setFaceModel("face-api.js");
+        faceData.setFaceModel(SECURE_MODEL_NAME);
         faceData.setIsActive(true);
 
         faceDataRepository.save(faceData);
-        faceCache.put(studentId, vector);
+        faceCache.put(cacheKey(studentId, tenantId), vector);
 
         return new FaceVerificationResult(true, 1.0, true, "Face enrolled successfully");
     }
 
+    @Transactional
+    public FaceVerificationResult registerFaceFromImageUpload(String studentId,
+                                                              Long tenantId,
+                                                              byte[] imageBytes,
+                                                              String filename,
+                                                              Boolean livenessVerified,
+                                                              String livenessPrompt) {
+        return registerFaceFromImageUpload(studentId, tenantId, imageBytes, filename, livenessVerified, livenessPrompt, true, true, 3);
+    }
+
+    @Transactional
+    public FaceVerificationResult registerFaceFromImageUpload(String studentId,
+                                                              Long tenantId,
+                                                              byte[] imageBytes,
+                                                              String filename,
+                                                              Boolean livenessVerified,
+                                                              String livenessPrompt,
+                                                              Boolean blinkDetected,
+                                                              Boolean headMovementDetected,
+                                                              Integer frameCount) {
+        if (imageBytes == null || imageBytes.length == 0) {
+            throw new IllegalArgumentException("Face image is required");
+        }
+
+        List<Double> embedding = faceEmbeddingClientService.generateEmbedding(imageBytes, filename);
+        return registerFace(studentId, tenantId, embedding, livenessVerified, livenessPrompt, blinkDetected, headMovementDetected, frameCount);
+    }
+
     public FaceVerificationResult verifyFace(String studentId, List<Double> embedding, Boolean livenessVerified, String livenessPrompt) {
+        return verifyFace(studentId, 1L, embedding, livenessVerified, livenessPrompt, null, null, null);
+    }
+
+    public FaceVerificationResult verifyFace(String studentId,
+                                             Long tenantId,
+                                             List<Double> embedding,
+                                             Boolean livenessVerified,
+                                             String livenessPrompt) {
+        return verifyFace(studentId, tenantId, embedding, livenessVerified, livenessPrompt, null, null, null);
+    }
+
+    public FaceVerificationResult verifyFace(String studentId,
+                                             Long tenantId,
+                                             List<Double> embedding,
+                                             Boolean livenessVerified,
+                                             String livenessPrompt,
+                                             Boolean blinkDetected,
+                                             Boolean headMovementDetected,
+                                             Integer frameCount) {
         validateEmbedding(embedding);
-        if (!Boolean.TRUE.equals(livenessVerified)) {
+        if (!isAntiSpoofSignalValid(livenessVerified, livenessPrompt, blinkDetected, headMovementDetected, frameCount)) {
             throw new IllegalArgumentException("Liveness verification failed");
         }
 
         float[] candidate = toFloatArray(embedding);
-        float[] enrolled = loadFaceVector(studentId)
+        float[] enrolled = loadFaceVector(studentId, tenantId)
             .orElseThrow(() -> new IllegalArgumentException("No registered face found for this student"));
 
         double similarity = cosineSimilarity(candidate, enrolled);
@@ -68,8 +147,16 @@ public class FaceVerificationService {
         return faceDataRepository.findByStudentId(studentId);
     }
 
+    public Optional<FaceData> getFaceData(String studentId, Long tenantId) {
+        return faceDataRepository.findByStudentIdAndTenantId(studentId, normalizeTenantId(tenantId));
+    }
+
     public boolean hasRegisteredFace(String studentId) {
         return faceDataRepository.existsByStudentId(studentId);
+    }
+
+    public boolean hasRegisteredFace(String studentId, Long tenantId) {
+        return faceDataRepository.existsByStudentIdAndTenantId(studentId, normalizeTenantId(tenantId));
     }
 
     public double cosineSimilarity(float[] a, float[] b) {
@@ -94,25 +181,30 @@ public class FaceVerificationService {
         return dot / (Math.sqrt(normA) * Math.sqrt(normB));
     }
 
-    private Optional<float[]> loadFaceVector(String studentId) {
-        float[] cached = faceCache.get(studentId);
+    private Optional<float[]> loadFaceVector(String studentId, Long tenantId) {
+        String key = cacheKey(studentId, tenantId);
+        float[] cached = faceCache.get(key);
         if (cached != null) {
             return Optional.of(cached);
         }
 
-        return faceDataRepository.findByStudentId(studentId).map(data -> {
-            float[] vector = deserialize(data.getEmbeddingVector());
-            faceCache.put(studentId, vector);
+        return faceDataRepository.findByStudentIdAndTenantId(studentId, normalizeTenantId(tenantId)).map(data -> {
+            float[] vector;
+            if (data.getEncryptedEmbedding() != null && !data.getEncryptedEmbedding().isBlank()) {
+                vector = embeddingCryptoService.decryptEmbedding(data.getEncryptedEmbedding());
+            } else {
+                byte[] stored = data.getEmbeddingVector();
+                String maybeEncrypted = stored == null ? "" : new String(stored, StandardCharsets.UTF_8);
+                if (maybeEncrypted.startsWith("v1:")) {
+                    vector = embeddingCryptoService.decryptEmbedding(maybeEncrypted);
+                } else {
+                    vector = deserialize(data.getEmbeddingVector());
+                }
+            }
+
+            faceCache.put(key, vector);
             return vector;
         });
-    }
-
-    private byte[] serialize(float[] vector) {
-        ByteBuffer buffer = ByteBuffer.allocate(vector.length * Float.BYTES);
-        for (float value : vector) {
-            buffer.putFloat(value);
-        }
-        return buffer.array();
     }
 
     private float[] deserialize(byte[] bytes) {
@@ -128,6 +220,10 @@ public class FaceVerificationService {
         if (embedding == null || embedding.isEmpty()) {
             throw new IllegalArgumentException("Face embedding is required");
         }
+
+        if (embedding.size() < 128) {
+            throw new IllegalArgumentException("Embedding vector is too small for secure verification");
+        }
     }
 
     private float[] toFloatArray(List<Double> embedding) {
@@ -136,6 +232,45 @@ public class FaceVerificationService {
             vector[index] = embedding.get(index).floatValue();
         }
         return vector;
+    }
+
+    private boolean isAntiSpoofSignalValid(Boolean livenessVerified,
+                                           String livenessPrompt,
+                                           Boolean blinkDetected,
+                                           Boolean headMovementDetected,
+                                           Integer frameCount) {
+        if (!Boolean.TRUE.equals(livenessVerified)) {
+            return false;
+        }
+
+        boolean telemetryProvided = blinkDetected != null || headMovementDetected != null || frameCount != null;
+
+        if (telemetryProvided) {
+            if (!Boolean.TRUE.equals(blinkDetected) || !Boolean.TRUE.equals(headMovementDetected)) {
+                return false;
+            }
+
+            if (frameCount == null || frameCount < 3) {
+                return false;
+            }
+        }
+
+        if (livenessPrompt == null || livenessPrompt.isBlank()) {
+            return false;
+        }
+
+        String normalizedPrompt = livenessPrompt.toLowerCase();
+        return normalizedPrompt.contains("blink") ||
+            normalizedPrompt.contains("turn") ||
+            normalizedPrompt.contains("move");
+    }
+
+    private Long normalizeTenantId(Long tenantId) {
+        return tenantId == null || tenantId <= 0 ? 1L : tenantId;
+    }
+
+    private String cacheKey(String studentId, Long tenantId) {
+        return normalizeTenantId(tenantId) + ":" + studentId;
     }
 
     public static class FaceVerificationResult {

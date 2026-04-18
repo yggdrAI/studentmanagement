@@ -10,4 +10,6 @@ import java.util.Optional;
 public interface FaceDataRepository extends JpaRepository<FaceData, Long> {
     Optional<FaceData> findByStudentId(String studentId);
     boolean existsByStudentId(String studentId);
+    Optional<FaceData> findByStudentIdAndTenantId(String studentId, Long tenantId);
+    boolean existsByStudentIdAndTenantId(String studentId, Long tenantId);
 }

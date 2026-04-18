@@ -219,6 +219,10 @@ body {
     margin: 12px 0 16px;
 }
 
+#tenantSelector {
+    min-width: 170px;
+}
+
 .table-wrap {
     border-radius: 12px;
     overflow: auto;
@@ -315,6 +319,25 @@ body {
     gap: 8px;
 }
 
+.face-upload-state {
+    margin-top: 8px;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    color: var(--text-secondary);
+}
+
+.face-upload-state.ok {
+    color: #22c55e;
+}
+
+.face-upload-state.error {
+    color: #f87171;
+}
+
+.face-upload-state.pending {
+    color: #facc15;
+}
+
 .row-icon-btn {
     width: 32px;
     height: 32px;
@@ -380,6 +403,39 @@ body {
 .modal {
     width: min(520px, 100%);
     padding: 20px;
+}
+
+.face-crop-wrap {
+    margin-top: 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    justify-content: center;
+    background: color-mix(in srgb, var(--card-bg) 70%, transparent);
+}
+
+#faceCropCanvas {
+    width: min(320px, 100%);
+    height: auto;
+    border-radius: 8px;
+    background: rgba(2, 6, 23, 0.8);
+    cursor: grab;
+}
+
+#faceCropCanvas.dragging {
+    cursor: grabbing;
+}
+
+.face-crop-controls {
+    margin-top: 12px;
+    display: grid;
+    gap: 8px;
+}
+
+.face-crop-controls label {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
 }
 
 .toast-stack {

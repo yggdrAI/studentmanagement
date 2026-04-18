@@ -27,6 +27,9 @@ public class User implements Serializable {
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    @Column(name = "tenant_id", nullable = false)
+    private Long tenantId = 1L;
+
     public User() {}
 
     public Long getId() { return id; }
@@ -37,4 +40,6 @@ public class User implements Serializable {
     public void setPassword(String password) { this.password = password; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
+    public Long getTenantId() { return tenantId; }
+    public void setTenantId(Long tenantId) { this.tenantId = tenantId; }
 }

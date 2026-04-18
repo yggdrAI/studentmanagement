@@ -88,13 +88,18 @@
     async function request(url, options) {
         const requestOptions = options || {};
         const headers = { Accept: 'application/json', ...(requestOptions.headers || {}) };
+        const isFormData = typeof FormData !== 'undefined' && requestOptions.body instanceof FormData;
         const token = readAuthToken();
 
         if (!headers.Authorization && token) {
             headers.Authorization = 'Bearer ' + token;
         }
 
-        if (requestOptions.body !== undefined && requestOptions.body !== null && !headers['Content-Type']) {
+        if (headers['Content-Type'] === null) {
+            delete headers['Content-Type'];
+        }
+
+        if (requestOptions.body !== undefined && requestOptions.body !== null && !isFormData && !headers['Content-Type']) {
             headers['Content-Type'] = 'application/json';
         }
 
@@ -177,7 +182,27 @@
                 create: (payload) => request('/api/admin/students', { method: 'POST', body: JSON.stringify(payload) }),
                 remove: (id) => request('/api/admin/students/' + encodeURIComponent(id), { method: 'DELETE' }),
                 bulkDelete: (ids) => request('/api/admin/students/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) }),
-                activity: (limit) => request('/api/admin/students/activity?limit=' + encodeURIComponent(limit || 8))
+                activity: (limit) => request('/api/admin/students/activity?limit=' + encodeURIComponent(limit || 8)),
+                uploadFace: (studentId, file, options) => {
+                    var formData = new FormData();
+                    formData.append('studentId', studentId);
+                    formData.append('file', file);
+
+                    if (options && options.tenantId) {
+                        formData.append('tenantId', String(options.tenantId));
+                    }
+                    if (options && options.livenessPrompt) {
+                        formData.append('livenessPrompt', options.livenessPrompt);
+                    }
+                    if (options && options.livenessVerified !== undefined) {
+                        formData.append('livenessVerified', String(Boolean(options.livenessVerified)));
+                    }
+
+                    return request('/api/admin/upload-face', {
+                        method: 'POST',
+                        body: formData
+                    });
+                }
             }
         },
 

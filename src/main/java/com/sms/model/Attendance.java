@@ -12,14 +12,14 @@ import java.time.LocalTime;
 @Table(name = "attendance", 
     uniqueConstraints = {
         @UniqueConstraint(name = "uk_attendance_unique_daily", 
-            columnNames = {"student_id", "subject_id", "attendance_date"})
+            columnNames = {"student_id", "subject_id", "attendance_date", "tenant_id"})
     },
     indexes = {
-        @Index(name = "idx_student_subject_date", columnList = "student_id,subject_id,attendance_date"),
-        @Index(name = "idx_subject_date", columnList = "subject_id,attendance_date"),
-        @Index(name = "idx_student_date", columnList = "student_id,attendance_date"),
+        @Index(name = "idx_student_subject_date", columnList = "tenant_id,student_id,subject_id,attendance_date"),
+        @Index(name = "idx_subject_date", columnList = "tenant_id,subject_id,attendance_date"),
+        @Index(name = "idx_student_date", columnList = "tenant_id,student_id,attendance_date"),
         @Index(name = "idx_subject_marking_type", columnList = "subject_id,marking_type"),
-        @Index(name = "idx_attendance_date", columnList = "attendance_date")
+        @Index(name = "idx_attendance_date", columnList = "tenant_id,attendance_date")
     })
 public class Attendance {
 
@@ -71,6 +71,9 @@ public class Attendance {
 
     @Column(name = "campus_location_id")
     private Long campusLocationId; // Which campus location
+
+    @Column(name = "tenant_id", nullable = false)
+    private Long tenantId = 1L;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private java.time.LocalDateTime createdAt;
@@ -223,6 +226,14 @@ public class Attendance {
 
     public void setCampusLocationId(Long campusLocationId) {
         this.campusLocationId = campusLocationId;
+    }
+
+    public Long getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(Long tenantId) {
+        this.tenantId = tenantId;
     }
 
     public java.time.LocalDateTime getCreatedAt() {

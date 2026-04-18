@@ -1,0 +1,17 @@
+# Java
+target/
+out/
+*.class
+
+# Maven
+apache-maven-*/
+
+# Python
+__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+
+# Logs
+*.log

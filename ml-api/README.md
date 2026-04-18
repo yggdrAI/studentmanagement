@@ -134,12 +134,40 @@ Payload:
 }
 ```
 
+## Face embedding API
+
+Endpoint:
+
+```text
+POST /embedding
+```
+
+Request: multipart form data with `file` image.
+
+Response:
+
+```json
+{
+  "embedding": [0.12, -0.44, 0.99],
+  "dimension": 512,
+  "model": "Facenet512"
+}
+```
+
+Notes:
+
+- Uses `DeepFace.represent(..., model_name="Facenet512")`
+- Enforces face detection and returns `422` when no face is found
+- Intended for admin enrollment and verification pipelines that store only encrypted embeddings
+
 ## Java integration
 
 Set in `application.properties`:
 
 ```properties
 app.ml.api.base-url=http://localhost:8000
+app.face.embedding-service-url=http://localhost:8000
+app.face.embedding-encryption-key=<BASE64_32_BYTE_AES_KEY>
 ```
 
 The Java service reads either `health_score` or the legacy `score` field, so the API stays backward compatible.
@@ -147,3 +175,22 @@ The Java service reads either `health_score` or the legacy `score` field, so the
 ## Continuous learning
 
 Append production logs to `diet_dataset.csv` and rerun `train_model.py` on a schedule.
+
+## Docker scaling examples (face embedding replicas)
+
+Base services:
+
+```bash
+docker compose -f ../docker-compose.yml up -d
+```
+
+Scale face-embedding with edge proxy profile enabled:
+
+```bash
+docker compose -f ../docker-compose.yml -f ../docker-compose.scale.yml --profile edge up -d --scale face-embedding=3
+```
+
+Edge route policy example:
+
+- `http://localhost:8088/embedding` -> reverse-proxied to face-embedding replicas
+- `http://localhost:8088/health` -> health probe through nginx to embedding service

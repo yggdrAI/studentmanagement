@@ -6,6 +6,7 @@
         size: 20,
         search: "",
         course: "",
+        tenantId: "",
         sortBy: "id",
         sortDir: "asc",
         totalPages: 0,
@@ -21,13 +22,17 @@
             semester: "",
             phone: "",
             email: ""
-        }
+        },
+        faceUploadStatus: {},
+        pendingFaceStudentId: null,
+        faceCropDraft: null
     };
 
     const refs = {
         gridBody: document.getElementById("gridBody"),
         search: document.getElementById("studentSearch"),
         courseFilter: document.getElementById("courseFilter"),
+        tenantSelector: document.getElementById("tenantSelector"),
         pageLabel: document.getElementById("pageLabel"),
         totalLabel: document.getElementById("totalLabel"),
         prevPageBtn: document.getElementById("prevPageBtn"),
@@ -48,6 +53,12 @@
         commandPalette: document.getElementById("commandPalette"),
         commandInput: document.getElementById("commandInput"),
         commandList: document.getElementById("commandList"),
+        facePreviewModal: document.getElementById("facePreviewModal"),
+        faceCropCanvas: document.getElementById("faceCropCanvas"),
+        faceZoomRange: document.getElementById("faceZoomRange"),
+        confirmFacePreviewBtn: document.getElementById("confirmFacePreviewBtn"),
+        cancelFacePreviewBtn: document.getElementById("cancelFacePreviewBtn"),
+        faceUploadInput: document.getElementById("faceUploadInput"),
         sidebar: document.getElementById("sidebar"),
         sidebarToggle: document.getElementById("sidebarToggle"),
         topSearch: document.getElementById("globalSearch"),
@@ -84,6 +95,10 @@
             state.course = event.target.value;
             state.page = 0;
             fetchStudents();
+        });
+
+        refs.tenantSelector?.addEventListener("change", (event) => {
+            state.tenantId = event.target.value || "";
         });
 
         refs.prevPageBtn?.addEventListener("click", () => {
@@ -185,6 +200,29 @@
 
         refs.sidebarToggle?.addEventListener("click", toggleSidebar);
         refs.topSearch?.addEventListener("focus", openCommandPalette);
+
+        refs.cancelFacePreviewBtn?.addEventListener("click", closeFacePreviewModal);
+        refs.confirmFacePreviewBtn?.addEventListener("click", confirmFaceUpload);
+        refs.faceZoomRange?.addEventListener("input", () => {
+            if (!state.faceCropDraft) {
+                return;
+            }
+            state.faceCropDraft.zoom = Number(refs.faceZoomRange.value || 1);
+            drawFaceCropPreview();
+        });
+
+        bindFaceCanvasDragEvents();
+
+        refs.faceUploadInput?.addEventListener("change", async (event) => {
+            const selectedFile = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+            if (!selectedFile || !state.pendingFaceStudentId) {
+                return;
+            }
+
+            const studentId = state.pendingFaceStudentId;
+            event.target.value = "";
+            await prepareFacePreview(studentId, selectedFile);
+        });
     }
 
     async function fetchStudents() {
@@ -260,12 +298,18 @@
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
                                 </button>
                             </span>
+                            <span class="tooltip-wrap" data-tip="Upload and register student face">
+                                <button class="row-icon-btn" aria-label="Upload face for ${escapeHtml(item.name)}" data-upload-face="${escapeHtml(item.id)}">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.5"></circle><path d="M4 20c1.8-3.5 5-5 8-5s6.2 1.5 8 5"></path></svg>
+                                </button>
+                            </span>
                             <span class="tooltip-wrap" data-tip="Delete student">
                                 <button class="row-icon-btn danger" aria-label="Delete ${escapeHtml(item.name)}" data-delete="${escapeHtml(item.id)}">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
                                 </button>
                             </span>
                         </div>
+                        <div class="face-upload-state ${statusClass(state.faceUploadStatus[item.id])}">${escapeHtml(statusLabel(state.faceUploadStatus[item.id]))}</div>
                     </td>
                 </tr>
             `;
@@ -294,6 +338,19 @@
                 button.addEventListener("click", () => {
                     const id = button.getAttribute("data-edit");
                     window.location.href = `/admin/students/${id}/profile`;
+                });
+            });
+
+        Array.from(document.querySelectorAll("[data-upload-face]"))
+            .forEach((button) => {
+                button.addEventListener("click", () => {
+                    const studentId = button.getAttribute("data-upload-face");
+                    if (!studentId) {
+                        return;
+                    }
+
+                    state.pendingFaceStudentId = studentId;
+                    refs.faceUploadInput?.click();
                 });
             });
     }
@@ -534,6 +591,201 @@
         window.setTimeout(() => {
             node.remove();
         }, 2800);
+    }
+
+    async function uploadFaceForStudent(studentId, file) {
+        state.faceUploadStatus[studentId] = { type: "pending", message: "Uploading..." };
+        renderGrid();
+
+        try {
+            const tenantId = state.tenantId ? Number(state.tenantId) : null;
+            const response = await window.smsApi.admin.students.uploadFace(studentId, file, {
+                tenantId,
+                livenessPrompt: "blink-and-turn",
+                livenessVerified: true
+            });
+            const message = response && response.message ? response.message : "Face registered";
+            state.faceUploadStatus[studentId] = { type: "ok", message };
+            toast(`Face registered for ${studentId}`, "success");
+        } catch (error) {
+            const message = error && error.message ? error.message : "Face upload failed";
+            state.faceUploadStatus[studentId] = { type: "error", message };
+            toast(message, "error");
+        }
+
+        renderGrid();
+    }
+
+    function statusLabel(status) {
+        if (!status || !status.message) {
+            return "No face uploaded";
+        }
+        return status.message;
+    }
+
+    function statusClass(status) {
+        if (!status || !status.type) {
+            return "muted";
+        }
+        if (status.type === "ok") {
+            return "ok";
+        }
+        if (status.type === "error") {
+            return "error";
+        }
+        return "pending";
+    }
+
+    async function prepareFacePreview(studentId, file) {
+        try {
+            const image = await fileToImage(file);
+            state.faceCropDraft = {
+                studentId,
+                originalFileName: file.name,
+                image,
+                zoom: 1,
+                offsetX: 0,
+                offsetY: 0,
+                dragging: false,
+                dragStartX: 0,
+                dragStartY: 0
+            };
+            refs.faceZoomRange.value = "1";
+            openFacePreviewModal();
+            drawFaceCropPreview();
+        } catch (_error) {
+            state.pendingFaceStudentId = null;
+            toast("Unable to open selected image for preview", "error");
+        }
+    }
+
+    function openFacePreviewModal() {
+        refs.facePreviewModal?.classList.add("open");
+    }
+
+    function closeFacePreviewModal() {
+        refs.facePreviewModal?.classList.remove("open");
+        state.faceCropDraft = null;
+        state.pendingFaceStudentId = null;
+    }
+
+    function drawFaceCropPreview() {
+        if (!state.faceCropDraft || !refs.faceCropCanvas) {
+            return;
+        }
+
+        const canvas = refs.faceCropCanvas;
+        const ctx = canvas.getContext("2d");
+        const image = state.faceCropDraft.image;
+        if (!ctx || !image) {
+            return;
+        }
+
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+        const baseScale = Math.max(canvasWidth / image.width, canvasHeight / image.height);
+        const zoom = state.faceCropDraft.zoom || 1;
+        const drawWidth = image.width * baseScale * zoom;
+        const drawHeight = image.height * baseScale * zoom;
+
+        const x = (canvasWidth - drawWidth) / 2 + state.faceCropDraft.offsetX;
+        const y = (canvasHeight - drawHeight) / 2 + state.faceCropDraft.offsetY;
+
+        ctx.drawImage(image, x, y, drawWidth, drawHeight);
+
+        ctx.strokeStyle = "rgba(255,255,255,0.9)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(1, 1, canvasWidth - 2, canvasHeight - 2);
+    }
+
+    function bindFaceCanvasDragEvents() {
+        const canvas = refs.faceCropCanvas;
+        if (!canvas) {
+            return;
+        }
+
+        canvas.addEventListener("pointerdown", (event) => {
+            if (!state.faceCropDraft) {
+                return;
+            }
+            state.faceCropDraft.dragging = true;
+            state.faceCropDraft.dragStartX = event.clientX;
+            state.faceCropDraft.dragStartY = event.clientY;
+            canvas.classList.add("dragging");
+            canvas.setPointerCapture(event.pointerId);
+        });
+
+        canvas.addEventListener("pointermove", (event) => {
+            if (!state.faceCropDraft || !state.faceCropDraft.dragging) {
+                return;
+            }
+
+            const deltaX = event.clientX - state.faceCropDraft.dragStartX;
+            const deltaY = event.clientY - state.faceCropDraft.dragStartY;
+            state.faceCropDraft.dragStartX = event.clientX;
+            state.faceCropDraft.dragStartY = event.clientY;
+            state.faceCropDraft.offsetX += deltaX;
+            state.faceCropDraft.offsetY += deltaY;
+            drawFaceCropPreview();
+        });
+
+        const stopDrag = (event) => {
+            if (!state.faceCropDraft) {
+                return;
+            }
+            state.faceCropDraft.dragging = false;
+            canvas.classList.remove("dragging");
+            try {
+                canvas.releasePointerCapture(event.pointerId);
+            } catch (_error) {
+                // ignore pointer release errors
+            }
+        };
+
+        canvas.addEventListener("pointerup", stopDrag);
+        canvas.addEventListener("pointercancel", stopDrag);
+    }
+
+    async function confirmFaceUpload() {
+        if (!state.faceCropDraft || !refs.faceCropCanvas) {
+            return;
+        }
+
+        const studentId = state.faceCropDraft.studentId;
+        const blob = await canvasToBlob(refs.faceCropCanvas, "image/jpeg", 0.92);
+        if (!blob) {
+            toast("Unable to generate cropped image", "error");
+            return;
+        }
+
+        const croppedFile = new File([blob], state.faceCropDraft.originalFileName || "face-crop.jpg", {
+            type: "image/jpeg"
+        });
+
+        closeFacePreviewModal();
+        await uploadFaceForStudent(studentId, croppedFile);
+    }
+
+    function fileToImage(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = () => reject(new Error("Invalid image"));
+                image.src = String(reader.result || "");
+            };
+            reader.onerror = () => reject(new Error("File read failed"));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function canvasToBlob(canvas, mimeType, quality) {
+        return new Promise((resolve) => {
+            canvas.toBlob((blob) => resolve(blob), mimeType, quality);
+        });
     }
 
     async function extractError(response, fallback) {

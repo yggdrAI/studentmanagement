@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Dict
+import tempfile
+import os
 
 import joblib
 import numpy as np
-from fastapi import FastAPI
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 try:
@@ -28,6 +30,11 @@ try:
     from statsmodels.tsa.arima.model import ARIMA
 except Exception:  # pragma: no cover - optional dependency at runtime
     ARIMA = None
+
+try:
+    from deepface import DeepFace
+except Exception:  # pragma: no cover - optional dependency at runtime
+    DeepFace = None
 
 
 ROOT = Path(__file__).resolve().parent
@@ -341,6 +348,45 @@ def health() -> Dict[str, Any]:
         "models_loaded": bool(reg_model and clf_model),
         "features": FEATURES,
     }
+
+
+@app.post("/embedding")
+async def embedding(file: UploadFile = File(...)) -> Dict[str, Any]:
+    if DeepFace is None:
+        raise HTTPException(status_code=503, detail="DeepFace is not installed in the ML service")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded image is empty")
+
+    suffix = Path(file.filename or "face.jpg").suffix or ".jpg"
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp:
+            temp.write(content)
+            temp_path = temp.name
+
+        embedding_result = DeepFace.represent(
+            img_path=temp_path,
+            model_name="Facenet512",
+            enforce_detection=True,
+        )
+
+        if not embedding_result:
+            raise HTTPException(status_code=422, detail="No face detected in uploaded image")
+
+        vector = embedding_result[0].get("embedding", [])
+        if not vector:
+            raise HTTPException(status_code=422, detail="Embedding extraction failed")
+
+        return {
+            "embedding": vector,
+            "dimension": len(vector),
+            "model": "Facenet512",
+        }
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.unlink(temp_path)
 
 
 @app.post("/predict")

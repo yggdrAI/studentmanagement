@@ -9,6 +9,9 @@ public class FaceRegistrationRequest {
     private List<Double> faceEmbedding;
     private Boolean livenessVerified;
     private String livenessPrompt;
+    private Boolean blinkDetected;
+    private Boolean headMovementDetected;
+    private Integer frameCount;
 
     public List<Double> getFaceEmbedding() {
         return faceEmbedding;
@@ -32,5 +35,29 @@ public class FaceRegistrationRequest {
 
     public void setLivenessPrompt(String livenessPrompt) {
         this.livenessPrompt = livenessPrompt;
+    }
+
+    public Boolean getBlinkDetected() {
+        return blinkDetected;
+    }
+
+    public void setBlinkDetected(Boolean blinkDetected) {
+        this.blinkDetected = blinkDetected;
+    }
+
+    public Boolean getHeadMovementDetected() {
+        return headMovementDetected;
+    }
+
+    public void setHeadMovementDetected(Boolean headMovementDetected) {
+        this.headMovementDetected = headMovementDetected;
+    }
+
+    public Integer getFrameCount() {
+        return frameCount;
+    }
+
+    public void setFrameCount(Integer frameCount) {
+        this.frameCount = frameCount;
     }
 }

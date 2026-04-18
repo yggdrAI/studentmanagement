@@ -28,6 +28,15 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         @Param("date") LocalDate date
     );
 
+    @Query("SELECT COUNT(a) > 0 FROM Attendance a WHERE a.studentId = :studentId " +
+           "AND a.subjectId = :subjectId AND a.attendanceDate = :date AND a.tenantId = :tenantId")
+    boolean existsByStudentAndSubjectAndDateAndTenantId(
+        @Param("studentId") String studentId,
+        @Param("subjectId") Long subjectId,
+        @Param("date") LocalDate date,
+        @Param("tenantId") Long tenantId
+    );
+
     /**
      * Get attendance record for a student on a specific date and subject
      */
@@ -42,6 +51,10 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         String studentId, Long subjectId
     );
 
+    List<Attendance> findByStudentIdAndSubjectIdAndTenantIdOrderByAttendanceDateDesc(
+        String studentId, Long subjectId, Long tenantId
+    );
+
     /**
      * Get attendance records for a subject on a specific date
      */
@@ -52,6 +65,14 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         @Param("date") LocalDate date
     );
 
+    @Query("SELECT a FROM Attendance a WHERE a.subjectId = :subjectId " +
+           "AND a.attendanceDate = :date AND a.tenantId = :tenantId ORDER BY a.markedTime ASC")
+    List<Attendance> findBySubjectAndDateAndTenantId(
+        @Param("subjectId") Long subjectId,
+        @Param("date") LocalDate date,
+        @Param("tenantId") Long tenantId
+    );
+
     /**
      * Count students present for a subject on a date
      */
@@ -60,6 +81,14 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     Long countPresentBySubjectAndDate(
         @Param("subjectId") Long subjectId,
         @Param("date") LocalDate date
+    );
+
+    @Query("SELECT COUNT(DISTINCT a.studentId) FROM Attendance a WHERE a.subjectId = :subjectId " +
+           "AND a.attendanceDate = :date AND a.status = 'PRESENT' AND a.tenantId = :tenantId")
+    Long countPresentBySubjectAndDateAndTenantId(
+        @Param("subjectId") Long subjectId,
+        @Param("date") LocalDate date,
+        @Param("tenantId") Long tenantId
     );
 
     /**
@@ -75,6 +104,17 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         @Param("endDate") LocalDate endDate
     );
 
+    @Query("SELECT a FROM Attendance a WHERE a.studentId = :studentId " +
+           "AND a.subjectId = :subjectId AND a.attendanceDate BETWEEN :startDate AND :endDate " +
+           "AND a.tenantId = :tenantId ORDER BY a.attendanceDate ASC")
+    List<Attendance> findAttendanceRangeByTenant(
+        @Param("studentId") String studentId,
+        @Param("subjectId") Long subjectId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate,
+        @Param("tenantId") Long tenantId
+    );
+
     /**
      * Get attendance statistics - present count
      */
@@ -85,11 +125,23 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         @Param("subjectId") Long subjectId
     );
 
+    @Query("SELECT COUNT(a) FROM Attendance a WHERE a.studentId = :studentId " +
+           "AND a.subjectId = :subjectId AND a.status = 'PRESENT' AND a.tenantId = :tenantId")
+    Long countPresentByTenant(
+        @Param("studentId") String studentId,
+        @Param("subjectId") Long subjectId,
+        @Param("tenantId") Long tenantId
+    );
+
     /**
      * Get all attendance for a teacher's subject
      */
     List<Attendance> findByTeacherIdAndSubjectIdOrderByAttendanceDateDesc(
         Long teacherId, Long subjectId
+    );
+
+    List<Attendance> findByTeacherIdAndSubjectIdAndTenantIdOrderByAttendanceDateDesc(
+        Long teacherId, Long subjectId, Long tenantId
     );
 
     /**
@@ -101,5 +153,14 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         @Param("tokenHash") String tokenHash,
         @Param("studentId") String studentId,
         @Param("date") LocalDate date
+    );
+
+    @Query("SELECT COUNT(a) > 0 FROM Attendance a WHERE a.qrTokenUsed = :tokenHash " +
+           "AND a.studentId = :studentId AND a.attendanceDate = :date AND a.tenantId = :tenantId")
+    boolean existsByTokenHashAndStudentAndDateAndTenantId(
+        @Param("tokenHash") String tokenHash,
+        @Param("studentId") String studentId,
+        @Param("date") LocalDate date,
+        @Param("tenantId") Long tenantId
     );
 }

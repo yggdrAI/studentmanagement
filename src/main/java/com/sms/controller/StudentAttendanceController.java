@@ -76,6 +76,7 @@ public class StudentAttendanceController {
             @RequestHeader(value = "User-Agent", required = false) String userAgent) {
         try {
             String studentId = auth.getName();
+            Long tenantId = resolveTenantId(httpRequest);
 
             // ✅ STEP 1: Validate QR token
             AttendanceQRTokenService.AttendanceTokenClaims claims;
@@ -122,9 +123,13 @@ public class StudentAttendanceController {
             try {
                 faceResult = faceVerificationService.verifyFace(
                     studentId,
+                    tenantId,
                     markRequest.getFaceEmbedding(),
                     markRequest.getLivenessVerified(),
-                    markRequest.getLivenessPrompt()
+                    markRequest.getLivenessPrompt(),
+                    markRequest.getBlinkDetected(),
+                    markRequest.getHeadMovementDetected(),
+                    markRequest.getFrameCount()
                 );
             } catch (RuntimeException faceError) {
                 antiCheatingService.logViolation(
@@ -356,7 +361,8 @@ public class StudentAttendanceController {
                     true,
                     deviceFingerprint,
                     closestLocation.getId(),
-                    tokenHash
+                    tokenHash,
+                    tenantId
                 );
 
                 fraudDetectionService.recordDecision(
@@ -423,14 +429,20 @@ public class StudentAttendanceController {
     @PostMapping("/register-face")
     public ResponseEntity<Map<String, Object>> registerFace(
             @RequestBody FaceRegistrationRequest request,
-            Authentication auth) {
+            Authentication auth,
+            HttpServletRequest httpRequest) {
         try {
             String studentId = auth.getName();
+            Long tenantId = resolveTenantId(httpRequest);
             FaceVerificationService.FaceVerificationResult result = faceVerificationService.registerFace(
                 studentId,
+                tenantId,
                 request.getFaceEmbedding(),
                 request.getLivenessVerified(),
-                request.getLivenessPrompt()
+                request.getLivenessPrompt(),
+                request.getBlinkDetected(),
+                request.getHeadMovementDetected(),
+                request.getFrameCount()
             );
 
             Map<String, Object> response = new HashMap<>();
@@ -447,11 +459,13 @@ public class StudentAttendanceController {
     }
 
     @GetMapping("/face-status")
-    public ResponseEntity<Map<String, Object>> faceStatus(Authentication auth) {
+    public ResponseEntity<Map<String, Object>> faceStatus(Authentication auth, HttpServletRequest request) {
         String studentId = auth.getName();
-        boolean registered = faceVerificationService.hasRegisteredFace(studentId);
+        Long tenantId = resolveTenantId(request);
+        boolean registered = faceVerificationService.hasRegisteredFace(studentId, tenantId);
         Map<String, Object> response = new HashMap<>();
         response.put("studentId", studentId);
+        response.put("tenantId", tenantId);
         response.put("registered", registered);
         response.put("message", registered ? "Face registered" : "Face not registered");
         return ResponseEntity.ok(response);
@@ -471,6 +485,23 @@ public class StudentAttendanceController {
         return request.getRemoteAddr();
     }
 
+    private Long resolveTenantId(HttpServletRequest request) {
+        Object tenantAttr = request.getAttribute("tenantId");
+        if (tenantAttr instanceof Number number) {
+            return number.longValue();
+        }
+
+        String tenantHeader = request.getHeader("X-Tenant-Id");
+        if (tenantHeader != null && !tenantHeader.isBlank()) {
+            try {
+                return Long.parseLong(tenantHeader);
+            } catch (NumberFormatException ignored) {
+                return 1L;
+            }
+        }
+        return 1L;
+    }
+
     /**
      * Get student's attendance record for a subject
      * 
@@ -479,12 +510,14 @@ public class StudentAttendanceController {
     @GetMapping("/my-records")
     public ResponseEntity<Map<String, Object>> getMyAttendance(
             @RequestParam Long subjectId,
-            Authentication auth) {
+            Authentication auth,
+            HttpServletRequest request) {
         try {
             String studentId = auth.getName();
+            Long tenantId = resolveTenantId(request);
             
-            List<Attendance> records = attendanceService.getStudentAttendance(studentId, subjectId);
-            Double percentage = attendanceService.calculateAttendancePercentage(studentId, subjectId);
+            List<Attendance> records = attendanceService.getStudentAttendance(studentId, subjectId, tenantId);
+            Double percentage = attendanceService.calculateAttendancePercentage(studentId, subjectId, tenantId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("subjectId", subjectId);
@@ -522,15 +555,17 @@ public class StudentAttendanceController {
     @GetMapping("/check-today")
     public ResponseEntity<Map<String, Object>> checkTodayAttendance(
             @RequestParam Long subjectId,
-            Authentication auth) {
+            Authentication auth,
+            HttpServletRequest request) {
         try {
             String studentId = auth.getName();
+            Long tenantId = resolveTenantId(request);
             LocalDate today = LocalDate.now();
 
             boolean alreadyMarked = false;
             String status = "PENDING";
             
-            var existing = attendanceService.getAttendanceForDate(subjectId, today)
+            var existing = attendanceService.getAttendanceForDate(subjectId, today, tenantId)
                 .stream()
                 .filter(a -> a.getStudentId().equals(studentId))
                 .findFirst();
@@ -613,11 +648,13 @@ public class StudentAttendanceController {
 
     @GetMapping("/metrics")
     public ResponseEntity<Map<String, Object>> getAttendanceMetrics(@RequestParam Long subjectId,
-                                                                     Authentication auth) {
+                                         Authentication auth,
+                                         HttpServletRequest request) {
         try {
             String studentId = auth.getName();
+            Long tenantId = resolveTenantId(request);
             AttendanceService.WeightedAttendanceMetrics metrics =
-                    attendanceService.getWeightedAttendanceMetrics(studentId, subjectId);
+                attendanceService.getWeightedAttendanceMetrics(studentId, subjectId, tenantId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("subjectId", subjectId);

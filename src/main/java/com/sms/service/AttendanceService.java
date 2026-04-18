@@ -35,7 +35,7 @@ public class AttendanceService {
                                     String status, String markingType, String deviceInfo,
                                     String ipAddress, String tokenHash) throws Exception {
         return markAttendance(studentId, subjectId, teacherId, status, markingType, deviceInfo, ipAddress,
-            null, null, false, null, null, tokenHash);
+            null, null, false, null, null, tokenHash, 1L);
         }
 
         /**
@@ -47,17 +47,29 @@ public class AttendanceService {
                         String ipAddress, Double studentLatitude, Double studentLongitude,
                         Boolean locationVerified, String deviceId, Long campusLocationId,
                         String tokenHash) throws Exception {
+        return markAttendance(studentId, subjectId, teacherId, status, markingType, deviceInfo,
+            ipAddress, studentLatitude, studentLongitude, locationVerified, deviceId, campusLocationId,
+            tokenHash, 1L);
+    }
+
+    @Transactional
+    public Attendance markAttendance(String studentId, Long subjectId, Long teacherId,
+                                     String status, String markingType, String deviceInfo,
+                                     String ipAddress, Double studentLatitude, Double studentLongitude,
+                                     Boolean locationVerified, String deviceId, Long campusLocationId,
+                                     String tokenHash, Long tenantId) throws Exception {
         
         LocalDate today = LocalDate.now();
+        Long normalizedTenantId = normalizeTenantId(tenantId);
 
         // ✅ Check 1: Duplicate attendance check
-        if (attendanceRepository.existsByStudentAndSubjectAndDate(studentId, subjectId, today)) {
+        if (attendanceRepository.existsByStudentAndSubjectAndDateAndTenantId(studentId, subjectId, today, normalizedTenantId)) {
             throw new RuntimeException("Attendance already marked for today");
         }
 
         // ✅ Check 2: Prevent reuse of same token on same day
         if (tokenHash != null) {
-            if (attendanceRepository.existsByTokenHashAndStudentAndDate(tokenHash, studentId, today)) {
+            if (attendanceRepository.existsByTokenHashAndStudentAndDateAndTenantId(tokenHash, studentId, today, normalizedTenantId)) {
                 throw new RuntimeException("QR token already used");
             }
         }
@@ -80,6 +92,7 @@ public class AttendanceService {
         attendance.setDeviceId(deviceId);
         attendance.setCampusLocationId(campusLocationId);
         attendance.setQrTokenUsed(tokenHash);
+        attendance.setTenantId(normalizedTenantId);
 
         Attendance saved = attendanceRepository.save(attendance);
         analyticsRealtimeNotifier.notifyAttendanceEvent(studentId, status);
@@ -93,12 +106,19 @@ public class AttendanceService {
     @Transactional
     public void markManualAttendance(Long subjectId, Long teacherId, LocalDate date,
                                     List<ManualAttendanceRecord> records) throws Exception {
+        markManualAttendance(subjectId, teacherId, date, records, 1L);
+    }
+
+    @Transactional
+    public void markManualAttendance(Long subjectId, Long teacherId, LocalDate date,
+                                    List<ManualAttendanceRecord> records, Long tenantId) throws Exception {
+        Long normalizedTenantId = normalizeTenantId(tenantId);
         
         for (ManualAttendanceRecord record : records) {
             try {
                 // Check if already marked
-                if (!attendanceRepository.existsByStudentAndSubjectAndDate(
-                    record.getStudentId(), subjectId, date)) {
+                if (!attendanceRepository.existsByStudentAndSubjectAndDateAndTenantId(
+                    record.getStudentId(), subjectId, date, normalizedTenantId)) {
                     
                     Attendance attendance = new Attendance(
                         record.getStudentId(),
@@ -108,6 +128,7 @@ public class AttendanceService {
                         record.getStatus(),
                         "MANUAL"
                     );
+                    attendance.setTenantId(normalizedTenantId);
                     
                     Attendance saved = attendanceRepository.save(attendance);
                     analyticsRealtimeNotifier.notifyAttendanceEvent(saved.getStudentId(), saved.getStatus());
@@ -123,22 +144,38 @@ public class AttendanceService {
      * Get student attendance for a subject
      */
     public List<Attendance> getStudentAttendance(String studentId, Long subjectId) {
-        return attendanceRepository.findByStudentIdAndSubjectIdOrderByAttendanceDateDesc(studentId, subjectId);
+        return getStudentAttendance(studentId, subjectId, 1L);
+    }
+
+    public List<Attendance> getStudentAttendance(String studentId, Long subjectId, Long tenantId) {
+        return attendanceRepository.findByStudentIdAndSubjectIdAndTenantIdOrderByAttendanceDateDesc(
+            studentId,
+            subjectId,
+            normalizeTenantId(tenantId)
+        );
     }
 
     /**
      * Get attendance for a specific date
      */
     public List<Attendance> getAttendanceForDate(Long subjectId, LocalDate date) {
-        return attendanceRepository.findBySubjectAndDate(subjectId, date);
+        return getAttendanceForDate(subjectId, date, 1L);
+    }
+
+    public List<Attendance> getAttendanceForDate(Long subjectId, LocalDate date, Long tenantId) {
+        return attendanceRepository.findBySubjectAndDateAndTenantId(subjectId, date, normalizeTenantId(tenantId));
     }
 
     /**
      * Calculate attendance percentage for student
      */
     public Double calculateAttendancePercentage(String studentId, Long subjectId) {
+        return calculateAttendancePercentage(studentId, subjectId, 1L);
+    }
+
+    public Double calculateAttendancePercentage(String studentId, Long subjectId, Long tenantId) {
         List<Attendance> records = attendanceRepository
-            .findByStudentIdAndSubjectIdOrderByAttendanceDateDesc(studentId, subjectId);
+            .findByStudentIdAndSubjectIdAndTenantIdOrderByAttendanceDateDesc(studentId, subjectId, normalizeTenantId(tenantId));
         
         if (records.isEmpty()) {
             return 0.0;
@@ -155,7 +192,15 @@ public class AttendanceService {
      * Get attendance count for a date
      */
     public AttendanceStats getAttendanceStats(Long subjectId, LocalDate date) {
-        List<Attendance> records = attendanceRepository.findBySubjectAndDate(subjectId, date);
+        return getAttendanceStats(subjectId, date, 1L);
+    }
+
+    public AttendanceStats getAttendanceStats(Long subjectId, LocalDate date, Long tenantId) {
+        List<Attendance> records = attendanceRepository.findBySubjectAndDateAndTenantId(
+            subjectId,
+            date,
+            normalizeTenantId(tenantId)
+        );
         
         long present = records.stream().filter(a -> "PRESENT".equals(a.getStatus())).count();
         long absent = records.stream().filter(a -> "ABSENT".equals(a.getStatus())).count();
@@ -165,8 +210,12 @@ public class AttendanceService {
     }
 
     public WeightedAttendanceMetrics getWeightedAttendanceMetrics(String studentId, Long subjectId) {
+        return getWeightedAttendanceMetrics(studentId, subjectId, 1L);
+    }
+
+    public WeightedAttendanceMetrics getWeightedAttendanceMetrics(String studentId, Long subjectId, Long tenantId) {
         List<Attendance> records = attendanceRepository
-                .findByStudentIdAndSubjectIdOrderByAttendanceDateDesc(studentId, subjectId);
+                .findByStudentIdAndSubjectIdAndTenantIdOrderByAttendanceDateDesc(studentId, subjectId, normalizeTenantId(tenantId));
 
         if (records.isEmpty()) {
             return new WeightedAttendanceMetrics(0.0, 0, 0, 0, 0, true);
@@ -295,5 +344,9 @@ public class AttendanceService {
         public int getAbsentCount() { return absentCount; }
         public int getSuspiciousCount() { return suspiciousCount; }
         public boolean isFaceVerificationEnforced() { return faceVerificationEnforced; }
+    }
+
+    private Long normalizeTenantId(Long tenantId) {
+        return tenantId == null || tenantId <= 0 ? 1L : tenantId;
     }
 }

@@ -1,0 +1,11 @@
+services:
+  # Example: run 3 face-embedding replicas behind nginx edge proxy.
+  # Usage:
+  # docker compose -f docker-compose.yml -f docker-compose.scale.yml --profile edge up -d --scale face-embedding=3
+
+  face-embedding:
+    deploy:
+      replicas: 3
+
+  face-edge:
+    profiles: ["edge"]

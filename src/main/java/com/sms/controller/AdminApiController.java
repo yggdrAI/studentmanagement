@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.sms.dto.dashboard.AssignTeacherRequest;
@@ -35,6 +36,7 @@ import com.sms.model.StudentProfile;
 import com.sms.repository.SecurityAuditRepository;
 import com.sms.repository.StudentProfileRepository;
 import com.sms.service.DashboardService;
+import com.sms.service.FaceVerificationService;
 import com.sms.service.StudentService;
 
 import jakarta.validation.Valid;
@@ -48,15 +50,58 @@ public class AdminApiController {
     private final StudentService studentService;
     private final StudentProfileRepository studentProfileRepository;
     private final SecurityAuditRepository securityAuditRepository;
+    private final FaceVerificationService faceVerificationService;
 
     public AdminApiController(DashboardService dashboardService,
                               StudentService studentService,
                               StudentProfileRepository studentProfileRepository,
-                              SecurityAuditRepository securityAuditRepository) {
+                              SecurityAuditRepository securityAuditRepository,
+                              FaceVerificationService faceVerificationService) {
         this.dashboardService = dashboardService;
         this.studentService = studentService;
         this.studentProfileRepository = studentProfileRepository;
         this.securityAuditRepository = securityAuditRepository;
+        this.faceVerificationService = faceVerificationService;
+    }
+
+    @PostMapping(value = "/upload-face", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, Object>> uploadFace(
+        @RequestParam("file") MultipartFile file,
+        @RequestParam("studentId") String studentId,
+        @RequestParam(name = "tenantId", required = false) Long tenantId,
+        @RequestParam(name = "livenessPrompt", defaultValue = "blink-and-turn") String livenessPrompt,
+        @RequestParam(name = "livenessVerified", defaultValue = "true") Boolean livenessVerified) {
+
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Face image file is required");
+        }
+
+        studentService.findById(studentId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+
+        try {
+            FaceVerificationService.FaceVerificationResult result = faceVerificationService.registerFaceFromImageUpload(
+                studentId,
+                tenantId,
+                file.getBytes(),
+                file.getOriginalFilename(),
+                livenessVerified,
+                livenessPrompt,
+                true,
+                true,
+                3
+            );
+
+            return ResponseEntity.ok(Map.of(
+                "success", result.isVerified(),
+                "message", result.getMessage(),
+                "studentId", studentId,
+                "tenantId", tenantId == null ? 1L : tenantId,
+                "model", "Facenet512"
+            ));
+        } catch (Exception ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
     }
 
     @GetMapping("/students")

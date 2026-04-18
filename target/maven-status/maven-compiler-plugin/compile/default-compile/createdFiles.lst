@@ -11,6 +11,7 @@ com\sms\service\QRService$IDTokenClaims.class
 com\sms\controller\StudentController.class
 com\sms\model\StudentLocation.class
 com\sms\model\AcademicRecord.class
+com\sms\service\EmbeddingCryptoService.class
 com\sms\dto\dashboard\CreateSubjectRequest.class
 com\sms\service\AnalyticsRealtimeNotifier.class
 com\sms\dto\dashboard\DashboardDTO.class
@@ -39,6 +40,7 @@ com\sms\service\AttendanceService$WeightedAttendanceMetrics.class
 com\sms\dto\attendance\GenerateAttendanceQRRequest.class
 com\sms\dto\profile\AdminUpdateStudentProfileRequest.class
 com\sms\service\AnalyticsSnapshotScheduler.class
+com\sms\service\EmbeddingCryptoService$1.class
 com\sms\util\StudentComparators.class
 com\sms\dto\dashboard\SubjectDTO.class
 com\sms\dto\profile\StudentDocumentDTO.class
@@ -48,6 +50,7 @@ com\sms\model\UserRole.class
 com\sms\service\TeacherService.class
 com\sms\service\DietMealOptimizerService.class
 com\sms\repository\ClassSessionRepository.class
+com\sms\service\FaceEmbeddingClientService$1.class
 com\sms\dto\profile\AcademicRecordDTO.class
 com\sms\model\Course.class
 com\sms\service\AttendanceQRTokenService$AttendanceTokenClaims.class
@@ -126,6 +129,7 @@ com\sms\controller\AttendanceViewController.class
 com\sms\dto\diet\DailyCaloriePoint.class
 com\sms\dto\dashboard\EnrollStudentRequest.class
 com\sms\dto\attendance\FaceRegistrationRequest.class
+com\sms\model\Tenant.class
 com\sms\dto\attendance\AttendanceQRResponse.class
 com\sms\controller\TeacherController.class
 com\sms\dto\dashboard\CourseProgressDto.class
@@ -142,6 +146,7 @@ com\sms\repository\EnrollmentRepository.class
 com\sms\config\AnalyticsRedisBridge.class
 com\sms\service\AnalyticsSnapshotService.class
 com\sms\dto\student\StudentProfileDTO.class
+com\sms\service\FaceEmbeddingClientService.class
 com\sms\dto\identity\VerificationResponseDTO.class
 com\sms\service\CourseService.class
 com\sms\dto\dashboard\AssignTeacherRequest.class
@@ -152,6 +157,7 @@ com\sms\controller\StudentProfileApiController.class
 com\sms\controller\StudentAttendanceController.class
 com\sms\dto\dashboard\TimetableUpdateRequest.class
 com\sms\controller\AnalyticsApiController.class
+com\sms\service\BehaviorAIService.class
 com\sms\service\CustomUserDetailsService.class
 com\sms\service\StudentProfileService.class
 com\sms\model\Role.class

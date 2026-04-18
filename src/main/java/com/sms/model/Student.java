@@ -33,6 +33,8 @@ public class Student extends Person implements Serializable, Comparable<Student>
     private String enrollmentYear;
 
     private String profileImageUrl;
+
+    private Long tenantId = 1L;
     
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Course> courses = new ArrayList<>();
@@ -145,6 +147,14 @@ public class Student extends Person implements Serializable, Comparable<Student>
 
     public void setProfileImageUrl(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public Long getTenantId() {
+        return tenantId;
+    }
+
+    public void setTenantId(Long tenantId) {
+        this.tenantId = tenantId;
     }
 
     public double calculateAverage() {
