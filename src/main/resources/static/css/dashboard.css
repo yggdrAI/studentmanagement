@@ -33,7 +33,6 @@
      box-sizing: border-box;
      font-family: 'Outfit', system-ui, -apple-system, sans-serif;
  }
-
  /* Smooth scrolling for anchor links */
  html { scroll-behavior: smooth; }
 
@@ -75,10 +74,8 @@
      /* Subtle inner shadow for depth */
      box-shadow: inset -5px 0 15px rgba(0,0,0,0.1);
      position: relative;
-     z-index: 10;
  }
 
- /* Logo Area */
  .logo-container {
      padding: 24px;
      background-color: #ffffff;
@@ -451,8 +448,7 @@
  aside.floating-tools {
      position: fixed;
      right: 0;
-     top: 50%;
-     transform: translateY(-50%);
+    top: calc(50vh - 132px);
      display: flex;
      flex-direction: column;
      gap: 8px;
@@ -629,25 +625,38 @@
     gap: 20px;
 }
 
-.user-settings-panel {
+.user-settings-modal {
     position: absolute;
-    right: 0;
-    top: 54px;
-    width: 230px;
-    display: grid;
-    gap: 10px;
-    padding: 12px;
-    border-radius: 10px;
-    border: 1px solid var(--border-light);
-    background: color-mix(in srgb, var(--bg-card) 92%, transparent);
-    box-shadow: var(--shadow-md);
-    z-index: 200;
+    right: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 300;
+    display: block;
+    width: max-content;
+    padding: 0;
+    pointer-events: auto;
 }
 
-.settings-wrap {
-    position: relative;
+.user-settings-modal[hidden] {
+    display: none !important;
+}
+
+.user-settings-window {
+    width: min(360px, calc(100vw - 104px));
     display: grid;
-    justify-items: end;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border-light);
+    background: color-mix(in srgb, var(--bg-card) 96%, transparent);
+    box-shadow: var(--shadow-md);
+}
+
+.user-settings-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
 }
 
 .user-settings-title {
@@ -679,9 +688,15 @@
 }
 
 @media (max-width: 900px) {
-    .user-settings-panel {
-        right: 56px;
-        top: 0;
+    .user-settings-modal {
+        top: auto;
+        bottom: calc(100% + 12px);
+        right: 0;
+        transform: none;
+    }
+
+    .user-settings-window {
+        width: min(320px, calc(100vw - 72px));
     }
 }
 

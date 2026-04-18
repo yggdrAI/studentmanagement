@@ -640,7 +640,6 @@
                 <p class="hero-subtitle">University ERP identity, academics, guardians, and metadata.</p>
             </div>
             <div class="hero-actions">
-                <button class="btn btn-outline" type="button" id="darkModeBtn">Dark Mode</button>
                 <button class="btn btn-primary" type="button" id="editModeBtn" style="display:none;">Edit Mode: OFF</button>
                 <button class="btn btn-primary" type="button" id="saveBtn" style="display:none;">Save Changes</button>
                 <button class="btn btn-secondary" type="button" id="cancelBtn" style="display:none;">Cancel</button>
@@ -930,19 +929,6 @@
         toast.textContent = message;
         toast.classList.add('show');
         window.setTimeout(() => toast.classList.remove('show'), 2200);
-    }
-
-    function toggleDarkMode() {
-        if (window.SMSTheme && typeof window.SMSTheme.cycle === 'function') {
-            window.SMSTheme.cycle();
-        }
-    }
-
-    function initDarkMode() {
-        const darkBtn = document.getElementById('darkModeBtn');
-        if (darkBtn) {
-            darkBtn.textContent = 'Switch Theme';
-        }
     }
 
     function themedColor(token, fallback) {
@@ -1537,8 +1523,6 @@
     }
 
     function bindActions() {
-        document.getElementById('darkModeBtn').addEventListener('click', toggleDarkMode);
-
         const imagePicker = document.getElementById('profileImageFile');
         const avatarShell = document.getElementById('avatarShell');
         const avatarMenu = document.getElementById('avatarMenu');
@@ -1649,7 +1633,6 @@
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
-        initDarkMode();
         bindTabs();
         bindActions();
         window.addEventListener('theme:changed', () => {

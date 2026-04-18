@@ -1,0 +1,14 @@
+"filename", "language", "HTML", "JavaScript", "PostCSS", "comment", "blank", "total"
+"f:\Coding\studentmanagement\src\main\resources\static\css\dashboard.css", "PostCSS", 0, 0, 14, -1, 2, 15
+"f:\Coding\studentmanagement\src\main\resources\static\js\admin-students-saas.js", "JavaScript", 0, -8, 0, 0, -1, -9
+"f:\Coding\studentmanagement\src\main\resources\static\js\theme-manager.js", "JavaScript", 0, 0, 0, 1, 2, 3
+"f:\Coding\studentmanagement\src\main\resources\templates\admin-students.html", "HTML", -1, 0, 0, 0, 0, -1
+"f:\Coding\studentmanagement\src\main\resources\templates\fragments\sidebar.html", "HTML", 7, 0, 0, 0, 0, 7
+"f:\Coding\studentmanagement\src\main\resources\templates\student-profile.html", "HTML", -14, 0, 0, 0, -3, -17
+"f:\Coding\studentmanagement\target\classes\static\css\dashboard.css", "PostCSS", 0, 0, 14, -1, 2, 15
+"f:\Coding\studentmanagement\target\classes\static\js\admin-students-saas.js", "JavaScript", 0, -8, 0, 0, -1, -9
+"f:\Coding\studentmanagement\target\classes\static\js\theme-manager.js", "JavaScript", 0, 0, 0, 1, 2, 3
+"f:\Coding\studentmanagement\target\classes\templates\admin-students.html", "HTML", -1, 0, 0, 0, 0, -1
+"f:\Coding\studentmanagement\target\classes\templates\fragments\sidebar.html", "HTML", 7, 0, 0, 0, 0, 7
+"f:\Coding\studentmanagement\target\classes\templates\student-profile.html", "HTML", -14, 0, 0, 0, -3, -17
+"Total", "-", -16, -16, 28, 0, 0, -4

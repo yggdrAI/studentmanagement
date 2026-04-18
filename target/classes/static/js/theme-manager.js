@@ -1,6 +1,11 @@
 (function () {
     "use strict";
 
+    if (window.__SMS_THEME_MANAGER_READY) {
+        return;
+    }
+    window.__SMS_THEME_MANAGER_READY = true;
+
     const STORAGE_KEY = "sms_theme";
     const DENSITY_KEY = "sms_density";
     const MOTION_KEY = "sms_motion";
@@ -105,29 +110,7 @@
     }
 
     function injectSwitcher() {
-        const currentTheme = getTheme();
-        const targets = [
-            ".unified-topbar .top-actions",
-            ".top-shell .top-actions",
-            ".hero-bar .hero-actions",
-            "header.page-header"
-        ];
-
-        for (const selector of targets) {
-            const target = document.querySelector(selector);
-            if (!target) {
-                continue;
-            }
-            if (target.querySelector(".theme-switcher")) {
-                continue;
-            }
-
-            const switcher = buildSwitcher(currentTheme);
-            if (selector === "header.page-header") {
-                switcher.style.marginLeft = "auto";
-            }
-            target.appendChild(switcher);
-        }
+        // Theme selection is intentionally centralized in User Settings modal.
     }
 
     function bindGlobalToggles() {
@@ -147,12 +130,14 @@
 
     function bindSidebarSettingsPanel() {
         const btn = document.getElementById("userSettingsBtn");
-        const panel = document.getElementById("userSettingsPanel");
+        const modal = document.getElementById("userSettingsModal");
+        const panel = modal ? modal.querySelector(".user-settings-window") : null;
+        const closeBtn = document.getElementById("userSettingsClose");
         const select = document.getElementById("sidebarThemeSelect");
         const densitySelect = document.getElementById("sidebarDensitySelect");
         const motionSelect = document.getElementById("sidebarMotionSelect");
 
-        if (!btn || !panel || !select || !densitySelect || !motionSelect) {
+        if (!btn || !modal || !panel || !closeBtn || !select || !densitySelect || !motionSelect) {
             return;
         }
 
@@ -164,19 +149,26 @@
         }
 
         function closePanel() {
-            panel.hidden = true;
+            modal.hidden = true;
             btn.setAttribute("aria-expanded", "false");
+        }
+
+        function openPanel() {
+            modal.hidden = false;
+            btn.setAttribute("aria-expanded", "true");
+            syncSelect();
         }
 
         btn.addEventListener("click", function (event) {
             event.stopPropagation();
-            const nextHidden = !panel.hidden;
-            panel.hidden = nextHidden;
-            btn.setAttribute("aria-expanded", String(!nextHidden));
-            if (!nextHidden) {
-                syncSelect();
+            if (modal.hidden) {
+                openPanel();
+            } else {
+                closePanel();
             }
         });
+
+        closeBtn.addEventListener("click", closePanel);
 
         select.addEventListener("change", function () {
             applyTheme(select.value, true);
@@ -194,7 +186,17 @@
             event.stopPropagation();
         });
 
-        document.addEventListener("click", closePanel);
+        document.addEventListener("click", function (event) {
+            if (!modal.hidden && !modal.contains(event.target) && event.target !== btn) {
+                closePanel();
+            }
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+                closePanel();
+            }
+        });
         window.addEventListener("theme:changed", syncSelect);
         syncSelect();
     }
@@ -203,6 +205,7 @@
         applyTheme(getTheme(), false);
         applyDensity(getDensity(), false);
         applyMotion(getMotion(), false);
+        document.querySelectorAll(".theme-switcher").forEach((node) => node.remove());
         injectSwitcher();
         bindGlobalToggles();
     }

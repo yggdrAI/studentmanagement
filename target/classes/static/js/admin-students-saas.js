@@ -50,7 +50,6 @@
         commandList: document.getElementById("commandList"),
         sidebar: document.getElementById("sidebar"),
         sidebarToggle: document.getElementById("sidebarToggle"),
-        themeToggle: document.getElementById("themeToggle"),
         topSearch: document.getElementById("globalSearch"),
         chart: document.getElementById("marksChart"),
         topPerformers: document.getElementById("topPerformers"),
@@ -62,7 +61,6 @@
     const commands = [
         { label: "Go to Dashboard", run: () => (window.location.href = "/dashboard") },
         { label: "Go to Manage Students", run: () => (window.location.href = "/admin/students") },
-        { label: "Toggle Theme", run: () => toggleTheme() },
         { label: "New Student", run: () => document.getElementById("studentIdInput").focus() }
     ];
 
@@ -186,7 +184,6 @@
         });
 
         refs.sidebarToggle?.addEventListener("click", toggleSidebar);
-        refs.themeToggle?.addEventListener("click", toggleTheme);
         refs.topSearch?.addEventListener("focus", openCommandPalette);
     }
 
@@ -504,12 +501,6 @@
     function setupTheme() {
         if (window.SMSTheme && typeof window.SMSTheme.get === "function") {
             window.SMSTheme.set(window.SMSTheme.get());
-        }
-    }
-
-    function toggleTheme() {
-        if (window.SMSTheme && typeof window.SMSTheme.cycle === "function") {
-            window.SMSTheme.cycle();
         }
     }
 

@@ -2,22 +2,25 @@
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
 
-    <script>
-        (function () {
-            try {
-                var saved = localStorage.getItem('sms_theme');
-                var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                var fallback = prefersDark ? 'dim' : 'light';
-                var theme = (saved === 'light' || saved === 'dim' || saved === 'dark' || saved === 'premium') ? saved : fallback;
-                document.documentElement.setAttribute('data-theme', theme);
-            } catch (_err) {
-                document.documentElement.setAttribute('data-theme', 'light');
-            }
-        })();
-    </script>
-
     <!-- Accessible Sidebar Navigation Fragment -->
     <aside th:fragment="sidebar(activeTab)" id="sidebar" class="sidebar" aria-label="Main Navigation">
+        <script>
+            (function () {
+                if (window.__SMS_THEME_BOOTSTRAPPED) {
+                    return;
+                }
+                window.__SMS_THEME_BOOTSTRAPPED = true;
+                try {
+                    var saved = localStorage.getItem('sms_theme');
+                    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    var fallback = prefersDark ? 'dim' : 'light';
+                    var theme = (saved === 'light' || saved === 'dim' || saved === 'dark' || saved === 'premium') ? saved : fallback;
+                    document.documentElement.setAttribute('data-theme', theme);
+                } catch (_err) {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                }
+            })();
+        </script>
         <!-- Logo -->
         <div class="logo-container">
             <a href="/dashboard" class="logo-placeholder" aria-label="Bennett University Logo">
@@ -62,10 +65,18 @@
         <a href="/student/profile" class="tool-btn" aria-label="Virtual ID Card" sec:authorize="hasRole('STUDENT')">🪪</a>
         <a href="/admin/profile" class="tool-btn" aria-label="Admin Profile" sec:authorize="hasRole('ADMIN')">🪪</a>
         <button type="button" class="tool-btn" aria-label="Application Menu">⋮⋮</button>
-        <div class="settings-wrap">
-            <button type="button" id="userSettingsBtn" class="tool-btn" aria-label="User Settings" aria-expanded="false" aria-controls="userSettingsPanel">⚙</button>
-            <section id="userSettingsPanel" class="user-settings-panel" aria-label="User Settings" hidden>
-                <h3 class="user-settings-title">User Settings</h3>
+        <button type="button" id="userSettingsBtn" class="tool-btn" aria-label="User Settings" aria-expanded="false" aria-controls="userSettingsModal">⚙</button>
+        <!-- Logout Form using Spring Security -->
+        <form th:action="@{/logout}" method="post" style="margin-top: 24px;">
+            <button type="submit" class="tool-btn" aria-label="Logout" style="color: #dc2626; width: 48px;">🚪</button>
+        </form>
+
+        <div id="userSettingsModal" class="user-settings-modal" role="dialog" aria-modal="true" aria-labelledby="userSettingsTitle" hidden>
+            <section class="user-settings-window">
+                <header class="user-settings-head">
+                    <h3 id="userSettingsTitle" class="user-settings-title">User Settings</h3>
+                    <button type="button" id="userSettingsClose" class="tool-btn" aria-label="Close User Settings">✕</button>
+                </header>
 
                 <div class="user-settings-group">
                     <label class="user-settings-label" for="sidebarThemeSelect">Theme</label>
@@ -94,13 +105,9 @@
                 </div>
             </section>
         </div>
-        <!-- Logout Form using Spring Security -->
-        <form th:action="@{/logout}" method="post" style="margin-top: 24px;">
-            <button type="submit" class="tool-btn" aria-label="Logout" style="color: #dc2626; width: 48px;">🚪</button>
-        </form>
-    </aside>
 
-    <script th:src="@{/js/theme-manager.js}"></script>
+        <script id="sms-theme-manager-script" th:src="@{/js/theme-manager.js}"></script>
+    </aside>
 
 </body>
 </html>
