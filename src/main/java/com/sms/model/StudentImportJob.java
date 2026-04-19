@@ -9,6 +9,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
@@ -68,6 +69,20 @@ public class StudentImportJob {
     @Column(name = "last_error_report_path", length = 500)
     private String lastErrorReportPath;
 
+    @Column(name = "source_file_count", nullable = false)
+    private int sourceFileCount;
+
+    @Lob
+    @Column(name = "source_files_json")
+    private String sourceFilesJson;
+
+    @Lob
+    @Column(name = "merge_log_json")
+    private String mergeLogJson;
+
+    @Column(name = "fused_student_count", nullable = false)
+    private int fusedStudentCount;
+
     @PrePersist
     protected void onCreate() {
         if (uploadedAt == null) {
@@ -103,4 +118,12 @@ public class StudentImportJob {
     public void setLastErrorReportName(String lastErrorReportName) { this.lastErrorReportName = lastErrorReportName; }
     public String getLastErrorReportPath() { return lastErrorReportPath; }
     public void setLastErrorReportPath(String lastErrorReportPath) { this.lastErrorReportPath = lastErrorReportPath; }
+    public int getSourceFileCount() { return sourceFileCount; }
+    public void setSourceFileCount(int sourceFileCount) { this.sourceFileCount = sourceFileCount; }
+    public String getSourceFilesJson() { return sourceFilesJson; }
+    public void setSourceFilesJson(String sourceFilesJson) { this.sourceFilesJson = sourceFilesJson; }
+    public String getMergeLogJson() { return mergeLogJson; }
+    public void setMergeLogJson(String mergeLogJson) { this.mergeLogJson = mergeLogJson; }
+    public int getFusedStudentCount() { return fusedStudentCount; }
+    public void setFusedStudentCount(int fusedStudentCount) { this.fusedStudentCount = fusedStudentCount; }
 }

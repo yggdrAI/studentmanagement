@@ -17,6 +17,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.sms.dto.student.StudentProfileDTO;
 import com.sms.model.Enrollment;
@@ -24,9 +25,16 @@ import com.sms.model.Role;
 import com.sms.model.Student;
 import com.sms.model.StudentProfile;
 import com.sms.model.User;
+import com.sms.repository.AcademicRecordRepository;
+import com.sms.repository.AttendanceRepository;
+import com.sms.repository.DietLogRepository;
 import com.sms.repository.EnrollmentRepository;
+import com.sms.repository.FaceDataRepository;
+import com.sms.repository.StudentDocumentRepository;
+import com.sms.repository.StudentLocationRepository;
 import com.sms.repository.StudentProfileRepository;
 import com.sms.repository.StudentRepository;
+import com.sms.repository.StudentTaskRepository;
 import com.sms.repository.UserRepository;
 
 @Service
@@ -38,6 +46,13 @@ public class StudentService {
 
     private final StudentRepository studentRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final StudentDocumentRepository studentDocumentRepository;
+    private final StudentLocationRepository studentLocationRepository;
+    private final AcademicRecordRepository academicRecordRepository;
+    private final AttendanceRepository attendanceRepository;
+    private final FaceDataRepository faceDataRepository;
+    private final StudentTaskRepository studentTaskRepository;
+    private final DietLogRepository dietLogRepository;
     private final StudentProfileRepository studentProfileRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -46,6 +61,13 @@ public class StudentService {
 
     public StudentService(StudentRepository studentRepository,
                           EnrollmentRepository enrollmentRepository,
+                          StudentDocumentRepository studentDocumentRepository,
+                          StudentLocationRepository studentLocationRepository,
+                          AcademicRecordRepository academicRecordRepository,
+                          AttendanceRepository attendanceRepository,
+                          FaceDataRepository faceDataRepository,
+                          StudentTaskRepository studentTaskRepository,
+                          DietLogRepository dietLogRepository,
                           StudentProfileRepository studentProfileRepository,
                           UserRepository userRepository,
                           PasswordEncoder passwordEncoder,
@@ -53,6 +75,13 @@ public class StudentService {
                           AnalyticsCacheService analyticsCacheService) {
         this.studentRepository = studentRepository;
         this.enrollmentRepository = enrollmentRepository;
+        this.studentDocumentRepository = studentDocumentRepository;
+        this.studentLocationRepository = studentLocationRepository;
+        this.academicRecordRepository = academicRecordRepository;
+        this.attendanceRepository = attendanceRepository;
+        this.faceDataRepository = faceDataRepository;
+        this.studentTaskRepository = studentTaskRepository;
+        this.dietLogRepository = dietLogRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -128,12 +157,15 @@ public class StudentService {
         return studentRepository.findById(java.util.Objects.requireNonNull(id, "Student id must not be null"));
     }
 
+    @Transactional
     public Student save(Student student) {
         Student studentToSave = java.util.Objects.requireNonNull(student, "Student must not be null");
         String studentId = java.util.Objects.requireNonNull(studentToSave.getId(), "Student id must not be null");
         String derivedEmail = deriveStudentEmail(studentId);
 
-        studentToSave.setEmail(derivedEmail);
+        if (studentToSave.getEmail() == null || studentToSave.getEmail().isBlank()) {
+            studentToSave.setEmail(derivedEmail);
+        }
         assignClassAndBatchGroups(studentToSave);
 
         if (studentToSave.getUser() == null) {
@@ -164,6 +196,7 @@ public class StudentService {
         return savedStudent;
     }
 
+    @Transactional
     public int recomputeCohortsForAllStudents() {
         List<Student> students = studentRepository.findAll();
         int updated = 0;
@@ -185,18 +218,22 @@ public class StudentService {
         return updated;
     }
 
+    @Transactional
     public void deleteById(String id) {
         String studentId = java.util.Objects.requireNonNull(id, "Student id must not be null");
         studentRepository.findById(studentId).ifPresent(student -> {
+            deleteStudentOwnedData(studentId);
+            studentRepository.delete(student);
+
             User user = student.getUser();
             if (user != null) {
                 userRepository.delete(user);
             }
         });
-        studentRepository.deleteById(studentId);
         analyticsCacheService.evictAnalyticsCaches();
     }
 
+    @Transactional
     public int deleteByIds(List<String> ids) {
         if (ids == null || ids.isEmpty()) {
             return 0;
@@ -290,7 +327,9 @@ public class StudentService {
         profile.setDob(student.getDob());
         profile.setGender(student.getGender());
         profile.setPhone(student.getPhone());
-        profile.setEmail(deriveStudentEmail(student.getId()));
+        profile.setEmail(student.getEmail() == null || student.getEmail().isBlank()
+            ? deriveStudentEmail(student.getId())
+            : student.getEmail());
         profile.setAddress(student.getAddress());
         profile.setCourse(student.getCourse());
         profile.setDepartment(student.getDepartment());
@@ -307,6 +346,18 @@ public class StudentService {
         profile.setUpdatedBy("Admin Create");
 
         studentProfileRepository.save(profile);
+    }
+
+    private void deleteStudentOwnedData(String studentId) {
+        enrollmentRepository.deleteByStudentId(studentId);
+        studentDocumentRepository.deleteByStudentId(studentId);
+        studentLocationRepository.deleteByStudentId(studentId);
+        academicRecordRepository.deleteByStudentId(studentId);
+        attendanceRepository.deleteByStudentId(studentId);
+        faceDataRepository.deleteByStudentId(studentId);
+        studentTaskRepository.deleteByStudentId(studentId);
+        dietLogRepository.deleteByStudentId(studentId);
+        studentProfileRepository.deleteByStudentId(studentId);
     }
 
     private Integer parseBatchYear(String batch) {

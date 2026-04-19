@@ -1,12 +1,14 @@
 package com.sms.repository;
 
-import com.sms.model.StudentProfile;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import com.sms.model.StudentProfile;
 
 @Repository
 public interface StudentProfileRepository extends JpaRepository<StudentProfile, String> {
     Optional<StudentProfile> findByStudentId(String studentId);
+    void deleteByStudentId(String studentId);
 }

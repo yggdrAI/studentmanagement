@@ -1,6 +1,5 @@
 package com.sms.model;
 
-import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,11 +9,12 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 
 @Entity
-public class Student extends Person implements Serializable, Comparable<Student> {
+public class Student extends Person implements Comparable<Student> {
 
     @OneToOne
     @JoinColumn(name = "user_id")
@@ -38,13 +38,13 @@ public class Student extends Person implements Serializable, Comparable<Student>
     private String rollNumber;
     private String enrollmentYear;
 
-    @Column(length = 1000)
+    @Lob
     private String profileImageUrl;
 
     private Long tenantId = 1L;
     
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Course> courses = new ArrayList<>();
+    private final List<Course> courses = new ArrayList<>();
 
     public Student() {}
 

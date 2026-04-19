@@ -11,6 +11,8 @@ import com.sms.model.Enrollment;
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     List<Enrollment> findByStudentId(String studentId);
 
+    void deleteByStudentId(String studentId);
+
     List<Enrollment> findByCourseId(Long courseId);
 
     boolean existsByStudentIdAndCourseId(String studentId, Long courseId);

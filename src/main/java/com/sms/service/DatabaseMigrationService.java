@@ -9,8 +9,6 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.ContextClosedEvent;
 
 import javax.sql.DataSource;
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -41,7 +39,7 @@ public class DatabaseMigrationService {
                                     @Value("${spring.datasource.url}") String sourceUrl,
                                     @Value("${spring.datasource.username:}") String sourceUsername,
                                     @Value("${spring.datasource.password:}") String sourcePassword,
-                                    @Value("${app.database.persistent-url:jdbc:h2:file:./data/studentmanagement;MODE=PostgreSQL;DB_CLOSE_ON_EXIT=FALSE}") String persistentUrl) {
+                                    @Value("${app.database.persistent-url:jdbc:mysql://localhost:3306/studentmanagement?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8}") String persistentUrl) {
         this.dataSource = dataSource;
         this.databaseStatusService = databaseStatusService;
         this.sourceUrl = sourceUrl;

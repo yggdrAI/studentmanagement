@@ -1,29 +1,19 @@
 package com.sms.service;
 
-import org.springframework.beans.factory.annotation.Value;
+import java.util.Base64;
+
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Base64;
-import java.util.UUID;
 
 @Service
 public class ImageUploadService {
 
-    @Value("${app.upload.dir:./uploads}")
-    private String uploadDir;
-
     private static final long MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
-    private static final String[] ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"};
 
     /**
-     * Upload a base64-encoded image and return the URL path
+     * Store a base64-encoded image as a data URI so it can be persisted in MySQL.
      */
-    public String uploadBase64Image(String base64Data, String studentId) throws IOException {
+    public String uploadBase64Image(String base64Data, String studentId) {
         if (!StringUtils.hasText(base64Data)) {
             return null;
         }
@@ -50,19 +40,7 @@ public class ImageUploadService {
             throw new IllegalArgumentException("Invalid image format. Only JPEG, PNG, GIF, and WebP are allowed");
         }
 
-        // Generate filename
-        String filename = "profile_" + studentId + "_" + UUID.randomUUID().toString() + getExtensionFromType(imageType);
-
-        // Ensure upload directory exists
-        Path uploadPath = Paths.get(uploadDir, "profile-images");
-        Files.createDirectories(uploadPath);
-
-        // Save image file
-        Path filePath = uploadPath.resolve(filename);
-        Files.write(filePath, imageBytes);
-
-        // Return relative URL path
-        return "/uploads/profile-images/" + filename;
+        return "data:" + imageType + ";base64," + Base64.getEncoder().encodeToString(imageBytes);
     }
 
     /**
@@ -113,33 +91,7 @@ public class ImageUploadService {
         return null;
     }
 
-    /**
-     * Get file extension from image type
-     */
-    private String getExtensionFromType(String imageType) {
-        return switch (imageType) {
-            case "image/jpeg" -> ".jpg";
-            case "image/png" -> ".png";
-            case "image/gif" -> ".gif";
-            case "image/webp" -> ".webp";
-            default -> ".jpg";
-        };
-    }
-
-    /**
-     * Delete an image file
-     */
-    public void deleteImage(String imageUrl) throws IOException {
-        if (!StringUtils.hasText(imageUrl) || !imageUrl.contains("/uploads/")) {
-            return;
-        }
-
-        // Extract filename from URL
-        String filename = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
-        Path filePath = Paths.get(uploadDir, "profile-images", filename);
-
-        if (Files.exists(filePath)) {
-            Files.delete(filePath);
-        }
+    public void deleteImage(String imageUrl) {
+        // Images are stored in the database now, so there is no filesystem cleanup.
     }
 }

@@ -62,7 +62,7 @@ public class SecurityConfig {
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/css/**", "/js/**", "/images/**", "/h2-console/**", "/api/auth/**", "/ws/**", "/topic/**", "/app/**", "/student-login").permitAll()
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/api/auth/**", "/ws/**", "/topic/**", "/app/**", "/student-login").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/teacher/**").hasRole("TEACHER")
                 .requestMatchers("/api/student/**").hasRole("STUDENT")

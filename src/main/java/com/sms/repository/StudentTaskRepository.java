@@ -14,6 +14,8 @@ public interface StudentTaskRepository extends JpaRepository<StudentTask, Long> 
 
     Optional<StudentTask> findByStudentIdAndTaskId(String studentId, Long taskId);
 
+    void deleteByStudentId(String studentId);
+
     long countByStudentIdAndTaskCourseIdAndCompletedTrue(String studentId, Long courseId);
 
     long countByStudentIdAndTaskCourseIdInAndCompletedTrue(String studentId, Collection<Long> courseIds);

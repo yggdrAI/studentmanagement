@@ -24,9 +24,12 @@
     var state = {
         jobId: null,
         rows: [],
+        mergedStudents: [],
+        suggestions: [],
+        sourceFiles: [],
         logs: [],
         search: '',
-        file: null,
+        files: [],
         errorReportUrl: null,
         uploading: false,
         availableHeaders: [],
@@ -46,12 +49,18 @@
         uploadProgressBar: document.getElementById('uploadProgressBar'),
         uploadProgressLabel: document.getElementById('uploadProgressLabel'),
         uploadFileName: document.getElementById('uploadFileName'),
+        selectedFilesList: document.getElementById('selectedFilesList'),
         duplicateStrategy: document.getElementById('duplicateStrategy'),
         rollbackOnFailure: document.getElementById('rollbackOnFailure'),
         totalRowsCount: document.getElementById('totalRowsCount'),
         validRowsCount: document.getElementById('validRowsCount'),
         invalidRowsCount: document.getElementById('invalidRowsCount'),
+        fusedStudentsCount: document.getElementById('fusedStudentsCount'),
         jobStatus: document.getElementById('jobStatus'),
+        mergePanel: document.getElementById('mergePanel'),
+        mergeBody: document.getElementById('mergeBody'),
+        suggestionsPanel: document.getElementById('suggestionsPanel'),
+        suggestionsList: document.getElementById('suggestionsList'),
         previewBody: document.getElementById('previewBody'),
         confirmImportBtn: document.getElementById('confirmImportBtn'),
         rollbackLastBtn: document.getElementById('rollbackLastBtn'),
@@ -75,11 +84,11 @@
         });
 
         refs.fileInput.addEventListener('change', function () {
-            var file = refs.fileInput.files && refs.fileInput.files[0];
-            if (!file) {
+            var files = Array.prototype.slice.call(refs.fileInput.files || []);
+            if (!files.length) {
                 return;
             }
-            setFile(file);
+            setFiles(files);
         });
 
         refs.dropZone.addEventListener('dragover', function (event) {
@@ -94,9 +103,9 @@
         refs.dropZone.addEventListener('drop', function (event) {
             event.preventDefault();
             refs.dropZone.classList.remove('dragover');
-            var file = event.dataTransfer.files && event.dataTransfer.files[0];
-            if (file) {
-                setFile(file);
+            var files = Array.prototype.slice.call(event.dataTransfer.files || []);
+            if (files.length) {
+                setFiles(files);
             }
         });
 
@@ -110,15 +119,18 @@
         });
     }
 
-    function setFile(file) {
-        state.file = file;
-        refs.uploadFileName.textContent = file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
-        refs.jobStatus.textContent = 'File ready';
+    function setFiles(files) {
+        state.files = files.slice(0);
+        refs.uploadFileName.textContent = files.length + ' file(s) selected';
+        refs.jobStatus.textContent = files.length + ' file(s) ready';
+        refs.selectedFilesList.innerHTML = '<ul>' + files.map(function (file) {
+            return '<li>' + escapeHtml(file.name) + ' (' + Math.round(file.size / 1024) + ' KB)</li>';
+        }).join('') + '</ul>';
     }
 
     function uploadAndPreview() {
-        if (!state.file || state.uploading) {
-            toast('Select a CSV or XLSX file first', 'error');
+        if (!state.files.length || state.uploading) {
+            toast('Select one or more CSV or XLSX files first', 'error');
             return;
         }
 
@@ -127,7 +139,9 @@
 
     function uploadFileWithMapping(useManualMapping) {
         var formData = new FormData();
-        formData.append('file', state.file);
+        state.files.forEach(function (file) {
+            formData.append('files', file);
+        });
         formData.append('duplicateStrategy', refs.duplicateStrategy.value);
         formData.append('rollbackOnFailure', refs.rollbackOnFailure.value);
 
@@ -183,7 +197,7 @@
     }
 
     function reapplyMapping() {
-        if (!state.file) {
+        if (!state.files.length) {
             toast('Select a file before applying mapping', 'error');
             return;
         }
@@ -193,6 +207,9 @@
     function applyPreviewPayload(payload) {
         state.jobId = payload.jobId || null;
         state.rows = (payload.rows || []).map(normalizeRow);
+        state.mergedStudents = payload.mergedStudents || [];
+        state.suggestions = payload.smartSuggestions || [];
+        state.sourceFiles = payload.sourceFiles || [];
         state.errorReportUrl = payload.errorReport || null;
         state.availableHeaders = payload.availableHeaders && payload.availableHeaders.length ? payload.availableHeaders : state.availableHeaders;
         state.fieldLabels = payload.fieldLabels && Object.keys(payload.fieldLabels).length ? payload.fieldLabels : state.fieldLabels;
@@ -201,10 +218,14 @@
         state.missingRequiredFields = payload.missingRequiredFields || [];
 
         renderSummary(payload);
+        renderMergePreview();
+        renderSuggestions();
         renderMappingPanel();
         renderPreview();
         renderLogsBadge(payload);
         refs.confirmImportBtn.disabled = !state.jobId;
+        refs.mergePanel.hidden = !state.mergedStudents.length;
+        refs.suggestionsPanel.hidden = !state.suggestions.length;
         if (state.errorReportUrl) {
             refs.downloadErrorsBtn.href = state.errorReportUrl;
             refs.downloadErrorsBtn.hidden = false;
@@ -225,6 +246,15 @@
             semester: row.semester || '',
             department: row.department || '',
             section: row.section || '',
+            className: row.className || '',
+            house: row.house || '',
+            joiningYear: row.joiningYear || '',
+            leavingYear: row.leavingYear || '',
+            rollNumber: row.rollNumber || '',
+            program: row.program || '',
+            school: row.school || '',
+            sourceFileName: row.sourceFileName || '',
+            confidenceScore: row.confidenceScore || 0,
             dateOfBirth: row.dateOfBirth || '',
             gender: row.gender || '',
             address: row.address || '',
@@ -289,12 +319,58 @@
         var totalRows = payload && typeof payload.totalRows !== 'undefined' ? payload.totalRows : state.rows.length;
         var validRows = payload && typeof payload.validRows !== 'undefined' ? payload.validRows : state.rows.filter(isValidRow).length;
         var invalidRows = payload && typeof payload.invalidRows !== 'undefined' ? payload.invalidRows : state.rows.length - validRows;
+        var fusedStudents = payload && typeof payload.fusedStudentCount !== 'undefined' ? payload.fusedStudentCount : state.mergedStudents.length;
         refs.totalRowsCount.textContent = String(totalRows || 0);
         refs.validRowsCount.textContent = String(validRows || 0);
         refs.invalidRowsCount.textContent = String(invalidRows || 0);
+        refs.fusedStudentsCount.textContent = String(fusedStudents || 0);
         if (!state.jobId) {
             refs.jobStatus.textContent = 'Idle';
         }
+    }
+
+    function renderMergePreview() {
+        if (!state.mergedStudents.length) {
+            refs.mergeBody.innerHTML = '<tr><td colspan="11" class="empty-state">No merged students to display.</td></tr>';
+            return;
+        }
+
+        refs.mergeBody.innerHTML = state.mergedStudents.map(function (student) {
+            var sourceFiles = (student.sources || []).map(escapeHtml).join('<br>') || '-';
+            var conflicts = (student.conflicts || []).map(function (conflict) {
+                return '<div><strong>' + escapeHtml(conflict.field || '-') + ':</strong> ' + escapeHtml((conflict.values || []).join(', ')) + '</div>';
+            }).join('') || '-';
+            return '<tr>' +
+                '<td><strong>' + escapeHtml(student.confidenceScore || 0) + '%</strong></td>' +
+                '<td>' + escapeHtml(student.fullName || [student.firstName, student.middleName, student.lastName].filter(Boolean).join(' ')) + '</td>' +
+                '<td>' + escapeHtml(firstNonBlank(student.enrollmentNumber, student.rollNumber, student.identityKey, '-')) + '</td>' +
+                '<td>' + escapeHtml(firstNonBlank(student.program, student.course, '-')) + '</td>' +
+                '<td>' + escapeHtml(firstNonBlank(student.department, '-')) + '</td>' +
+                '<td>' + escapeHtml(firstNonBlank(student.school, '-')) + '</td>' +
+                '<td>' + escapeHtml(firstNonBlank(student.joiningYear, student.leavingYear, '-')) + '</td>' +
+                '<td>' + escapeHtml(firstNonBlank(student.className, student.section, '-')) + '</td>' +
+                '<td>' + escapeHtml(firstNonBlank(student.house, '-')) + '</td>' +
+                '<td>' + sourceFiles + '</td>' +
+                '<td>' + conflicts + '</td>' +
+                '</tr>';
+        }).join('');
+    }
+
+    function renderSuggestions() {
+        if (!state.suggestions.length) {
+            refs.suggestionsList.innerHTML = '<div class="suggestion-item">No merge suggestions right now.</div>';
+            return;
+        }
+
+        refs.suggestionsList.innerHTML = state.suggestions.map(function (suggestion) {
+            return '<article class="suggestion-item">' +
+                '<div class="suggestion-head">' +
+                '<strong>' + escapeHtml(suggestion.type || 'suggestion') + '</strong>' +
+                '<span>' + escapeHtml((suggestion.confidence || suggestion.confidenceScore || 0)) + '%</span>' +
+                '</div>' +
+                '<div>' + escapeHtml(suggestion.message || '') + '</div>' +
+                '</article>';
+        }).join('');
     }
 
     function renderPreview() {
@@ -520,7 +596,7 @@
             return '<div class="log-item">' +
                 '<strong>' + escapeHtml(log.fileName || 'Import') + '</strong>' +
                 '<div class="meta">' + escapeHtml(log.uploadedBy || '-') + ' | ' + escapeHtml(log.uploadedAt || '-') + '</div>' +
-                '<div class="meta">Rows: ' + escapeHtml(log.totalRows || 0) + ' | Success: ' + escapeHtml(log.successCount || 0) + ' | Failure: ' + escapeHtml(log.failureCount || 0) + ' | ' + escapeHtml(log.status || '-') + '</div>' +
+                '<div class="meta">Files: ' + escapeHtml(log.sourceFileCount || 0) + ' | Fused: ' + escapeHtml(log.fusedStudentCount || 0) + ' | Rows: ' + escapeHtml(log.totalRows || 0) + ' | Success: ' + escapeHtml(log.successCount || 0) + ' | Failure: ' + escapeHtml(log.failureCount || 0) + ' | ' + escapeHtml(log.status || '-') + '</div>' +
                 errorDownload +
                 '</div>';
         }).join('');
@@ -562,5 +638,15 @@
 
     function escapeAttr(value) {
         return escapeHtml(value).replace(/"/g, '&quot;');
+    }
+
+    function firstNonBlank() {
+        for (var i = 0; i < arguments.length; i++) {
+            var value = arguments[i];
+            if (value !== null && value !== undefined && String(value).trim()) {
+                return value;
+            }
+        }
+        return '';
     }
 })();

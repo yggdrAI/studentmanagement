@@ -1,19 +1,15 @@
 package com.sms.service;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
 import java.net.URI;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
-import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import javax.sql.DataSource;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
 
 @Service
 public class DatabaseStatusService {
@@ -26,7 +22,7 @@ public class DatabaseStatusService {
     public DatabaseStatusService(DataSource dataSource,
                                  JdbcTemplate jdbcTemplate,
                                  @Value("${spring.datasource.url}") String sourceUrl,
-                                 @Value("${app.database.persistent-url:jdbc:h2:file:./data/studentmanagement;MODE=PostgreSQL;DB_CLOSE_ON_EXIT=FALSE}") String persistentUrl) {
+                                 @Value("${app.database.persistent-url:jdbc:mysql://localhost:3306/studentmanagement?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8}") String persistentUrl) {
         this.dataSource = dataSource;
         this.jdbcTemplate = jdbcTemplate;
         this.sourceUrl = sourceUrl;
@@ -55,7 +51,7 @@ public class DatabaseStatusService {
         return List.of(
             "student",
             "student_profile",
-            "user",
+            "app_user",
             "teacher",
             "course",
             "enrollment",
@@ -86,7 +82,7 @@ public class DatabaseStatusService {
     }
 
     public boolean isMemoryMode(String jdbcUrl) {
-        return jdbcUrl != null && jdbcUrl.toLowerCase().startsWith("jdbc:h2:mem:");
+        return false;
     }
 
     public String getMode(String jdbcUrl) {
@@ -94,11 +90,8 @@ public class DatabaseStatusService {
             return "unknown";
         }
         String normalized = jdbcUrl.toLowerCase();
-        if (normalized.startsWith("jdbc:h2:mem:")) {
-            return "h2-memory";
-        }
-        if (normalized.startsWith("jdbc:h2:file:")) {
-            return "h2-file";
+        if (normalized.startsWith("jdbc:mysql:")) {
+            return "mysql";
         }
         if (normalized.startsWith("jdbc:postgresql:")) {
             return "postgresql";
@@ -109,17 +102,6 @@ public class DatabaseStatusService {
     public String extractPath(String jdbcUrl) {
         if (jdbcUrl == null || jdbcUrl.isBlank()) {
             return "-";
-        }
-
-        String lower = jdbcUrl.toLowerCase();
-        if (lower.startsWith("jdbc:h2:file:")) {
-            String remainder = jdbcUrl.substring("jdbc:h2:file:".length());
-            int optionsIndex = remainder.indexOf(';');
-            return optionsIndex >= 0 ? remainder.substring(0, optionsIndex) : remainder;
-        }
-
-        if (lower.startsWith("jdbc:h2:mem:")) {
-            return "<in-memory>";
         }
 
         try {

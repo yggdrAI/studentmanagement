@@ -27,16 +27,17 @@
 
         <section class="panel upload-panel">
             <div id="dropZone" class="drop-zone">
-                <strong>Drag and drop your CSV/XLSX file here</strong>
+                <strong>Drag and drop 3+ CSV/XLSX files here</strong>
                 <span>or</span>
-                <button type="button" id="chooseFileBtn" class="btn btn-primary">Choose File</button>
-                <input id="importFileInput" type="file" accept=".csv,.xlsx,.xls" hidden>
+                <button type="button" id="chooseFileBtn" class="btn btn-primary">Choose Files</button>
+                <input id="importFileInput" type="file" accept=".csv,.xlsx,.xls" multiple hidden>
             </div>
             <div class="upload-meta">
                 <div>Max file size: configurable server-side</div>
                 <div>Accepted: .csv, .xlsx</div>
-                <div id="uploadFileName">No file selected</div>
+                <div id="uploadFileName">No files selected</div>
             </div>
+            <div id="selectedFilesList" class="selected-files"></div>
             <div class="controls-grid">
                 <label>Duplicate handling
                     <select id="duplicateStrategy">
@@ -77,6 +78,7 @@
                 <article class="summary-card"><h3>Total Rows</h3><strong id="totalRowsCount">0</strong></article>
                 <article class="summary-card valid"><h3>Valid Rows</h3><strong id="validRowsCount">0</strong></article>
                 <article class="summary-card invalid"><h3>Invalid Rows</h3><strong id="invalidRowsCount">0</strong></article>
+                <article class="summary-card"><h3>Fused Students</h3><strong id="fusedStudentsCount">0</strong></article>
                 <article class="summary-card"><h3>Job</h3><strong id="jobStatus">Idle</strong></article>
             </div>
             <div class="summary-actions">
@@ -84,6 +86,45 @@
                 <button id="rollbackLastBtn" class="btn btn-outline" type="button">Rollback Last Import</button>
                 <a id="downloadErrorsBtn" class="btn btn-outline" href="#" hidden>Download Error Report</a>
             </div>
+        </section>
+
+        <section class="panel merge-panel" id="mergePanel" hidden>
+            <div class="panel-head">
+                <div>
+                    <h2 class="panel-title">AI Merge Preview</h2>
+                    <p class="panel-subtitle">Grouped students, confidence scores, source files, and merge conflicts.</p>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="data-grid merge-grid">
+                    <thead>
+                        <tr>
+                            <th>Confidence</th>
+                            <th>Full Name</th>
+                            <th>Enrollment / Roll</th>
+                            <th>Program</th>
+                            <th>Department</th>
+                            <th>School</th>
+                            <th>Year</th>
+                            <th>Class / Section</th>
+                            <th>House</th>
+                            <th>Sources</th>
+                            <th>Conflicts</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mergeBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel suggestions-panel" id="suggestionsPanel" hidden>
+            <div class="panel-head">
+                <div>
+                    <h2 class="panel-title">Smart Suggestions Panel</h2>
+                    <p class="panel-subtitle">High-confidence cleanup hints and normalization suggestions.</p>
+                </div>
+            </div>
+            <div id="suggestionsList" class="suggestions-list"></div>
         </section>
 
         <section class="panel preview-panel">

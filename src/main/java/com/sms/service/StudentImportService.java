@@ -10,16 +10,16 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Comparator;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.UUID;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -34,16 +34,19 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sms.dto.imports.StudentImportRowUpdateRequest;
+import com.sms.model.Course;
 import com.sms.model.Enrollment;
 import com.sms.model.Student;
 import com.sms.model.StudentImportJob;
 import com.sms.model.StudentImportRow;
-import com.sms.model.Course;
+import com.sms.model.StudentProfile;
 import com.sms.repository.CourseRepository;
 import com.sms.repository.EnrollmentRepository;
 import com.sms.repository.StudentImportJobRepository;
 import com.sms.repository.StudentImportRowRepository;
+import com.sms.repository.StudentProfileRepository;
 import com.sms.repository.StudentRepository;
 
 @Service
@@ -52,12 +55,19 @@ public class StudentImportService {
     private static final List<String> FIELD_ORDER = List.of(
         "fullName",
         "enrollmentNumber",
+        "rollNumber",
         "email",
         "phone",
+        "program",
         "course",
         "semester",
         "department",
+        "school",
         "section",
+        "className",
+        "house",
+        "joiningYear",
+        "leavingYear",
         "dateOfBirth",
         "gender",
         "address",
@@ -68,12 +78,19 @@ public class StudentImportService {
     private static final Map<String, String> FIELD_LABELS = Map.ofEntries(
         Map.entry("fullName", "Full Name"),
         Map.entry("enrollmentNumber", "Enrollment Number"),
+        Map.entry("rollNumber", "Roll Number"),
         Map.entry("email", "Email"),
         Map.entry("phone", "Phone"),
+        Map.entry("program", "Program"),
         Map.entry("course", "Course"),
         Map.entry("semester", "Semester"),
         Map.entry("department", "Department"),
+        Map.entry("school", "School"),
         Map.entry("section", "Section / Class"),
+        Map.entry("className", "Class"),
+        Map.entry("house", "House"),
+        Map.entry("joiningYear", "Joining Year"),
+        Map.entry("leavingYear", "Leaving Year"),
         Map.entry("dateOfBirth", "Date of Birth"),
         Map.entry("gender", "Gender"),
         Map.entry("address", "Address"),
@@ -101,9 +118,12 @@ public class StudentImportService {
     private final EnrollmentRepository enrollmentRepository;
     private final CourseRepository courseRepository;
     private final StudentService studentService;
+    private final StudentFusionService studentFusionService;
+    private final StudentProfileRepository studentProfileRepository;
     private final ImportArtifactService importArtifactService;
     private final AnalyticsRealtimeNotifier analyticsRealtimeNotifier;
     private final AnalyticsCacheService analyticsCacheService;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.import.students.max-file-size-mb:10}")
     private int maxFileSizeMb;
@@ -114,18 +134,24 @@ public class StudentImportService {
                                 EnrollmentRepository enrollmentRepository,
                                 CourseRepository courseRepository,
                                 StudentService studentService,
+                                StudentFusionService studentFusionService,
+                                StudentProfileRepository studentProfileRepository,
                                 ImportArtifactService importArtifactService,
                                 AnalyticsRealtimeNotifier analyticsRealtimeNotifier,
-                                AnalyticsCacheService analyticsCacheService) {
+                                AnalyticsCacheService analyticsCacheService,
+                                ObjectMapper objectMapper) {
         this.jobRepository = jobRepository;
         this.rowRepository = rowRepository;
         this.studentRepository = studentRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.courseRepository = courseRepository;
         this.studentService = studentService;
+        this.studentFusionService = studentFusionService;
+        this.studentProfileRepository = studentProfileRepository;
         this.importArtifactService = importArtifactService;
         this.analyticsRealtimeNotifier = analyticsRealtimeNotifier;
         this.analyticsCacheService = analyticsCacheService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -134,31 +160,87 @@ public class StudentImportService {
                                                 String duplicateStrategy,
                                                 Boolean rollbackOnFailure,
                                                 Map<String, String> mappingOverride) {
-        validateUpload(file);
+        return uploadAndPreview(file == null ? List.of() : List.of(file), uploadedBy, duplicateStrategy, rollbackOnFailure, mappingOverride);
+    }
+
+    @Transactional
+    public Map<String, Object> uploadAndPreview(List<MultipartFile> files,
+                                                String uploadedBy,
+                                                String duplicateStrategy,
+                                                Boolean rollbackOnFailure,
+                                                Map<String, String> mappingOverride) {
+        if (files == null || files.isEmpty()) {
+            throw new IllegalArgumentException("At least one CSV or XLSX file is required");
+        }
+
+        List<MultipartFile> activeFiles = files.stream()
+            .filter(file -> file != null && !file.isEmpty())
+            .toList();
+
+        if (activeFiles.isEmpty()) {
+            throw new IllegalArgumentException("At least one CSV or XLSX file is required");
+        }
+
+        for (MultipartFile file : activeFiles) {
+            validateUpload(file);
+        }
+
         StudentImportJob job = new StudentImportJob();
-        job.setFileName(safeFileName(file.getOriginalFilename()));
+        List<StudentImportRow> allRows = new ArrayList<>();
+        List<String> sourceFiles = new ArrayList<>();
+        List<Map<String, Object>> fileSummaries = new ArrayList<>();
+
+        for (MultipartFile file : activeFiles) {
+            String safeName = safeFileName(file.getOriginalFilename());
+            sourceFiles.add(safeName);
+
+            ParsedImport parsed = parse(file, mappingOverride == null ? Collections.emptyMap() : mappingOverride);
+            List<StudentImportRow> rows = validateRows(job, parsed.rows(), parsed.headerIndex());
+            for (StudentImportRow row : rows) {
+                row.setSourceFileName(safeName);
+            }
+
+            allRows.addAll(rows);
+            fileSummaries.add(Map.of(
+                "fileName", safeName,
+                "headers", parsed.headers(),
+                "rowCount", rows.size(),
+                "warnings", parsed.warnings(),
+                "missingRequiredFields", parsed.missingRequiredFields(),
+                "suggestions", parsed.suggestions(),
+                "mapping", parsed.mappingByField()
+            ));
+        }
+
+        job.setFileName(sourceFiles.size() == 1 ? sourceFiles.get(0) : sourceFiles.size() + " files merged");
         job.setUploadedBy(uploadedBy);
         job.setDuplicateStrategy(normalizeDuplicateStrategy(duplicateStrategy));
         job.setRollbackOnFailure(Boolean.TRUE.equals(rollbackOnFailure));
         job.setStatus(StudentImportJob.Status.UPLOADED);
+        job.setSourceFileCount(sourceFiles.size());
+        job.setSourceFilesJson(writeJson(sourceFiles));
         job = jobRepository.save(job);
 
-        ParsedImport parsed = parse(file, mappingOverride == null ? Collections.emptyMap() : mappingOverride);
-        List<StudentImportRow> rows = validateRows(job, parsed.rows(), parsed.headerIndex());
-        rowRepository.saveAll(rows);
+        rowRepository.saveAll(allRows);
 
-        updateJobCounts(job, rows);
+        StudentFusionService.FusionResult fusion = studentFusionService.analyze(allRows);
+        job.setMergeLogJson(fusion.mergeLogJson());
+        job.setFusedStudentCount(fusion.clusterCount());
+        job.setTotalRows(allRows.size());
+        job.setValidRows((int) allRows.stream().filter(row -> "VALID".equals(row.getStatus())).count());
+        job.setInvalidRows((int) allRows.stream().filter(row -> "INVALID".equals(row.getStatus())).count());
+        job.setFailureCount(job.getInvalidRows());
         job.setStatus(StudentImportJob.Status.PREVIEW_READY);
         jobRepository.save(job);
 
-        return buildPreviewPayload(job, rows, parsed);
+        return buildPreviewPayload(job, allRows, null, fusion, fileSummaries);
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> getPreview(Long jobId, String requester) {
         StudentImportJob job = getOwnedJob(jobId, requester);
         List<StudentImportRow> rows = rowRepository.findByJobOrderByRowIndexAsc(job);
-        return buildPreviewPayload(job, rows, null);
+        return buildPreviewPayload(job, rows, null, studentFusionService.analyze(rows), List.of());
     }
 
     @Transactional
@@ -185,7 +267,7 @@ public class StudentImportService {
         sanitizeRow(row);
         rowRepository.save(row);
         List<StudentImportRow> rows = revalidateAllRows(job);
-        return buildPreviewPayload(job, rows, null);
+        return buildPreviewPayload(job, rows, null, studentFusionService.analyze(rows), List.of());
     }
 
     @Transactional
@@ -197,7 +279,7 @@ public class StudentImportService {
 
         rowRepository.delete(row);
         List<StudentImportRow> rows = revalidateAllRows(job);
-        return buildPreviewPayload(job, rows, null);
+        return buildPreviewPayload(job, rows, null, studentFusionService.analyze(rows), List.of());
     }
 
     @Transactional
@@ -207,9 +289,8 @@ public class StudentImportService {
         String strategy = normalizeDuplicateStrategy(duplicateStrategy != null ? duplicateStrategy : job.getDuplicateStrategy());
         boolean rollback = rollbackOnFailure == null ? job.isRollbackOnFailure() : rollbackOnFailure;
 
-        List<StudentImportRow> validRows = rows.stream()
-            .filter(row -> "VALID".equals(row.getStatus()))
-            .toList();
+        StudentFusionService.FusionResult fusion = studentFusionService.analyze(rows);
+        List<Map<String, Object>> mergedStudents = fusion.mergedStudents();
 
         List<String> createdStudentIds = new ArrayList<>();
         int success = 0;
@@ -217,30 +298,27 @@ public class StudentImportService {
         List<String> errors = new ArrayList<>();
         String errorReportPath = null;
 
-        for (StudentImportRow row : validRows) {
+        for (Map<String, Object> mergedStudent : mergedStudents) {
             try {
-                ImportResult result = importRow(row, strategy);
+                ImportResult result = importMergedStudent(mergedStudent, rows, strategy);
                 if (result.skipped()) {
-                    row.setStatus("SKIPPED");
-                    row.setErrorMessage(result.message());
+                    markRowsForCluster(rows, mergedStudent, "SKIPPED", result.message(), null);
                     failure++;
-                    errors.add(buildErrorLine(row, result.message()));
+                    errors.add(buildErrorLineForCluster(mergedStudent, result.message()));
                 } else {
-                    row.setStatus("IMPORTED");
-                    row.setCreatedStudentId(result.studentId());
+                    markRowsForCluster(rows, mergedStudent, "IMPORTED", null, result.studentId());
                     createdStudentIds.add(result.studentId());
                     success++;
                 }
             } catch (Exception ex) {
-                row.setStatus("FAILED");
-                row.setErrorMessage(safeMessage(ex.getMessage()));
+                markRowsForCluster(rows, mergedStudent, "FAILED", safeMessage(ex.getMessage()), null);
                 failure++;
-                errors.add(buildErrorLine(row, safeMessage(ex.getMessage())));
+                errors.add(buildErrorLineForCluster(mergedStudent, safeMessage(ex.getMessage())));
                 if (rollback) {
                     rollbackCreatedStudents(createdStudentIds);
                     job.setStatus(StudentImportJob.Status.FAILED);
                     job.setSuccessCount(0);
-                    job.setFailureCount(rows.size());
+                    job.setFailureCount(mergedStudents.size());
                     if (!errors.isEmpty()) {
                         errorReportPath = exportErrors(errors);
                         attachErrorReport(job, errorReportPath);
@@ -251,7 +329,7 @@ public class StudentImportService {
                         "jobId", job.getId(),
                         "status", "ROLLED_BACK",
                         "successCount", 0,
-                        "failureCount", rows.size(),
+                        "failureCount", mergedStudents.size(),
                         "message", "Import failed and transaction was rolled back",
                         "errorReport", errorReportPath
                     );
@@ -264,10 +342,12 @@ public class StudentImportService {
             attachErrorReport(job, errorReportPath);
         }
 
-        job.setStatus(success > 0 ? StudentImportJob.Status.CONFIRMED : StudentImportJob.Status.FAILED);
+    job.setStatus(success > 0 ? StudentImportJob.Status.CONFIRMED : StudentImportJob.Status.FAILED);
         job.setSuccessCount(success);
         job.setFailureCount(failure);
         job.setDuplicateStrategy(strategy);
+    job.setFusedStudentCount(mergedStudents.size());
+    job.setMergeLogJson(fusion.mergeLogJson());
         jobRepository.save(job);
         rowRepository.saveAll(rows);
         analyticsRealtimeNotifier.notifyStudentBulkImport(job.getId(), success);
@@ -492,12 +572,19 @@ public class StudentImportService {
             row.setRowIndex(dataStartRow + i);
             row.setFullName(value(values, headerIndex, "fullName"));
             row.setEnrollmentNumber(value(values, headerIndex, "enrollmentNumber"));
+            row.setRollNumber(value(values, headerIndex, "rollNumber"));
             row.setEmail(value(values, headerIndex, "email"));
             row.setPhone(value(values, headerIndex, "phone"));
+            row.setProgram(value(values, headerIndex, "program"));
             row.setCourse(value(values, headerIndex, "course"));
             row.setSemester(value(values, headerIndex, "semester"));
             row.setDepartment(value(values, headerIndex, "department"));
+            row.setSchool(value(values, headerIndex, "school"));
             row.setSection(value(values, headerIndex, "section"));
+            row.setClassName(value(values, headerIndex, "className"));
+            row.setHouse(value(values, headerIndex, "house"));
+            row.setJoiningYear(value(values, headerIndex, "joiningYear"));
+            row.setLeavingYear(value(values, headerIndex, "leavingYear"));
             row.setDateOfBirth(value(values, headerIndex, "dateOfBirth"));
             row.setGender(value(values, headerIndex, "gender"));
             row.setAddress(value(values, headerIndex, "address"));
@@ -601,23 +688,142 @@ public class StudentImportService {
         return ImportResult.imported(saved.getId());
     }
 
+    private ImportResult importMergedStudent(Map<String, Object> mergedStudent, List<StudentImportRow> rows, String strategy) {
+        String studentId = resolveStudentId(mergedStudent);
+        if (!StringUtils.hasText(studentId)) {
+            throw new IllegalArgumentException("Unable to resolve student identifier");
+        }
+
+        Student existing = studentRepository.findById(studentId).orElse(null);
+        if (existing != null) {
+            return switch (strategy) {
+                case "SKIP" -> ImportResult.skipped("Existing student skipped");
+                case "REJECT" -> ImportResult.skipped("Existing student rejected as duplicate");
+                case "OVERWRITE", "UPDATE" -> persistMergedStudent(existing, mergedStudent, rows);
+                default -> throw new IllegalArgumentException("Unsupported duplicate strategy: " + strategy);
+            };
+        }
+
+        Student student = new Student(studentId, stringValue(mergedStudent.get("fullName"), studentId));
+        return persistMergedStudent(student, mergedStudent, rows);
+    }
+
+    private ImportResult persistMergedStudent(Student student, Map<String, Object> mergedStudent, List<StudentImportRow> rows) {
+        student.setName(firstNonBlank(stringValue(mergedStudent.get("fullName"), null), student.getName()));
+        student.setEmail(firstNonBlank(stringValue(mergedStudent.get("email"), null), student.getEmail()));
+        student.setPhone(firstNonBlank(stringValue(mergedStudent.get("phone"), null), student.getPhone()));
+        student.setCourse(firstNonBlank(stringValue(mergedStudent.get("course"), null), stringValue(mergedStudent.get("program"), null), student.getCourse()));
+        student.setSemester(firstNonBlank(stringValue(mergedStudent.get("semester"), null), student.getSemester()));
+        student.setDepartment(firstNonBlank(stringValue(mergedStudent.get("department"), null), student.getDepartment()));
+        student.setSection(firstNonBlank(stringValue(mergedStudent.get("section"), null), stringValue(mergedStudent.get("className"), null), student.getSection()));
+        student.setGender(firstNonBlank(stringValue(mergedStudent.get("gender"), null), student.getGender()));
+        student.setAddress(firstNonBlank(stringValue(mergedStudent.get("address"), null), student.getAddress()));
+        student.setEnrollmentYear(firstNonBlank(stringValue(mergedStudent.get("joiningYear"), null), extractYear(student.getId())));
+        if (hasText(stringValue(mergedStudent.get("dateOfBirth"), null))) {
+            try {
+                student.setDob(parseDate(stringValue(mergedStudent.get("dateOfBirth"), null)));
+            } catch (Exception ignored) {
+                student.setDob(null);
+            }
+        }
+
+        Student saved = studentService.save(student);
+        upsertEnrollment(saved, firstNonBlank(saved.getCourse(), stringValue(mergedStudent.get("course"), null), stringValue(mergedStudent.get("program"), null)));
+        updateStudentProfileMetadata(saved.getId(), mergedStudent);
+        return ImportResult.imported(saved.getId());
+    }
+
+    private void updateStudentProfileMetadata(String studentId, Map<String, Object> mergedStudent) {
+        StudentProfile profile = studentProfileRepository.findByStudentId(studentId).orElseGet(StudentProfile::new);
+        profile.setStudentId(studentId);
+        profile.setFullName(firstNonBlank(stringValue(mergedStudent.get("fullName"), null), profile.getFullName()));
+        profile.setEnrollmentNumber(firstNonBlank(stringValue(mergedStudent.get("enrollmentNumber"), null), studentId));
+        profile.setProfileImage(firstNonBlank(profile.getProfileImage(), null));
+        profile.setDob(parseOptionalDate(stringValue(mergedStudent.get("dateOfBirth"), null), profile.getDob()));
+        profile.setGender(firstNonBlank(stringValue(mergedStudent.get("gender"), null), profile.getGender()));
+        profile.setPhone(firstNonBlank(stringValue(mergedStudent.get("phone"), null), profile.getPhone()));
+        profile.setEmail(firstNonBlank(stringValue(mergedStudent.get("email"), null), profile.getEmail()));
+        profile.setAddress(firstNonBlank(stringValue(mergedStudent.get("address"), null), profile.getAddress()));
+        profile.setCourse(firstNonBlank(stringValue(mergedStudent.get("course"), null), stringValue(mergedStudent.get("program"), null), profile.getCourse()));
+        profile.setDepartment(firstNonBlank(stringValue(mergedStudent.get("department"), null), profile.getDepartment()));
+        profile.setSemester(firstNonBlank(stringValue(mergedStudent.get("semester"), null), profile.getSemester()));
+        profile.setSection(firstNonBlank(stringValue(mergedStudent.get("section"), null), stringValue(mergedStudent.get("className"), null), profile.getSection()));
+        profile.setAdmissionYear(parseYear(firstNonBlank(stringValue(mergedStudent.get("joiningYear"), null), profile.getAdmissionYear() == null ? null : String.valueOf(profile.getAdmissionYear()))));
+        profile.setCollege(firstNonBlank(stringValue(mergedStudent.get("school"), null), profile.getCollege(), "Bennett University"));
+        profile.setValidUpto(profile.getValidUpto() == null ? LocalDate.now().plusYears(4) : profile.getValidUpto());
+        profile.setIdCardNumber(firstNonBlank(profile.getIdCardNumber(), "BU-" + studentId));
+        profile.setUpdatedBy("Import Fusion");
+        studentProfileRepository.save(profile);
+    }
+
     private Student mapStudent(Student student, StudentImportRow row) {
         student.setName(clean(row.getFullName()));
         student.setEmail(clean(row.getEmail()));
         student.setPhone(clean(row.getPhone()));
-        student.setCourse(clean(row.getCourse()));
+        student.setCourse(firstNonBlank(clean(row.getProgram()), clean(row.getCourse())));
         student.setSemester(clean(row.getSemester()));
         student.setDepartment(clean(row.getDepartment()));
-        student.setSection(clean(row.getSection()));
+        student.setSection(firstNonBlank(clean(row.getSection()), clean(row.getClassName())));
         student.setGender(clean(row.getGender()));
         student.setAddress(clean(row.getAddress()));
-        student.setEnrollmentYear(extractYear(row.getEnrollmentNumber()));
+        student.setEnrollmentYear(firstNonBlank(clean(row.getJoiningYear()), extractYear(row.getEnrollmentNumber())));
         try {
             student.setDob(parseDate(row.getDateOfBirth()));
         } catch (Exception ignored) {
             student.setDob(null);
         }
         return student;
+    }
+
+    private String resolveStudentId(Map<String, Object> mergedStudent) {
+        String enrollment = stringValue(mergedStudent.get("enrollmentNumber"), null);
+        if (hasText(enrollment)) {
+            return cleanEnrollment(enrollment);
+        }
+
+        String rollNumber = stringValue(mergedStudent.get("rollNumber"), null);
+        if (hasText(rollNumber)) {
+            return cleanEnrollment(rollNumber);
+        }
+
+        String identityKey = stringValue(mergedStudent.get("identityKey"), null);
+        if (hasText(identityKey)) {
+            return "AUTO-" + Integer.toHexString(identityKey.hashCode()).toUpperCase(Locale.ROOT);
+        }
+
+        return null;
+    }
+
+    private String stringValue(Object value, String fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        String text = String.valueOf(value).trim();
+        return text.isBlank() ? fallback : text;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isBlank();
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (hasText(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private LocalDate parseOptionalDate(String value, LocalDate fallback) {
+        if (!hasText(value)) {
+            return fallback;
+        }
+        try {
+            return parseDate(value);
+        } catch (Exception ignored) {
+            return fallback;
+        }
     }
 
     private void upsertEnrollment(Student student, String courseValue) {
@@ -661,7 +867,58 @@ public class StudentImportService {
         job.setFailureCount((int) rows.stream().filter(row -> "INVALID".equals(row.getStatus())).count());
     }
 
+    private void markRowsForCluster(List<StudentImportRow> rows,
+                                    Map<String, Object> mergedStudent,
+                                    String status,
+                                    String errorMessage,
+                                    String createdStudentId) {
+        Set<Long> rowIds = new LinkedHashSet<>();
+        Object sourceRows = mergedStudent.get("sourceRows");
+        if (sourceRows instanceof List<?> list) {
+            for (Object sourceRow : list) {
+                if (sourceRow instanceof Map<?, ?> rowMap) {
+                    Object id = rowMap.get("rowId");
+                    if (id instanceof Number number) {
+                        rowIds.add(number.longValue());
+                    }
+                }
+            }
+        }
+
+        for (StudentImportRow row : rows) {
+            if (!rowIds.contains(row.getId())) {
+                continue;
+            }
+            row.setStatus(status);
+            row.setErrorMessage(errorMessage);
+            if (createdStudentId != null) {
+                row.setCreatedStudentId(createdStudentId);
+            }
+        }
+    }
+
+    private String buildErrorLineForCluster(Map<String, Object> mergedStudent, String message) {
+        Object identity = mergedStudent.get("identityKey");
+        return safeMessage(message) + " | cluster=" + (identity == null ? "unknown" : identity);
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception ex) {
+            return "[]";
+        }
+    }
+
     private Map<String, Object> buildPreviewPayload(StudentImportJob job, List<StudentImportRow> rows, ParsedImport parsed) {
+        return buildPreviewPayload(job, rows, parsed, studentFusionService.analyze(rows), List.of());
+    }
+
+    private Map<String, Object> buildPreviewPayload(StudentImportJob job,
+                                                    List<StudentImportRow> rows,
+                                                    ParsedImport parsed,
+                                                    StudentFusionService.FusionResult fusion,
+                                                    List<Map<String, Object>> fileSummaries) {
         List<Map<String, Object>> previewRows = rows.stream().map(this::rowToMap).toList();
         List<Map<String, Object>> errorRows = rows.stream()
             .filter(row -> !"VALID".equals(row.getStatus()))
@@ -677,8 +934,16 @@ public class StudentImportService {
         payload.put("fileName", job.getFileName());
         payload.put("duplicateStrategy", job.getDuplicateStrategy());
         payload.put("rollbackOnFailure", job.isRollbackOnFailure());
+        payload.put("sourceFileCount", job.getSourceFileCount());
+        payload.put("fusedStudentCount", job.getFusedStudentCount());
         payload.put("headers", FIELD_ORDER.stream().map(FIELD_LABELS::get).toList());
         payload.put("rows", previewRows);
+        payload.put("mergedStudents", fusion.mergedStudents());
+        payload.put("mergeLog", fusion.mergeLog());
+        payload.put("smartSuggestions", fusion.suggestions());
+        payload.put("sourceFiles", fileSummaries);
+        payload.put("mergeSources", fusion.sources());
+        payload.put("mergeAverageConfidence", fusion.averageConfidence());
         payload.put("totalRows", rows.size());
         payload.put("validRows", rows.stream().filter(row -> "VALID".equals(row.getStatus())).count());
         payload.put("invalidRows", rows.stream().filter(row -> !"VALID".equals(row.getStatus())).count());
@@ -701,6 +966,7 @@ public class StudentImportService {
             payload.put("detectedHeaderRow", 1);
         }
 
+        payload.put("jobSummaryJson", job.getMergeLogJson());
         return payload;
     }
 
@@ -710,12 +976,19 @@ public class StudentImportService {
         item.put("rowIndex", row.getRowIndex());
         item.put("fullName", row.getFullName());
         item.put("enrollmentNumber", row.getEnrollmentNumber());
+        item.put("rollNumber", row.getRollNumber());
         item.put("email", row.getEmail());
         item.put("phone", row.getPhone());
+        item.put("program", row.getProgram());
         item.put("course", row.getCourse());
         item.put("semester", row.getSemester());
         item.put("department", row.getDepartment());
+        item.put("school", row.getSchool());
         item.put("section", row.getSection());
+        item.put("className", row.getClassName());
+        item.put("house", row.getHouse());
+        item.put("joiningYear", row.getJoiningYear());
+        item.put("leavingYear", row.getLeavingYear());
         item.put("dateOfBirth", row.getDateOfBirth());
         item.put("gender", row.getGender());
         item.put("address", row.getAddress());
@@ -723,6 +996,10 @@ public class StudentImportService {
         item.put("guardianName", row.getGuardianName());
         item.put("classGroup", computeClassGroup(row.getEnrollmentNumber()));
         item.put("batchGroup", computeBatchGroup(row.getEnrollmentNumber()));
+        item.put("sourceFileName", row.getSourceFileName());
+        item.put("mergeGroupKey", row.getMergeGroupKey());
+        item.put("identityKey", row.getIdentityKey());
+        item.put("confidenceScore", row.getConfidenceScore());
         item.put("status", row.getStatus());
         item.put("errorMessage", row.getErrorMessage());
         return item;
@@ -938,12 +1215,19 @@ public class StudentImportService {
         return switch (field) {
             case "fullName" -> List.of("Full Name", "Name", "Student Name", "Candidate Name");
             case "enrollmentNumber" -> List.of("Enrollment Number", "Enrollment No", "Enrollment", "Roll Number", "Student ID", "Enrollment Id");
+            case "rollNumber" -> List.of("Roll Number", "Roll No", "Roll", "Student Roll");
             case "email" -> List.of("Email", "Email Address", "Mail");
             case "phone" -> List.of("Phone", "Mobile", "Contact", "Phone Number", "Mobile Number");
+            case "program" -> List.of("Program", "Degree", "Qualification", "Stream");
             case "course" -> List.of("Course", "Program", "Branch");
             case "semester" -> List.of("Semester", "Sem", "Term");
             case "department" -> List.of("Department", "Dept", "School");
+            case "school" -> List.of("School", "Faculty", "Institute");
             case "section" -> List.of("Section", "Class", "Class Name", "Section Name", "Group");
+            case "className" -> List.of("Class", "Class Name", "Class Section", "Batch Class");
+            case "house" -> List.of("House", "House Name", "Hostel House");
+            case "joiningYear" -> List.of("Joining Year", "Admission Year", "Year Of Joining");
+            case "leavingYear" -> List.of("Leaving Year", "Pass Out Year", "Year Of Leaving");
             case "dateOfBirth" -> List.of("Date of Birth", "DOB", "Birth Date", "Date Of Birth");
             case "gender" -> List.of("Gender", "Sex");
             case "address" -> List.of("Address", "Residential Address", "Current Address");
@@ -975,12 +1259,19 @@ public class StudentImportService {
     private void sanitizeRow(StudentImportRow row) {
         row.setFullName(clean(row.getFullName()));
         row.setEnrollmentNumber(cleanEnrollment(row.getEnrollmentNumber()));
+        row.setRollNumber(cleanEnrollment(row.getRollNumber()));
         row.setEmail(cleanEmail(row.getEmail()));
         row.setPhone(cleanPhone(row.getPhone()));
+        row.setProgram(clean(row.getProgram()));
         row.setCourse(clean(row.getCourse()));
         row.setSemester(clean(row.getSemester()));
         row.setDepartment(clean(row.getDepartment()));
+        row.setSchool(clean(row.getSchool()));
         row.setSection(clean(row.getSection()));
+        row.setClassName(clean(row.getClassName()));
+        row.setHouse(clean(row.getHouse()));
+        row.setJoiningYear(clean(row.getJoiningYear()));
+        row.setLeavingYear(clean(row.getLeavingYear()));
         row.setDateOfBirth(clean(row.getDateOfBirth()));
         row.setGender(clean(row.getGender()));
         row.setAddress(clean(row.getAddress()));
@@ -1057,6 +1348,21 @@ public class StudentImportService {
         }
         String digits = enrollmentNumber.replaceAll("\\D+", "");
         return digits.length() >= 4 ? digits.substring(0, 4) : null;
+    }
+
+    private Integer parseYear(String year) {
+        if (!StringUtils.hasText(year)) {
+            return null;
+        }
+        String digits = year.replaceAll("\\D+", "");
+        if (digits.isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(digits.substring(0, Math.min(4, digits.length())));
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private String computeClassGroup(String enrollmentNumber) {

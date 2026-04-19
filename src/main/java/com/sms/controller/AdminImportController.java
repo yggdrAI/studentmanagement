@@ -54,14 +54,23 @@ public class AdminImportController {
 
     @PostMapping(value = "/students", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, Object>> uploadStudents(
-        @RequestParam("file") MultipartFile file,
+        @RequestParam(value = "file", required = false) MultipartFile file,
+        @RequestParam(value = "files", required = false) List<MultipartFile> files,
         @RequestParam(name = "duplicateStrategy", defaultValue = "SKIP") String duplicateStrategy,
         @RequestParam(name = "rollbackOnFailure", defaultValue = "true") Boolean rollbackOnFailure,
         @RequestParam(name = "mappingJson", required = false) String mappingJson,
         Authentication authentication) {
 
+        List<MultipartFile> uploadFiles = new java.util.ArrayList<>();
+        if (files != null) {
+            uploadFiles.addAll(files);
+        }
+        if (file != null) {
+            uploadFiles.add(file);
+        }
+
         Map<String, Object> preview = studentImportService.uploadAndPreview(
-            file,
+            uploadFiles,
             authentication.getName(),
             duplicateStrategy,
             rollbackOnFailure,
@@ -120,12 +129,19 @@ public class AdminImportController {
             List<String> headers = List.of(
                 "Full Name",
                 "Enrollment Number",
+                "Roll Number",
                 "Email",
                 "Phone",
+                "Program",
                 "Course",
                 "Semester",
                 "Department",
+                "School",
                 "Section",
+                "Class",
+                "House",
+                "Joining Year",
+                "Leaving Year",
                 "Date of Birth",
                 "Gender",
                 "Address",
@@ -138,17 +154,23 @@ public class AdminImportController {
             Row sample = sheet.createRow(1);
             sample.createCell(0).setCellValue("Aarav Sharma");
             sample.createCell(1).setCellValue("BU2026001");
-            sample.createCell(2).setCellValue("aarav.sharma@bennett.edu.in");
-            sample.createCell(3).setCellValue("9876543210");
-            sample.createCell(4).setCellValue("B.Tech CSE");
-            sample.createCell(5).setCellValue("Semester 1");
-            sample.createCell(6).setCellValue("Computer Science");
-            sample.createCell(7).setCellValue("Class A");
-            sample.createCell(8).setCellValue("2005-08-15");
-            sample.createCell(9).setCellValue("Male");
-            sample.createCell(10).setCellValue("Greater Noida, UP");
-            sample.createCell(11).setCellValue("O+");
-            sample.createCell(12).setCellValue("Rajesh Sharma");
+            sample.createCell(2).setCellValue("22BCS045");
+            sample.createCell(3).setCellValue("aarav.sharma@bennett.edu.in");
+            sample.createCell(4).setCellValue("9876543210");
+            sample.createCell(5).setCellValue("B.Tech CSE");
+            sample.createCell(6).setCellValue("B.Tech CSE");
+            sample.createCell(7).setCellValue("Semester 1");
+            sample.createCell(8).setCellValue("Computer Science");
+            sample.createCell(9).setCellValue("School of Engineering");
+            sample.createCell(10).setCellValue("CSE-A");
+            sample.createCell(11).setCellValue("Cedar");
+            sample.createCell(12).setCellValue("2022");
+            sample.createCell(13).setCellValue("2026");
+            sample.createCell(14).setCellValue("2005-08-15");
+            sample.createCell(15).setCellValue("Male");
+            sample.createCell(16).setCellValue("Greater Noida, UP");
+            sample.createCell(17).setCellValue("O+");
+            sample.createCell(18).setCellValue("Rajesh Sharma");
             workbook.write(outputStream);
             return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=student-import-template.xlsx")

@@ -67,6 +67,39 @@ public class StudentImportRow {
     @Column(name = "guardian_name")
     private String guardianName;
 
+    @Column(name = "roll_number")
+    private String rollNumber;
+
+    @Column(name = "program")
+    private String program;
+
+    @Column(name = "school")
+    private String school;
+
+    @Column(name = "house")
+    private String house;
+
+    @Column(name = "joining_year")
+    private String joiningYear;
+
+    @Column(name = "leaving_year")
+    private String leavingYear;
+
+    @Column(name = "class_name")
+    private String className;
+
+    @Column(name = "source_file_name", length = 255)
+    private String sourceFileName;
+
+    @Column(name = "identity_key", length = 256)
+    private String identityKey;
+
+    @Column(name = "merge_group_key", length = 256)
+    private String mergeGroupKey;
+
+    @Column(name = "confidence_score")
+    private Double confidenceScore;
+
     @Column(name = "status", length = 32)
     private String status = "PENDING";
 
@@ -121,6 +154,28 @@ public class StudentImportRow {
     public void setBloodGroup(String bloodGroup) { this.bloodGroup = bloodGroup; }
     public String getGuardianName() { return guardianName; }
     public void setGuardianName(String guardianName) { this.guardianName = guardianName; }
+    public String getRollNumber() { return rollNumber; }
+    public void setRollNumber(String rollNumber) { this.rollNumber = rollNumber; }
+    public String getProgram() { return program; }
+    public void setProgram(String program) { this.program = program; }
+    public String getSchool() { return school; }
+    public void setSchool(String school) { this.school = school; }
+    public String getHouse() { return house; }
+    public void setHouse(String house) { this.house = house; }
+    public String getJoiningYear() { return joiningYear; }
+    public void setJoiningYear(String joiningYear) { this.joiningYear = joiningYear; }
+    public String getLeavingYear() { return leavingYear; }
+    public void setLeavingYear(String leavingYear) { this.leavingYear = leavingYear; }
+    public String getClassName() { return className; }
+    public void setClassName(String className) { this.className = className; }
+    public String getSourceFileName() { return sourceFileName; }
+    public void setSourceFileName(String sourceFileName) { this.sourceFileName = sourceFileName; }
+    public String getIdentityKey() { return identityKey; }
+    public void setIdentityKey(String identityKey) { this.identityKey = identityKey; }
+    public String getMergeGroupKey() { return mergeGroupKey; }
+    public void setMergeGroupKey(String mergeGroupKey) { this.mergeGroupKey = mergeGroupKey; }
+    public Double getConfidenceScore() { return confidenceScore; }
+    public void setConfidenceScore(Double confidenceScore) { this.confidenceScore = confidenceScore; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public String getErrorMessage() { return errorMessage; }

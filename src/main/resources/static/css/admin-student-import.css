@@ -56,6 +56,25 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.selected-files {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    font-size: 13px;
+}
+
+.selected-files ul {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.selected-files li + li {
+    margin-top: 4px;
+}
+
 .controls-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     margin-top: 16px;
@@ -135,6 +154,42 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
+}
+
+.merge-grid {
+    min-width: 1400px;
+}
+
+.merge-grid td,
+.merge-grid th {
+    white-space: normal;
+}
+
+.suggestions-list {
+    display: grid;
+    gap: 10px;
+}
+
+.suggestion-item {
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: #f8fafc;
+    color: #334155;
+    display: grid;
+    gap: 6px;
+}
+
+.suggestion-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+}
+
+.suggestion-head span {
+    font-weight: 700;
+    color: #0f766e;
 }
 
 .mapping-item {

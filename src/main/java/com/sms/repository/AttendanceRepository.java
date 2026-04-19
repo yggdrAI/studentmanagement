@@ -116,6 +116,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
         @Param("tenantId") Long tenantId
     );
 
+    void deleteByStudentId(String studentId);
+
     /**
      * Get attendance statistics - present count
      */
