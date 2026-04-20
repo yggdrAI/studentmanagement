@@ -115,7 +115,7 @@
         </div>
 
         <div th:if="${studentLoginMode}" class="alert alert-success">
-            Student login uses your enrollment number as both username and initial password.
+            First login uses your enrollment number as the default password.
         </div>
 
         <!-- Alerts -->
@@ -135,8 +135,8 @@
         <form th:action="@{/login}" method="post">
             <input type="hidden" name="loginPortal" th:value="${studentLoginMode} ? 'student' : 'staff'">
             <div class="form-group">
-                <label for="username" class="form-label" th:text="${studentLoginMode} ? 'Enrollment Number' : 'Username'">Username</label>
-                <input type="text" id="username" name="username" class="form-input" th:placeholder="${studentLoginMode} ? 'e.g. S25CSEU1006' : 'e.g. admin'" required autofocus>
+                <label for="username" class="form-label">Email / Phone / Enrollment No</label>
+                <input type="text" id="username" name="username" class="form-input" placeholder="e.g. S25CSEU1006 or student@univ.edu or 9876543210" required autofocus>
             </div>
             <div class="form-group">
                 <label for="password" class="form-label">Password</label>
@@ -148,10 +148,14 @@
             <button type="submit" class="btn-login">Sign In</button>
         </form>
 
+        <div style="margin-top: 12px; text-align: right; font-size: 13px;">
+            <a href="/forgot-password" style="color: #2563eb; text-decoration: none; font-weight: 600;">Forgot Password?</a>
+        </div>
+
         <div class="hint">
             <strong>Login Help</strong><br>
-            <span th:if="${!studentLoginMode}">Use your assigned account credentials.</span>
-            <span th:if="${studentLoginMode}">Use your enrollment number and your current password.</span>
+            <span th:if="${!studentLoginMode}">Sign in with enrollment number, registered email, or registered phone.</span>
+            <span th:if="${studentLoginMode}">Use enrollment number, registered email, or registered phone with your current password.</span>
         </div>
 
         <div style="margin-top: 14px; text-align: center; font-size: 13px;">

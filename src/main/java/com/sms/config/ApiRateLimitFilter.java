@@ -62,6 +62,9 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
 
     private boolean isSensitive(String path) {
         return "/api/auth/login".equals(path)
+            || "/api/auth/forgot-password".equals(path)
+            || "/api/auth/verify-otp".equals(path)
+            || "/api/auth/reset-password".equals(path)
             || "/api/student/attendance/mark".equals(path)
             || "/api/student/attendance/verify-qr".equals(path)
             || "/api/student/attendance/register-face".equals(path)
@@ -71,6 +74,15 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
     private int resolveLimit(String path) {
         if ("/api/auth/login".equals(path)) {
             return 20;
+        }
+        if ("/api/auth/forgot-password".equals(path)) {
+            return 8;
+        }
+        if ("/api/auth/verify-otp".equals(path)) {
+            return 15;
+        }
+        if ("/api/auth/reset-password".equals(path)) {
+            return 10;
         }
         if (path.startsWith("/api/student/attendance/")) {
             return 40;

@@ -39,6 +39,11 @@ public class AuthController {
         return "login";
     }
 
+    @GetMapping("/forgot-password")
+    public String forgotPasswordPage() {
+        return "forgot-password";
+    }
+
     @GetMapping("/dashboard")
     public String dashboard(Authentication authentication) {
         if (!isAuthenticated(authentication)) {

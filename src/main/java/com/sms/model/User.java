@@ -25,6 +25,12 @@ public class User implements Serializable {
     @Column(unique = true)
     private String username;
 
+    @Column(unique = true)
+    private String email;
+
+    @Column(unique = true)
+    private String phone;
+
     private String password;
 
     @Enumerated(EnumType.STRING)
@@ -33,11 +39,20 @@ public class User implements Serializable {
     @Column(name = "is_first_login", nullable = false)
     private Boolean isFirstLogin = true;
 
+    @Column(name = "is_verified_email", nullable = false)
+    private Boolean isVerifiedEmail = false;
+
+    @Column(name = "is_verified_phone", nullable = false)
+    private Boolean isVerifiedPhone = false;
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
     @Column(name = "failed_login_attempts", nullable = false)
     private Integer failedLoginAttempts = 0;
+
+    @Column(name = "failed_attempts", nullable = false)
+    private Integer failedAttempts = 0;
 
     @Column(name = "account_locked_until")
     private LocalDateTime accountLockedUntil;
@@ -68,9 +83,19 @@ public class User implements Serializable {
         if (isActive == null) {
             isActive = true;
         }
+        if (isVerifiedEmail == null) {
+            isVerifiedEmail = false;
+        }
+        if (isVerifiedPhone == null) {
+            isVerifiedPhone = false;
+        }
         if (failedLoginAttempts == null) {
             failedLoginAttempts = 0;
         }
+        if (failedAttempts == null) {
+            failedAttempts = failedLoginAttempts;
+        }
+        failedAttempts = failedLoginAttempts;
     }
 
     @PreUpdate
@@ -79,22 +104,37 @@ public class User implements Serializable {
         if (failedLoginAttempts == null) {
             failedLoginAttempts = 0;
         }
+        if (failedAttempts == null) {
+            failedAttempts = failedLoginAttempts;
+        }
+        failedAttempts = failedLoginAttempts;
     }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
     public Boolean getIsFirstLogin() { return isFirstLogin; }
     public void setIsFirstLogin(Boolean isFirstLogin) { this.isFirstLogin = isFirstLogin; }
+    public Boolean getIsVerifiedEmail() { return isVerifiedEmail; }
+    public void setIsVerifiedEmail(Boolean isVerifiedEmail) { this.isVerifiedEmail = isVerifiedEmail; }
+    public Boolean getIsVerifiedPhone() { return isVerifiedPhone; }
+    public void setIsVerifiedPhone(Boolean isVerifiedPhone) { this.isVerifiedPhone = isVerifiedPhone; }
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
     public Integer getFailedLoginAttempts() { return failedLoginAttempts; }
-    public void setFailedLoginAttempts(Integer failedLoginAttempts) { this.failedLoginAttempts = failedLoginAttempts; }
+    public void setFailedLoginAttempts(Integer failedLoginAttempts) {
+        this.failedLoginAttempts = failedLoginAttempts;
+        this.failedAttempts = failedLoginAttempts;
+    }
     public LocalDateTime getAccountLockedUntil() { return accountLockedUntil; }
     public void setAccountLockedUntil(LocalDateTime accountLockedUntil) { this.accountLockedUntil = accountLockedUntil; }
     public LocalDateTime getCreatedAt() { return createdAt; }

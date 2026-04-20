@@ -148,6 +148,9 @@
         auth: {
             login: (payload) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
             changePassword: (payload) => request('/api/auth/change-password', { method: 'POST', body: JSON.stringify(payload) }),
+            forgotPassword: (payload) => request('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify(payload) }),
+            verifyOtp: (payload) => request('/api/auth/verify-otp', { method: 'POST', body: JSON.stringify(payload) }),
+            resetPassword: (payload) => request('/api/auth/reset-password', { method: 'POST', body: JSON.stringify(payload) }),
             me: () => request('/api/auth/me')
         },
 

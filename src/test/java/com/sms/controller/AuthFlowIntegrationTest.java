@@ -13,21 +13,18 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sms.model.OtpVerification;
 import com.sms.model.Role;
-import com.sms.model.Student;
-import com.sms.model.StudentProfile;
 import com.sms.model.User;
-import com.sms.repository.StudentProfileRepository;
-import com.sms.repository.StudentRepository;
+import com.sms.repository.OtpVerificationRepository;
 import com.sms.repository.UserRepository;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.hierarchy.sync-on-startup=false")
 @AutoConfigureMockMvc
 @Transactional
 class AuthFlowIntegrationTest {
@@ -39,10 +36,7 @@ class AuthFlowIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
-    private StudentRepository studentRepository;
-
-    @Autowired
-    private StudentProfileRepository studentProfileRepository;
+    private OtpVerificationRepository otpVerificationRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -51,14 +45,16 @@ class AuthFlowIntegrationTest {
     private ObjectMapper objectMapper;
 
     private static final String STUDENT_USERNAME = "UTEST_STU_1001";
-    private static final String STUDENT_ID_ALIAS = "UTEST_STUDENT_ID_2001";
-    private static final String ENROLLMENT_ALIAS = "UTEST_ENROLL_2001";
+    private static final String STUDENT_EMAIL = "utest.student@univ.edu";
+    private static final String STUDENT_PHONE = "9876543210";
     private static final String DEFAULT_PASSWORD = "UTEST_STU_1001";
     private static final String STRONG_PASSWORD = "NewPass@123";
 
     @BeforeEach
     void setUp() {
         userRepository.deleteByUsername(STUDENT_USERNAME);
+        userRepository.findByEmailIgnoreCase(STUDENT_EMAIL).ifPresent(userRepository::delete);
+        userRepository.findByPhone(STUDENT_PHONE).ifPresent(userRepository::delete);
     }
 
     @Test
@@ -93,13 +89,13 @@ class AuthFlowIntegrationTest {
     }
 
     @Test
-    void loginShouldAcceptEnrollmentNumberAlias() throws Exception {
-        createStudentUserWithEnrollmentAlias(DEFAULT_PASSWORD, true);
+    void loginShouldAcceptRegisteredEmail() throws Exception {
+        createStudentUser(DEFAULT_PASSWORD, true);
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{" +
-                                "\"username\":\"" + ENROLLMENT_ALIAS.toLowerCase() + "\"," +
+                                "\"username\":\"" + STUDENT_EMAIL.toUpperCase() + "\"," +
                                 "\"password\":\"" + DEFAULT_PASSWORD + "\"" +
                                 "}"))
                 .andExpect(status().isOk())
@@ -108,15 +104,18 @@ class AuthFlowIntegrationTest {
     }
 
     @Test
-    void formLoginShouldAcceptEnrollmentNumberAliasOnStudentPortal() throws Exception {
-        createStudentUserWithEnrollmentAlias(DEFAULT_PASSWORD, true);
+    void loginShouldAcceptRegisteredPhone() throws Exception {
+        createStudentUser(DEFAULT_PASSWORD, true);
 
-        mockMvc.perform(post("/login")
-                        .param("username", ENROLLMENT_ALIAS.toLowerCase())
-                        .param("password", DEFAULT_PASSWORD)
-                        .param("loginPortal", "student"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/dashboard"));
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{" +
+                                "\"username\":\"" + STUDENT_PHONE + "\"," +
+                                "\"password\":\"" + DEFAULT_PASSWORD + "\"" +
+                                "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isString())
+                .andExpect(jsonPath("$.role").value("STUDENT"));
     }
 
     @Test
@@ -130,6 +129,29 @@ class AuthFlowIntegrationTest {
                                 "\"password\":\"wrong-password\"" +
                                 "}"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void accountShouldLockAfterFiveFailedAttempts() throws Exception {
+        createStudentUser(DEFAULT_PASSWORD, false);
+
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(post("/api/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{" +
+                                    "\"username\":\"" + STUDENT_USERNAME + "\"," +
+                                    "\"password\":\"wrong-password\"" +
+                                    "}"))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{" +
+                                "\"username\":\"" + STUDENT_USERNAME + "\"," +
+                                "\"password\":\"" + DEFAULT_PASSWORD + "\"" +
+                                "}"))
+                .andExpect(status().isLocked());
     }
 
     @Test
@@ -158,6 +180,79 @@ class AuthFlowIntegrationTest {
                 .andExpect(jsonPath("$.firstLoginRequired").value(false));
     }
 
+            @Test
+            void otpExpiryShouldRejectVerification() throws Exception {
+            createStudentUser(DEFAULT_PASSWORD, false);
+
+            mockMvc.perform(post("/api/auth/forgot-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{" +
+                        "\"identifier\":\"" + STUDENT_EMAIL + "\"" +
+                        "}"))
+                .andExpect(status().isOk());
+
+            User user = userRepository.findByUsername(STUDENT_USERNAME).orElseThrow();
+            OtpVerification otp = otpVerificationRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(user).orElseThrow();
+            otp.setExpiresAt(java.time.LocalDateTime.now().minusMinutes(1));
+            otpVerificationRepository.save(otp);
+
+            mockMvc.perform(post("/api/auth/verify-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{" +
+                        "\"identifier\":\"" + STUDENT_EMAIL + "\"," +
+                        "\"otpCode\":\"" + otp.getOtpCode() + "\"" +
+                        "}"))
+                .andExpect(status().isUnauthorized());
+            }
+
+            @Test
+            void forgotPasswordFlowShouldAllowResetAndLogin() throws Exception {
+            createStudentUser(DEFAULT_PASSWORD, false);
+
+            mockMvc.perform(post("/api/auth/forgot-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{" +
+                        "\"identifier\":\"" + STUDENT_PHONE + "\"" +
+                        "}"))
+                .andExpect(status().isOk());
+
+            User user = userRepository.findByUsername(STUDENT_USERNAME).orElseThrow();
+            OtpVerification otp = otpVerificationRepository.findTopByUserAndIsUsedFalseOrderByCreatedAtDesc(user).orElseThrow();
+
+            String verifyResponseBody = Objects.requireNonNull(
+                mockMvc.perform(post("/api/auth/verify-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{" +
+                            "\"identifier\":\"" + STUDENT_PHONE + "\"," +
+                            "\"otpCode\":\"" + otp.getOtpCode() + "\"" +
+                            "}"))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString()
+            );
+            String resetToken = objectMapper.readTree(verifyResponseBody).get("resetToken").asText();
+
+            mockMvc.perform(post("/api/auth/reset-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{" +
+                        "\"identifier\":\"" + STUDENT_PHONE + "\"," +
+                        "\"resetToken\":\"" + resetToken + "\"," +
+                        "\"newPassword\":\"" + STRONG_PASSWORD + "\"," +
+                        "\"confirmPassword\":\"" + STRONG_PASSWORD + "\"" +
+                        "}"))
+                .andExpect(status().isOk());
+
+            mockMvc.perform(post("/api/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{" +
+                        "\"username\":\"" + STUDENT_EMAIL + "\"," +
+                        "\"password\":\"" + STRONG_PASSWORD + "\"" +
+                        "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isString());
+            }
+
     @Test
     void studentShouldNotAccessAdminApi() throws Exception {
         createStudentUser(DEFAULT_PASSWORD, false);
@@ -184,34 +279,14 @@ class AuthFlowIntegrationTest {
     private void createStudentUser(String rawPassword, boolean firstLogin) {
         User user = new User();
         user.setUsername(STUDENT_USERNAME);
+        user.setEmail(STUDENT_EMAIL);
+        user.setPhone(STUDENT_PHONE);
         user.setPassword(passwordEncoder.encode(rawPassword));
         user.setRole(Role.STUDENT);
         user.setTenantId(1L);
         user.setIsActive(true);
         user.setIsFirstLogin(firstLogin);
         userRepository.save(user);
-    }
-
-    private void createStudentUserWithEnrollmentAlias(String rawPassword, boolean firstLogin) {
-        User user = new User();
-        user.setUsername(STUDENT_USERNAME);
-        user.setPassword(passwordEncoder.encode(rawPassword));
-        user.setRole(Role.STUDENT);
-        user.setTenantId(1L);
-        user.setIsActive(true);
-        user.setIsFirstLogin(firstLogin);
-        user = userRepository.save(user);
-
-        Student student = new Student(STUDENT_ID_ALIAS, "Alias Student");
-        student.setUser(user);
-        studentRepository.save(student);
-
-        StudentProfile profile = new StudentProfile();
-        profile.setStudentId(STUDENT_ID_ALIAS);
-        profile.setEnrollmentNumber(ENROLLMENT_ALIAS);
-        profile.setFullName("Alias Student");
-        profile.setUserId(user.getId());
-        studentProfileRepository.save(profile);
     }
 
     private String loginAndGetToken(String username, String password) throws Exception {

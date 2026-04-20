@@ -20,6 +20,7 @@ public class CredentialService {
     private static final Pattern LOWER = Pattern.compile(".*[a-z].*");
     private static final Pattern DIGIT = Pattern.compile(".*\\d.*");
     private static final Pattern SPECIAL = Pattern.compile(".*[^A-Za-z0-9].*");
+    private static final String FIXED_ADMIN_USERNAME = "bhavya";
 
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
@@ -38,13 +39,17 @@ public class CredentialService {
 
     @Transactional
     public void changePassword(String username, String currentPassword, String newPassword, String confirmPassword) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+
+        if (isFixedAdminAccount(user)) {
+            throw new IllegalArgumentException("Admin credentials are fixed and cannot be changed");
+        }
+
         if (!newPassword.equals(confirmPassword)) {
             throw new IllegalArgumentException("New password and confirm password do not match");
         }
         validateStrongPassword(newPassword);
-
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
         if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
             throw new IllegalArgumentException("Current password is incorrect");
@@ -148,5 +153,14 @@ public class CredentialService {
                     "Password must contain uppercase, lowercase, number, and special character"
             );
         }
+    }
+
+    private boolean isFixedAdminAccount(User user) {
+        if (user == null || user.getRole() != com.sms.model.Role.ADMIN) {
+            return false;
+        }
+
+        String username = user.getUsername();
+        return username != null && FIXED_ADMIN_USERNAME.equalsIgnoreCase(username.trim());
     }
 }

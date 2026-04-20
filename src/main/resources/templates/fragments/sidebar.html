@@ -35,12 +35,17 @@
             })();
         </script>
         <script th:src="@{/js/api-client.js}"></script>
-        <!-- Logo -->
-        <div class="logo-container">
-            <a href="/dashboard" class="logo-placeholder" aria-label="Bennett University Logo">
-                <span class="red">BENNETT</span><br>
-                UNIVERSITY<br>
-                <span class="subtitle">The Times Group</span>
+        <div class="brand-shell">
+            <a href="/dashboard" class="brand-container" aria-label="Open StudentOS dashboard">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 64 64" role="presentation" focusable="false">
+                        <path d="M32 6 9 19v26l23 13 23-13V19L32 6zm0 5.4 17.7 10.1L32 31.6 14.3 21.5 32 11.4zm-17 16.9 15.5 8.8v15.8L15 44V28.3zm34 0V44l-15.5 8.9V37.1L49 28.3z"/>
+                    </svg>
+                </span>
+                <span class="brand-text">
+                    <span class="brand-title">StudentOS</span>
+                    <span class="brand-subtitle">Identity Workspace</span>
+                </span>
             </a>
         </div>
 

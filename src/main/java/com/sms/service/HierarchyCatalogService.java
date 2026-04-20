@@ -8,6 +8,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,9 @@ public class HierarchyCatalogService {
     private final StudentRepository studentRepository;
     private final StudentProfileRepository studentProfileRepository;
 
+    @Value("${app.hierarchy.sync-on-startup:true}")
+    private boolean syncOnStartup;
+
     public HierarchyCatalogService(AcademicClassRepository academicClassRepository,
                                    AcademicBatchRepository academicBatchRepository,
                                    StudentRepository studentRepository,
@@ -46,6 +50,10 @@ public class HierarchyCatalogService {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void synchronizeHierarchyCatalog() {
+        if (!syncOnStartup) {
+            return;
+        }
+
         List<Student> students = studentRepository.findAll();
         if (students.isEmpty()) {
             return;

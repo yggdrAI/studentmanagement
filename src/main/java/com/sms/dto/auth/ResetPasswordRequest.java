@@ -3,13 +3,13 @@ package com.sms.dto.auth;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
+public class ResetPasswordRequest {
 
-public class ChangePasswordRequest {
+    @NotBlank(message = "Email or phone is required")
+    private String identifier;
 
-    @NotBlank(message = "Current password is required")
-    @JsonAlias({"oldPassword"})
-    private String currentPassword;
+    @NotBlank(message = "Reset token is required")
+    private String resetToken;
 
     @NotBlank(message = "New password is required")
     @Size(min = 8, max = 128, message = "New password must be between 8 and 128 characters")
@@ -18,12 +18,20 @@ public class ChangePasswordRequest {
     @NotBlank(message = "Confirm password is required")
     private String confirmPassword;
 
-    public String getCurrentPassword() {
-        return currentPassword;
+    public String getIdentifier() {
+        return identifier;
     }
 
-    public void setCurrentPassword(String currentPassword) {
-        this.currentPassword = currentPassword;
+    public void setIdentifier(String identifier) {
+        this.identifier = identifier;
+    }
+
+    public String getResetToken() {
+        return resetToken;
+    }
+
+    public void setResetToken(String resetToken) {
+        this.resetToken = resetToken;
     }
 
     public String getNewPassword() {
@@ -35,7 +43,7 @@ public class ChangePasswordRequest {
     }
 
     public String getConfirmPassword() {
-        return (confirmPassword == null || confirmPassword.isBlank()) ? newPassword : confirmPassword;
+        return confirmPassword;
     }
 
     public void setConfirmPassword(String confirmPassword) {

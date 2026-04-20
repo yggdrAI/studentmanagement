@@ -2,9 +2,12 @@ package com.sms.dto.auth;
 
 import jakarta.validation.constraints.NotBlank;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 public class LoginRequest {
 
     @NotBlank
+    @JsonAlias({"identifier"})
     private String username;
 
     @NotBlank

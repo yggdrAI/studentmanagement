@@ -2156,11 +2156,27 @@
                 }
 
                 try {
-                    await window.smsApi.put('/api/auth/change-password', {
-                        currentPassword,
-                        newPassword,
-                        confirmPassword
-                    });
+                    const payload = { currentPassword, newPassword, confirmPassword };
+
+                    if (window.smsApi && window.smsApi.auth && typeof window.smsApi.auth.changePassword === 'function') {
+                        await window.smsApi.auth.changePassword(payload);
+                    } else {
+                        const response = await fetch('/api/auth/change-password', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Accept: 'application/json'
+                            },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (!response.ok) {
+                            const message = await response.text();
+                            throw new Error(message || ('Request failed (' + response.status + ')'));
+                        }
+                    }
+
                     document.getElementById('currentPassword').value = '';
                     document.getElementById('newPassword').value = '';
                     document.getElementById('confirmPassword').value = '';
