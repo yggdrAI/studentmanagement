@@ -185,6 +185,73 @@
             <div class="no-data-icon">&#128228;</div>
             <p>No students found. Try adjusting your filters.</p>
         </div>
+
+        <!-- Class Drawer Panel -->
+        <div id="classDrawer" class="class-drawer" hidden>
+            <div class="drawer-overlay"></div>
+            <div class="drawer-content">
+                <div class="drawer-header">
+                    <div class="drawer-title-section">
+                        <h2 id="drawerTitle" class="drawer-title">Class Drawer</h2>
+                        <div id="drawerStats" class="drawer-stats-mini"></div>
+                    </div>
+                    <button id="closeDrawer" class="drawer-close" type="button" aria-label="Close drawer">✕</button>
+                </div>
+                
+                <div class="drawer-filters">
+                    <select id="drawerBatchFilter" class="filter-select">
+                        <option value="">All Batches</option>
+                    </select>
+                    <select id="drawerPerformanceFilter" class="filter-select">
+                        <option value="">All Performance</option>
+                        <option value="excellent">Excellent</option>
+                        <option value="good">Good</option>
+                        <option value="average">Average</option>
+                        <option value="poor">Poor</option>
+                    </select>
+                </div>
+
+                <div id="drawerBatchesGrid" class="drawer-batches-grid"></div>
+            </div>
+        </div>
+
+        <!-- Batch Dashboard Drawer -->
+        <div id="batchDrawer" class="batch-drawer" hidden>
+            <div class="drawer-overlay"></div>
+            <div class="drawer-content batch-drawer-content">
+                <div class="drawer-header">
+                    <div class="drawer-title-section">
+                        <button id="backToBatches" class="back-button" type="button">←</button>
+                        <div>
+                            <h2 id="batchDrawerTitle" class="drawer-title">Batch Dashboard</h2>
+                            <p id="batchDrawerSubtitle" class="drawer-subtitle"></p>
+                        </div>
+                    </div>
+                    <button id="closeBatchDrawer" class="drawer-close" type="button" aria-label="Close drawer">✕</button>
+                </div>
+                
+                <div class="batch-drawer-stats">
+                    <div class="stat-card-mini">
+                        <div class="stat-label">Students</div>
+                        <div class="stat-value" id="batchDrawerStudentCount">0</div>
+                    </div>
+                    <div class="stat-card-mini">
+                        <div class="stat-label">Avg Marks</div>
+                        <div class="stat-value" id="batchDrawerAvgMarks">0.0</div>
+                    </div>
+                    <div class="stat-card-mini">
+                        <div class="stat-label">Attendance</div>
+                        <div class="stat-value" id="batchDrawerAttendance">0%</div>
+                    </div>
+                    <div class="stat-card-mini">
+                        <div class="stat-label">At Risk</div>
+                        <div class="stat-value risk" id="batchDrawerRisk">0</div>
+                    </div>
+                </div>
+
+                <div id="batchStudentsGrid" class="batch-students-grid"></div>
+            </div>
+        </div>
     </div>
 </main>
 

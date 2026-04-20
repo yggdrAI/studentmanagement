@@ -58,12 +58,35 @@
         // Insights refs
         totalLabel: document.getElementById("totalLabel"),
         avgMarksLabel: document.getElementById("avgMarksLabel"),
-        topPerformers: document.getElementById("topPerformers")
+        topPerformers: document.getElementById("topPerformers"),
+        // Drawer refs (replaces modals)
+        classDrawer: document.getElementById("classDrawer"),
+        closeDrawer: document.getElementById("closeDrawer"),
+        drawerTitle: document.getElementById("drawerTitle"),
+        drawerStatsMini: document.getElementById("drawerStatsMini"),
+        drawerBatchesGrid: document.getElementById("drawerBatchesGrid"),
+        drawerBatchFilter: document.getElementById("drawerBatchFilter"),
+        drawerPerformanceFilter: document.getElementById("drawerPerformanceFilter"),
+        batchDrawer: document.getElementById("batchDrawer"),
+        closeBatchDrawer: document.getElementById("closeBatchDrawer"),
+        backToBatches: document.getElementById("backToBatches"),
+        batchDrawerTitle: document.getElementById("batchDrawerTitle"),
+        batchDrawerSubtitle: document.getElementById("batchDrawerSubtitle"),
+        batchStudentsGrid: document.getElementById("batchStudentsGrid"),
+        batchDrawerStudentCount: document.getElementById("batchDrawerStudentCount"),
+        batchDrawerAvgMarks: document.getElementById("batchDrawerAvgMarks"),
+        batchDrawerAttendance: document.getElementById("batchDrawerAttendance"),
+        batchDrawerRisk: document.getElementById("batchDrawerRisk")
     };
 
     const createFormState = {
         step: 1,
         formData: { id: "", name: "", course: "", semester: "", phone: "" }
+    };
+
+    const drawerState = {
+        currentClass: null,
+        currentBatch: null
     };
 
     function createHiddenFaceUploadInput() {
@@ -103,6 +126,16 @@
         refs.stepNextBtn?.addEventListener("click", nextStep);
         refs.createSubmitBtn?.addEventListener("click", submitCreateStudent);
         refs.createStudentForm?.addEventListener("submit", (e) => { e.preventDefault(); submitCreateStudent(); });
+        
+        // Drawer events
+        refs.closeDrawer?.addEventListener("click", closeClassDrawer);
+        refs.closeBatchDrawer?.addEventListener("click", closeBatchDrawer);
+        refs.backToBatches?.addEventListener("click", () => {
+            closeBatchDrawer();
+            setTimeout(() => openClassDrawer(drawerState.currentClass), 200);
+        });
+        refs.classDrawer?.querySelector(".drawer-overlay")?.addEventListener("click", closeClassDrawer);
+        refs.batchDrawer?.querySelector(".drawer-overlay")?.addEventListener("click", closeBatchDrawer);
     }
 
     function loadHierarchy(options = {}) {
@@ -178,9 +211,8 @@
         refs.noDataState.hidden = true;
         if (refs.loadingSpinner) refs.loadingSpinner.hidden = true;
         refs.classesContainer.hidden = false;
-        refs.classesContainer.style.display = "grid";
         refs.classesContainer.innerHTML = filtered.map((classItem, index) => renderClassCard(classItem, index)).join("");
-        bindRenderedInteractions();
+        attachClassCardListeners();
     }
 
     function applyFilters(classes) {
@@ -209,18 +241,9 @@
     }
 
     function sortClasses(classes, mode) {
-        const pinnedClasses = JSON.parse(localStorage.getItem("pinnedClasses") || "[]");
-
         return [...classes].sort((left, right) => {
             const leftAnalytics = left.analytics || left.classAnalytics || {};
             const rightAnalytics = right.analytics || right.classAnalytics || {};
-            const leftId = String(left.id ?? left.classId ?? `class-${left.number}`);
-            const rightId = String(right.id ?? right.classId ?? `class-${right.number}`);
-            const leftPinned = pinnedClasses.includes(leftId);
-            const rightPinned = pinnedClasses.includes(rightId);
-
-            if (leftPinned && !rightPinned) return -1;
-            if (!leftPinned && rightPinned) return 1;
 
             if (mode === "attendance") {
                 return (rightAnalytics.attendance || 0) - (leftAnalytics.attendance || 0) || (left.number || 0) - (right.number || 0);
@@ -256,19 +279,22 @@
         const classNumber = classItem.number ?? classItem.classNumber ?? index + 1;
         const analytics = classItem.analytics || classItem.classAnalytics || {};
         const batches = Array.isArray(classItem.batches) ? classItem.batches : [];
-        const query = state.filters.searchQuery.trim().toLowerCase();
-        const matchesSearch = query ? (classMatchesQuery(classItem, query) || batches.some((batch) => batchMatchesQuery(batch, query) || (batch.students || []).some((student) => studentMatches(student, query)))) : false;
-        const expanded = state.allExpanded || state.expandedClasses.has(String(classId)) || matchesSearch;
-
         const totalStudents = countStudentsInClass(classItem);
         const avgMarks = analytics.avgMarks ?? analytics.averageMarks ?? 0;
         const attendance = analytics.attendance ?? analytics.averageAttendance ?? 0;
         const riskStudents = analytics.riskStudents ?? 0;
-        const riskFactor = totalStudents > 0 ? (riskStudents * 100) / totalStudents : 0;
-        const healthScore = analytics.healthScore ?? Math.max(0, Math.min(100, avgMarks + attendance - riskFactor));
+        const healthScore = analytics.healthScore ?? Math.max(0, Math.min(100, avgMarks + attendance - (totalStudents > 0 ? (riskStudents / totalStudents) * 100 : 0)));
+        const riskFactor = analytics.riskFactor ?? (totalStudents > 0 ? (riskStudents / totalStudents) * 100 : 0);
         const pinnedClasses = JSON.parse(localStorage.getItem("pinnedClasses") || "[]");
         const isPinned = pinnedClasses.includes(String(classId));
-
+        let heatmapColor = "heatmap-excellent";
+        if (healthScore < 40) heatmapColor = "heatmap-critical";
+        else if (healthScore < 60) heatmapColor = "heatmap-poor";
+        else if (healthScore < 75) heatmapColor = "heatmap-average";
+        else if (healthScore < 85) heatmapColor = "heatmap-good";
+        const batchesPreview = batches.slice(0, 3).map(b => `${b.label || `Batch ${b.number}`}`).join(", ") + (batches.length > 3 ? `... +${batches.length - 3}` : "");
+        
+        // Determine status
         let status = "healthy";
         let statusText = "Healthy";
         if (riskStudents > totalStudents * 0.3) {
@@ -278,76 +304,112 @@
             status = "moderate";
             statusText = "Moderate";
         }
-
-        let heatmapColor = "heatmap-excellent";
-        if (healthScore < 40) heatmapColor = "heatmap-critical";
-        else if (healthScore < 60) heatmapColor = "heatmap-poor";
-        else if (healthScore < 75) heatmapColor = "heatmap-average";
-        else if (healthScore < 85) heatmapColor = "heatmap-good";
-
+        
+        // Trend
         const trend = avgMarks > 65 ? "up" : "down";
+        
+        // Progress ring calculation
+        const progressPercent = attendance;
         const radius = 35;
         const circumference = 2 * Math.PI * radius;
-        const offset = circumference - (attendance / 100) * circumference;
-        const batchesPreview = batches.slice(0, 3).map((b) => b.label || b.batchLabel || `Batch ${b.number}`).join(", ");
+        const offset = circumference - (progressPercent / 100) * circumference;
 
         return `
             <article class="class-card glass-panel ${heatmapColor}" data-class-id="${escapeHtml(String(classId))}" data-class-number="${escapeHtml(String(classNumber))}">
-                <button class="pin-button ${isPinned ? "pinned" : ""}" type="button" data-pin-class="${escapeHtml(String(classId))}" title="${isPinned ? "Unpin class" : "Pin to top"}">📌</button>
+                <button class="pin-button ${isPinned ? "pinned" : ""}" type="button" data-pin-class="${escapeHtml(String(classId))}" title="${isPinned ? "Unpin class" : "Pin to top"}">??</button>
                 <div class="class-card-progress">
                     <svg class="progress-ring" width="80" height="80">
-                        <circle cx="40" cy="40" r="${radius}" stroke="rgba(96, 165, 250, 0.2)" stroke-width="3" fill="none"></circle>
-                        <circle class="progress-ring-circle" cx="40" cy="40" r="${radius}" stroke="url(#progressGradient-${escapeHtml(String(classId))})" stroke-width="3" fill="none" style="stroke-dashoffset:${offset}px"></circle>
+                        <circle cx="40" cy="40" r="${radius}" stroke="rgba(96, 165, 250, 0.2)" stroke-width="3" fill="none"/>
+                        <circle class="progress-ring-circle" cx="40" cy="40" r="${radius}" stroke="url(#progressGradient)" stroke-width="3" fill="none" style="stroke-dashoffset: ${offset}px"/>
                         <defs>
-                            <linearGradient id="progressGradient-${escapeHtml(String(classId))}" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1"></stop>
-                                <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1"></stop>
+                            <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
                             </linearGradient>
                         </defs>
                     </svg>
                     <div class="progress-ring-value">${formatNumber(attendance)}%</div>
                 </div>
-                <header class="class-header ${expanded ? "expanded" : ""}" data-toggle-class="${escapeHtml(String(classId))}" role="button" tabindex="0" aria-expanded="${expanded}">
-                    <div class="class-card-header">
-                        <h3 class="class-card-title">${escapeHtml(classItem.label || classItem.classLabel || `Class ${classNumber}`)}</h3>
-                        <span class="class-status-badge ${status}">${status === "healthy" ? "🟢" : status === "moderate" ? "🟡" : "🔴"} ${statusText}</span>
+
+                <div class="class-card-header">
+                    <h3 class="class-card-title">${escapeHtml(classItem.label || classItem.classLabel || `Class ${classNumber}`)}</h3>
+                    <span class="class-status-badge ${status}">${status === "healthy" ? "🟢" : status === "moderate" ? "🟡" : "🔴"} ${statusText}</span>
+                </div>
+
+                <div class="class-health-score">
+                    <div class="health-label">Health Score</div>
+                    <div class="health-bar">
+                        <div class="health-fill" style="width: ${healthScore}%"></div>
                     </div>
-                    <div class="class-health-score">
-                        <div class="health-label">Health Score</div>
-                        <div class="health-bar"><div class="health-fill" style="width:${healthScore}%"></div></div>
-                        <div class="health-value">${formatNumber(healthScore)}/100</div>
+                    <div class="health-value">${formatNumber(healthScore)}/100</div>
+                </div>
+
+                <div class="class-metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-label">👥 Students</div>
+                        <div class="metric-value">${totalStudents}</div>
                     </div>
-                    <div class="class-metrics-grid">
-                        <div class="metric-item"><div class="metric-label">Students</div><div class="metric-value">${totalStudents}</div></div>
-                        <div class="metric-item"><div class="metric-label">Batches</div><div class="metric-value">${batches.length}</div></div>
-                        <div class="metric-item"><div class="metric-label">Avg Marks</div><div class="metric-value">${formatNumber(avgMarks)}</div></div>
-                        <div class="metric-item"><div class="metric-label">Attendance</div><div class="metric-value">${formatNumber(attendance)}%</div></div>
+                    <div class="metric-item">
+                        <div class="metric-label">🧩 Batches</div>
+                        <div class="metric-value">${batches.length}</div>
                     </div>
-                    <div class="class-card-bottom">
-                        <div class="trend-indicator ${trend}">${trend === "up" ? "📈" : "📉"}<span>${trend === "up" ? "Improving" : "Declining"}</span></div>
-                        <div class="risk-count">⚠️ ${formatNumber(riskFactor)}% at risk</div>
+                    <div class="metric-item">
+                        <div class="metric-label">📊 Avg Marks</div>
+                        <div class="metric-value">${formatNumber(avgMarks)}</div>
                     </div>
-                    <div class="quick-expand-preview">
-                        <div class="preview-label">Quick Expand</div>
-                        <div class="preview-text">${escapeHtml(batchesPreview || "No batches")}</div>
+                    <div class="metric-item">
+                        <div class="metric-label">📍 Attendance</div>
+                        <div class="metric-value">${formatNumber(attendance)}%</div>
                     </div>
-                    <div class="class-card-actions">
-                        <button class="action-btn" type="button" data-toggle-class-action="${escapeHtml(String(classId))}">${expanded ? "Collapse" : "Expand"}</button>
-                        <button class="action-btn" type="button" data-expand-all-batches="${escapeHtml(String(classId))}">Quick Expand</button>
+                </div>
+
+                <div class="class-card-bottom">
+                    <div class="trend-indicator ${trend}">
+                        ${trend === "up" ? "📈" : "📉"} 
+                        <span>${trend === "up" ? "Improving" : "Declining"}</span>
                     </div>
-                    <div class="class-info" style="display:none;">
-                        <div class="class-title">${escapeHtml(classItem.label || classItem.classLabel || `Class ${classNumber}`)}</div>
-                        <div class="class-stats">
-                            <span class="stat-pill">${totalStudents} Students</span>
-                            <span class="stat-pill">${batches.length} Batches</span>
-                        </div>
-                    </div>
-                </header>
-                <div class="class-body ${expanded ? "" : "collapsed"}">
-                    ${batches.map((batch, batchIndex) => renderBatchCard(batch, batchIndex, classNumber)).join("")}
+                    <div class="risk-count">?? ${formatNumber(riskFactor)}% at risk</div>
+                </div>
+
+                <div class="quick-expand-preview">
+                    <div class="preview-label">Batches:</div>
+                    <div class="preview-text">${escapeHtml(batchesPreview)}</div>
+                </div>
+
+                <div class="class-card-actions">
+                    <button class="action-btn" data-action="view-batches" data-class-id="${escapeHtml(String(classId))}">View Batches</button>
+                    <button class="action-btn" data-action="open-analytics" data-class-id="${escapeHtml(String(classId))}">Analytics</button>
                 </div>
             </article>
         `;
+    }
+
+    function attachClassCardListeners() {
+        const cards = document.querySelectorAll(".class-card");
+        cards.forEach((card) => {
+            const classId = card.dataset.classId;
+            const classNumber = card.dataset.classNumber;
+            
+            // Click anywhere on card to open drawer
+            card.addEventListener("click", (e) => {
+                if (e.target.closest(".action-btn")) return;
+                openClassDrawer(classId);
+            });
+            
+            // Action buttons
+            const viewBatchesBtn = card.querySelector('[data-action="view-batches"]');
+            const analyticsBtn = card.querySelector('[data-action="open-analytics"]');
+            
+            viewBatchesBtn?.addEventListener("click", (e) => {
+                e.stopPropagation();
+                openClassDrawer(classId);
+            });
+            
+            analyticsBtn?.addEventListener("click", (e) => {
+                e.stopPropagation();
+                showToast("Analytics feature coming soon!");
+            });
+        });
     }
 
     function renderBatchCard(batch, batchIndex, classNumber) {
@@ -356,7 +418,7 @@
         const analytics = batch.analytics || {};
         const students = Array.isArray(batch.students) ? batch.students : [];
         const query = state.filters.searchQuery.trim().toLowerCase();
-        const matchesSearch = query ? (batchMatchesQuery(batch, query) || students.some((student) => studentMatches(student, query))) : false;
+        const matchesSearch = !query || batchMatchesQuery(batch, query) || students.some((student) => studentMatches(student, query));
         const expanded = state.allExpanded || state.expandedBatches.has(String(batchId)) || students.length <= 8 || matchesSearch;
         const topPerformer = analytics.topPerformer?.name || "N/A";
 
@@ -424,41 +486,6 @@
             trigger.addEventListener("keydown", handleClassKeydown);
         });
 
-        document.querySelectorAll("[data-toggle-class-action]").forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.stopPropagation();
-                const classId = button.dataset.toggleClassAction;
-                toggleClassById(classId);
-            });
-        });
-
-        document.querySelectorAll("[data-pin-class]").forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.stopPropagation();
-                togglePinnedClass(button.dataset.pinClass);
-            });
-        });
-
-        document.querySelectorAll("[data-expand-all-batches]").forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.stopPropagation();
-                const classId = button.dataset.expandAllBatches;
-                state.expandedClasses.add(String(classId));
-                document.querySelectorAll(`.class-card[data-class-id="${cssEscape(classId)}"] .batch-card`).forEach((batchCard) => {
-                    const list = batchCard.querySelector(".students-list");
-                    if (list) list.classList.add("visible");
-                    const batchId = batchCard.dataset.batchId;
-                    if (batchId) state.expandedBatches.add(String(batchId));
-                    const toggle = batchCard.querySelector("[data-toggle-batch]");
-                    if (toggle) toggle.textContent = "▼";
-                });
-                const classBody = document.querySelector(`.class-card[data-class-id="${cssEscape(classId)}"] .class-body`);
-                if (classBody) classBody.classList.remove("collapsed");
-                const classHeader = document.querySelector(`.class-card[data-class-id="${cssEscape(classId)}"] .class-header`);
-                if (classHeader) classHeader.classList.add("expanded");
-            });
-        });
-
         document.querySelectorAll("[data-toggle-batch]").forEach((trigger) => {
             trigger.addEventListener("click", handleBatchToggle);
             trigger.addEventListener("keydown", handleBatchKeydown);
@@ -512,40 +539,6 @@
             event.preventDefault();
             handleClassToggle(event);
         }
-    }
-
-    function toggleClassById(classId) {
-        const classCard = document.querySelector(`.class-card[data-class-id="${cssEscape(classId)}"]`);
-        const classBody = classCard?.querySelector(".class-body");
-        const classHeader = classCard?.querySelector(".class-header");
-        if (!classBody || !classHeader) return;
-
-        const isCollapsed = classBody.classList.contains("collapsed");
-        if (isCollapsed) {
-            classBody.classList.remove("collapsed");
-            state.expandedClasses.add(String(classId));
-            classHeader.classList.add("expanded");
-        } else {
-            classBody.classList.add("collapsed");
-            state.expandedClasses.delete(String(classId));
-            classHeader.classList.remove("expanded");
-        }
-
-        const actionBtn = classCard.querySelector("[data-toggle-class-action]");
-        if (actionBtn) actionBtn.textContent = isCollapsed ? "Collapse" : "Expand";
-    }
-
-    function togglePinnedClass(classId) {
-        const pinnedClasses = JSON.parse(localStorage.getItem("pinnedClasses") || "[]");
-        const id = String(classId);
-        const idx = pinnedClasses.indexOf(id);
-        if (idx >= 0) {
-            pinnedClasses.splice(idx, 1);
-        } else {
-            pinnedClasses.push(id);
-        }
-        localStorage.setItem("pinnedClasses", JSON.stringify(pinnedClasses));
-        renderHierarchy();
     }
 
     function handleBatchToggle(event) {
@@ -1054,7 +1047,36 @@
 
     window.viewStudentProfile = openProfile;
     window.uploadFace = openFaceUpload;
-    window.showStudentMenu = function (event, studentId) {
+    function openClassDrawer(classId) {
+        const classData = state.hierarchy.classes.find(c => c.id === classId || c.classId === classId || `class-${c.number}` === classId);
+        if (!classData) return;
+
+        drawerState.currentClass = classId;
+        const batches = Array.isArray(classData.batches) ? classData.batches : [];
+        const classNumber = classData.number ?? classData.classNumber ?? 1;
+        const analytics = classData.analytics || classData.classAnalytics || {};
+        const title = classData.label || classData.classLabel || `Class ${classNumber}`;
+        
+        if (refs.drawerTitle) refs.drawerTitle.textContent = title;
+        if (refs.drawerStatsMini) {
+            refs.drawerStatsMini.innerHTML = `<span>${batches.length} batches</span> • <span>${countStudentsInClass(classData)} students</span>`;
+        }
+        
+        // Populate batch filter
+        if (refs.drawerBatchFilter) {
+            refs.drawerBatchFilter.innerHTML = '<option value="">All Batches</option>' + 
+                batches.map((b, idx) => `<option value="${idx}">${escapeHtml(b.label || b.batchLabel || `Batch ${idx + 1}`)}</option>`).join('');
+        }
+        
+        // Render batch cards in drawer
+        if (refs.drawerBatchesGrid) {
+            refs.drawerBatchesGrid.innerHTML = batches.map((batch, idx) => {
+                const batchId = batch.id ?? batch.batchId ?? `batch-${classNumber}-${batch.number}`;
+                const batchNumber = batch.number ?? batch.batchNumber ?? idx + 1;
+                const batchAnalytics = batch.analytics || {};
+                const students = Array.isArray(batch.students) ? batch.students : [];
+                const avgMarks = batchAnalytics.avgMarks ?? batchAnalytics.averageMarks ?? 0;
+                const performanceBand = avgMarks > 70 ? "excellent" : avgMarks > 60 ? "good" : avgMarks > 50 ? "average" : "poor";\n                \n                return `\n                    <div class="batch-card-drawer" data-batch-id="${escapeHtml(String(batchId))}" data-class-id="${escapeHtml(String(classId))}">\n                        <div class="batch-card-drawer-top">\n                            <h4 class="batch-card-drawer-name">${escapeHtml(batch.label || batch.batchLabel || `Batch ${batchNumber}`)}</h4>\n                            <div class="batch-performance-color ${performanceBand}"></div>\n                        </div>\n                        <div class="batch-card-drawer-stats">\n                            <div class="batch-drawer-stat">\n                                <div class="batch-drawer-stat-label">Students</div>\n                                <div class="batch-drawer-stat-value">${students.length}</div>\n                            </div>\n                            <div class="batch-drawer-stat">\n                                <div class="batch-drawer-stat-label">Avg Marks</div>\n                                <div class="batch-drawer-stat-value">${formatNumber(avgMarks)}</div>\n                            </div>\n                            <div class="batch-drawer-stat">\n                                <div class="batch-drawer-stat-label">At Risk</div>\n                                <div class="batch-drawer-stat-value risk">${batchAnalytics.riskStudents ?? 0}</div>\n                            </div>\n                        </div>\n                    </div>\n                `;\n            }).join("");\n            attachBatchDrawerListeners(classId);\n        }\n        \n        if (refs.classDrawer) refs.classDrawer.hidden = false;\n    }\n\n    function attachBatchDrawerListeners(classId) {\n        const batchCards = refs.drawerBatchesGrid?.querySelectorAll(\".batch-card-drawer\") || [];\n        batchCards.forEach((card) => {\n            card.addEventListener(\"click\", () => {\n                const batchId = card.dataset.batchId;\n                openBatchDrawer(classId, batchId);\n            });\n        });\n    }\n\n    function openBatchDrawer(classId, batchId) {\n        const classData = state.hierarchy.classes.find(c => c.id === classId || c.classId === classId || `class-${c.number}` === classId);\n        const batchData = classData?.batches?.find(b => b.id === batchId || b.batchId === batchId || `batch-${classData.number}-${b.number}` === batchId);\n        \n        if (!batchData) return;\n\n        drawerState.currentBatch = batchId;\n        const students = Array.isArray(batchData.students) ? batchData.students : [];\n        const analytics = batchData.analytics || {};\n        const classNumber = classData.number ?? classData.classNumber ?? 1;\n        const batchNumber = batchData.number ?? batchData.batchNumber ?? 1;\n        const title = batchData.label || batchData.batchLabel || `Batch ${batchNumber}`;\n        \n        if (refs.batchDrawerTitle) refs.batchDrawerTitle.textContent = title;\n        if (refs.batchDrawerSubtitle) refs.batchDrawerSubtitle.textContent = `${classData.label || `Class ${classNumber}`} • ${students.length} students`;\n        if (refs.batchDrawerStudentCount) refs.batchDrawerStudentCount.textContent = students.length;\n        if (refs.batchDrawerAvgMarks) refs.batchDrawerAvgMarks.textContent = formatNumber(analytics.avgMarks ?? analytics.averageMarks ?? 0);\n        if (refs.batchDrawerAttendance) refs.batchDrawerAttendance.textContent = `${formatNumber(analytics.attendance ?? analytics.averageAttendance ?? 0)}%`;\n        if (refs.batchDrawerRisk) refs.batchDrawerRisk.textContent = analytics.riskStudents ?? 0;\n\n        if (refs.batchStudentsGrid) {\n            refs.batchStudentsGrid.innerHTML = students.map((student) => {\n                const initials = getInitials(student.name || \"Student\");\n                const marks = student.performance?.averageMarks ?? student.marks ?? 0;\n                const band = performanceBandFromMarks(marks);\n                const attendance = student.attendance ?? student.performance?.attendance ?? 0;\n                return `\n                    <div class="batch-student-card">\n                        <div class="batch-student-avatar">${escapeHtml(initials)}</div>\n                        <div class="batch-student-details">\n                            <p class="batch-student-name">${escapeHtml(student.name || \"Unknown\")}</p>\n                            <div class="batch-student-meta">\n                                <span>${escapeHtml(student.id || student.studentId || student.enrollment || \"N/A\")}</span>\n                                <span class="student-performance-badge ${band}">${band}</span>\n                                <span>📊 ${formatNumber(marks)}</span>\n                                <span>📍 ${formatNumber(attendance)}%</span>\n                            </div>\n                        </div>\n                    </div>\n                `;\n            }).join(\"\");\n        }\n        \n        // Close class drawer and open batch drawer\n        closeClassDrawer();\n        setTimeout(() => {\n            if (refs.batchDrawer) refs.batchDrawer.hidden = false;\n        }, 200);\n    }\n\n    function closeClassDrawer() {\n        if (refs.classDrawer) refs.classDrawer.hidden = true;\n    }\n\n    function closeBatchDrawer() {\n        if (refs.batchDrawer) refs.batchDrawer.hidden = true;\n    }\n\n    window.showStudentMenu = function (event, studentId) {
         event?.stopPropagation?.();
         const confirmed = window.confirm("Student actions:\n\nOK: delete student\nCancel: close menu");
         if (confirmed) deleteStudent(studentId);
