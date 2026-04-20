@@ -6,6 +6,12 @@ __pycache__/
 .vscode/
 .VSCodeCounter/
 
+# Logs
+*.log
+logs/
+*.out
+*.err
+
 # Node
 node_modules/
 

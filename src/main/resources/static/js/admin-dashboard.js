@@ -40,6 +40,8 @@
                 loadAnalytics();
             };
 
+            startLoading();
+
             if (analyticsCard && 'IntersectionObserver' in window) {
                 state.analyticsObserver = new IntersectionObserver(function (entries, observer) {
                     entries.forEach(function (entry) {
