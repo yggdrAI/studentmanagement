@@ -266,8 +266,6 @@
         const riskStudents = analytics.riskStudents ?? 0;
         const riskFactor = totalStudents > 0 ? (riskStudents * 100) / totalStudents : 0;
         const healthScore = analytics.healthScore ?? Math.max(0, Math.min(100, avgMarks + attendance - riskFactor));
-        const pinnedClasses = JSON.parse(localStorage.getItem("pinnedClasses") || "[]");
-        const isPinned = pinnedClasses.includes(String(classId));
 
         let status = "healthy";
         let statusText = "Healthy";
@@ -279,71 +277,47 @@
             statusText = "Moderate";
         }
 
-        let heatmapColor = "heatmap-excellent";
-        if (healthScore < 40) heatmapColor = "heatmap-critical";
-        else if (healthScore < 60) heatmapColor = "heatmap-poor";
-        else if (healthScore < 75) heatmapColor = "heatmap-average";
-        else if (healthScore < 85) heatmapColor = "heatmap-good";
-
-        const trend = avgMarks > 65 ? "up" : "down";
-        const radius = 35;
+        const heatmapColor = healthScore < 40 ? "heatmap-critical" : healthScore < 60 ? "heatmap-poor" : healthScore < 75 ? "heatmap-average" : healthScore < 85 ? "heatmap-good" : "heatmap-excellent";
+        const radius = 25;
         const circumference = 2 * Math.PI * radius;
-        const offset = circumference - (attendance / 100) * circumference;
-        const batchesPreview = batches.slice(0, 3).map((b) => b.label || b.batchLabel || `Batch ${b.number}`).join(", ");
+        const offset = circumference - (healthScore / 100) * circumference;
 
         return `
-            <article class="class-card glass-panel ${heatmapColor}" data-class-id="${escapeHtml(String(classId))}" data-class-number="${escapeHtml(String(classNumber))}">
-                <button class="pin-button ${isPinned ? "pinned" : ""}" type="button" data-pin-class="${escapeHtml(String(classId))}" title="${isPinned ? "Unpin class" : "Pin to top"}">📌</button>
-                <div class="class-card-progress">
-                    <svg class="progress-ring" width="80" height="80">
-                        <circle cx="40" cy="40" r="${radius}" stroke="rgba(96, 165, 250, 0.2)" stroke-width="3" fill="none"></circle>
-                        <circle class="progress-ring-circle" cx="40" cy="40" r="${radius}" stroke="url(#progressGradient-${escapeHtml(String(classId))})" stroke-width="3" fill="none" style="stroke-dashoffset:${offset}px"></circle>
-                        <defs>
-                            <linearGradient id="progressGradient-${escapeHtml(String(classId))}" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1"></stop>
-                                <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1"></stop>
-                            </linearGradient>
-                        </defs>
-                    </svg>
-                    <div class="progress-ring-value">${formatNumber(attendance)}%</div>
-                </div>
-                <header class="class-header ${expanded ? "expanded" : ""}" data-toggle-class="${escapeHtml(String(classId))}" role="button" tabindex="0" aria-expanded="${expanded}">
-                    <div class="class-card-header">
-                        <h3 class="class-card-title">${escapeHtml(classItem.label || classItem.classLabel || `Class ${classNumber}`)}</h3>
-                        <span class="class-status-badge ${status}">${status === "healthy" ? "🟢" : status === "moderate" ? "🟡" : "🔴"} ${statusText}</span>
+            <article class="class-card card-container glass-panel ${heatmapColor}" data-class-id="${escapeHtml(String(classId))}" data-class-number="${escapeHtml(String(classNumber))}">
+                <header class="header">
+                    <div class="header-left">
+                        <h3 class="class-title">Class ${escapeHtml(String(classNumber))}</h3>
+                        <span class="status-badge ${status}">${status === "healthy" ? "🟢" : status === "moderate" ? "🟡" : "🔴"} ${statusText}</span>
                     </div>
-                    <div class="class-health-score">
-                        <div class="health-label">Health Score</div>
-                        <div class="health-bar"><div class="health-fill" style="width:${healthScore}%"></div></div>
-                        <div class="health-value">${formatNumber(healthScore)}/100</div>
-                    </div>
-                    <div class="class-metrics-grid">
-                        <div class="metric-item"><div class="metric-label">Students</div><div class="metric-value">${totalStudents}</div></div>
-                        <div class="metric-item"><div class="metric-label">Batches</div><div class="metric-value">${batches.length}</div></div>
-                        <div class="metric-item"><div class="metric-label">Avg Marks</div><div class="metric-value">${formatNumber(avgMarks)}</div></div>
-                        <div class="metric-item"><div class="metric-label">Attendance</div><div class="metric-value">${formatNumber(attendance)}%</div></div>
-                    </div>
-                    <div class="class-card-bottom">
-                        <div class="trend-indicator ${trend}">${trend === "up" ? "📈" : "📉"}<span>${trend === "up" ? "Improving" : "Declining"}</span></div>
-                        <div class="risk-count">⚠️ ${formatNumber(riskFactor)}% at risk</div>
-                    </div>
-                    <div class="quick-expand-preview">
-                        <div class="preview-label">Quick Expand</div>
-                        <div class="preview-text">${escapeHtml(batchesPreview || "No batches")}</div>
-                    </div>
-                    <div class="class-card-actions">
-                        <button class="action-btn" type="button" data-toggle-class-action="${escapeHtml(String(classId))}">${expanded ? "Collapse" : "Expand"}</button>
-                        <button class="action-btn" type="button" data-expand-all-batches="${escapeHtml(String(classId))}">Quick Expand</button>
-                    </div>
-                    <div class="class-info" style="display:none;">
-                        <div class="class-title">${escapeHtml(classItem.label || classItem.classLabel || `Class ${classNumber}`)}</div>
-                        <div class="class-stats">
-                            <span class="stat-pill">${totalStudents} Students</span>
-                            <span class="stat-pill">${batches.length} Batches</span>
-                        </div>
+                    <div class="progress-container" title="Health score ${formatNumber(healthScore)}%">
+                        <svg class="progress-ring" width="60" height="60" viewBox="0 0 60 60" aria-hidden="true">
+                            <circle cx="30" cy="30" r="${radius}" stroke="rgba(148, 163, 184, 0.18)" stroke-width="6" fill="none"></circle>
+                            <circle class="progress-ring-circle" cx="30" cy="30" r="${radius}" stroke="rgba(96, 165, 250, 0.9)" stroke-width="6" fill="none" style="stroke-dasharray:${circumference};stroke-dashoffset:${offset}"></circle>
+                        </svg>
+                        <div class="progress-value">${formatNumber(healthScore)}%</div>
                     </div>
                 </header>
-                <div class="class-body ${expanded ? "" : "collapsed"}">
+
+                <section class="new-inner-panel">
+                    <div class="metrics-grid">
+                        <div class="metric">
+                            <div class="metric-label">Students</div>
+                            <div class="metric-value">${totalStudents}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Avg Marks</div>
+                            <div class="metric-value">${formatNumber(avgMarks)}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Health Score</div>
+                            <div class="metric-value">${formatNumber(healthScore)}%</div>
+                        </div>
+                    </div>
+
+                    <div class="class-subtext">${batches.length} batches • ${formatNumber(attendance)}% attendance</div>
+                </section>
+
+                <div class="class-body collapsed" aria-hidden="true">
                     ${batches.map((batch, batchIndex) => renderBatchCard(batch, batchIndex, classNumber)).join("")}
                 </div>
             </article>

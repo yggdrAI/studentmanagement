@@ -10,6 +10,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 
@@ -35,6 +36,15 @@ public class Student extends Person implements Comparable<Student> {
     private String classGroup;
     @Column(name = "batch_group", length = 32)
     private String batchGroup;
+
+    @ManyToOne
+    @JoinColumn(name = "class_id")
+    private AcademicClass academicClass;
+
+    @ManyToOne
+    @JoinColumn(name = "batch_id")
+    private AcademicBatch academicBatch;
+
     private String rollNumber;
     private String enrollmentYear;
 
@@ -154,6 +164,22 @@ public class Student extends Person implements Comparable<Student> {
 
     public void setBatchGroup(String batchGroup) {
         this.batchGroup = batchGroup;
+    }
+
+    public AcademicClass getAcademicClass() {
+        return academicClass;
+    }
+
+    public void setAcademicClass(AcademicClass academicClass) {
+        this.academicClass = academicClass;
+    }
+
+    public AcademicBatch getAcademicBatch() {
+        return academicBatch;
+    }
+
+    public void setAcademicBatch(AcademicBatch academicBatch) {
+        this.academicBatch = academicBatch;
     }
 
     public String getRollNumber() {

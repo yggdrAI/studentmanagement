@@ -27,9 +27,9 @@ import org.springframework.web.server.ResponseStatusException;
 import com.sms.model.Student;
 import com.sms.model.StudentProfile;
 import com.sms.repository.AttendanceRepository;
-import com.sms.repository.EnrollmentRepository;
 import com.sms.repository.StudentProfileRepository;
 import com.sms.repository.StudentRepository;
+import com.sms.service.HierarchyCatalogService;
 import com.sms.service.StudentService;
 
 @RestController
@@ -37,27 +37,26 @@ import com.sms.service.StudentService;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminHierarchyController {
 
-    private static final int CLASS_SIZE = 120;
     private static final int BATCH_SIZE = 30;
     private static final int DEFAULT_CLUSTER_COUNT = 4;
     private static final Pattern TRAILING_NUMBER_PATTERN = Pattern.compile("(\\d+)$");
 
     private final StudentRepository studentRepository;
     private final StudentProfileRepository studentProfileRepository;
-    private final EnrollmentRepository enrollmentRepository;
     private final AttendanceRepository attendanceRepository;
     private final StudentService studentService;
+    private final HierarchyCatalogService hierarchyCatalogService;
 
     public AdminHierarchyController(StudentRepository studentRepository,
                                     StudentProfileRepository studentProfileRepository,
-                                    EnrollmentRepository enrollmentRepository,
                                     AttendanceRepository attendanceRepository,
-                                    StudentService studentService) {
+                                    StudentService studentService,
+                                    HierarchyCatalogService hierarchyCatalogService) {
         this.studentRepository = studentRepository;
         this.studentProfileRepository = studentProfileRepository;
-        this.enrollmentRepository = enrollmentRepository;
         this.attendanceRepository = attendanceRepository;
         this.studentService = studentService;
+        this.hierarchyCatalogService = hierarchyCatalogService;
     }
 
     @GetMapping("/students-hierarchy")
@@ -104,7 +103,7 @@ public class AdminHierarchyController {
                 .map(classKey -> buildClassNode(classKey, grouped.get(classKey), marksMap, attendanceMap, profileByStudentId))
                 .collect(Collectors.toList());
 
-        int totalBatchCount = grouped.values().stream().mapToInt(Map::size).sum();
+        int totalBatchCount = grouped.size() * DEFAULT_CLUSTER_COUNT;
 
         return ResponseEntity.ok(Map.of(
                 "summary", Map.of(
@@ -147,16 +146,19 @@ public class AdminHierarchyController {
         if (request.getClassNumber() == null || request.getClassNumber() <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "classNumber must be >= 1");
         }
-        if (request.getBatchNumber() == null || request.getBatchNumber() < 1 || request.getBatchNumber() > 4) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "batchNumber must be between 1 and 4");
+        if (request.getBatchNumber() == null || request.getBatchNumber() < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "batchNumber must be >= 1");
+        }
+
+        int expectedClassNumber = ((request.getBatchNumber() - 1) / DEFAULT_CLUSTER_COUNT) + 1;
+        if (expectedClassNumber != request.getClassNumber()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "batchNumber does not belong to classNumber");
         }
 
         Student student = studentRepository.findById(request.getStudentId().trim())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
 
-        student.setClassGroup("Class " + request.getClassNumber());
-        student.setBatchGroup("Batch " + request.getBatchNumber());
-        studentRepository.save(student);
+        hierarchyCatalogService.assignStudent(student, request.getClassNumber(), request.getBatchNumber());
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("studentId", student.getId());
@@ -170,8 +172,9 @@ public class AdminHierarchyController {
     @PostMapping("/students-hierarchy/ai-grouping")
     public ResponseEntity<Map<String, Object>> suggestAiGrouping(@RequestBody(required = false) AiGroupingRequest request) {
         AiGroupingRequest req = request == null ? new AiGroupingRequest() : request;
-        int requestedClusters = req.getClusters() == null ? DEFAULT_CLUSTER_COUNT : req.getClusters();
-        int clusters = Math.max(2, Math.min(4, requestedClusters));
+        Integer requestedClusters = req.getClusters();
+        int requestedClusterCount = requestedClusters == null ? DEFAULT_CLUSTER_COUNT : requestedClusters;
+        int clusters = Math.max(2, Math.min(4, requestedClusterCount));
 
         List<Student> students = studentRepository.findAll().stream()
                 .filter(student -> req.getCourse() == null || req.getCourse().isBlank() || matchesIgnoreCase(student.getCourse(), req.getCourse()))
@@ -204,7 +207,8 @@ public class AdminHierarchyController {
         List<Map<String, Object>> suggestions = points.stream()
                 .map(point -> {
                     int clusterLabel = labels.getOrDefault(point.student().getId(), 0);
-                    int suggestedBatch = (clusterLabel % 4) + 1;
+                    int currentClass = extractClassNumber(point.student());
+                    int suggestedBatch = ((currentClass - 1) * DEFAULT_CLUSTER_COUNT) + ((clusterLabel % DEFAULT_CLUSTER_COUNT) + 1);
                     int currentBatch = extractBatchNumber(point.student());
 
                     Map<String, Object> row = new HashMap<>();
@@ -232,19 +236,21 @@ public class AdminHierarchyController {
                                                Map<String, Double> marksMap,
                                Map<String, Double> attendanceMap,
                                Map<String, StudentProfile> profileByStudentId) {
-        List<Map<String, Object>> batches = classBatches.keySet().stream()
-                .sorted()
-            .map(batchNumber -> buildBatchNode(classNumber, batchNumber, classBatches.get(batchNumber), marksMap, attendanceMap, profileByStudentId))
-                .collect(Collectors.toList());
+        int startBatchNumber = ((classNumber - 1) * DEFAULT_CLUSTER_COUNT) + 1;
+        List<Map<String, Object>> batches = new ArrayList<>();
+        for (int batchNumber = startBatchNumber; batchNumber < startBatchNumber + DEFAULT_CLUSTER_COUNT; batchNumber++) {
+            batches.add(buildBatchNode(classNumber, batchNumber, classBatches.getOrDefault(batchNumber, List.of()), marksMap, attendanceMap, profileByStudentId));
+        }
 
         List<Student> classStudents = classBatches.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
         Map<String, Object> classAnalytics = buildClassAnalytics(classStudents, marksMap, attendanceMap, profileByStudentId);
 
         Map<String, Object> node = new HashMap<>();
-        node.put("id", "class-" + classNumber);
+        node.put("id", classNumber);
         node.put("number", classNumber);
         node.put("label", "Class " + classNumber);
         node.put("totalStudents", classStudents.size());
+        node.put("totalBatches", DEFAULT_CLUSTER_COUNT);
         node.put("batches", batches);
         node.put("analytics", classAnalytics);
         return node;
@@ -271,11 +277,13 @@ public class AdminHierarchyController {
         analytics.put("riskStudents", risk);
 
         Map<String, Object> node = new HashMap<>();
-        node.put("id", "class-" + classNumber + "-batch-" + batchNumber);
+        node.put("id", batchNumber);
         node.put("number", batchNumber);
+        node.put("localNumber", ((batchNumber - 1) % DEFAULT_CLUSTER_COUNT) + 1);
         node.put("label", "Batch " + batchNumber);
         node.put("classNumber", classNumber);
         node.put("studentsCount", students.size());
+        node.put("totalStudents", students.size());
         node.put("analytics", analytics);
         node.put("students", students);
         return node;
@@ -295,6 +303,7 @@ public class AdminHierarchyController {
         Map<String, Object> node = new HashMap<>();
         node.put("id", student.getId());
         node.put("name", student.getName());
+        node.put("enrollmentNumber", enrollment);
         node.put("enrollment", enrollment);
         node.put("email", student.getEmail() == null ? "" : student.getEmail());
         node.put("faceStatus", hasFace(student) ? "registered" : "missing");
@@ -410,18 +419,22 @@ public class AdminHierarchyController {
     }
 
     private int extractClassNumber(Student student, StudentProfile profile) {
+        if (student != null && student.getAcademicClass() != null && student.getAcademicClass().getClassNumber() != null) {
+            return student.getAcademicClass().getClassNumber();
+        }
+
         Integer profileClassNumber = extractTrailingInteger(profile == null ? null : profile.getFoundationClassroom());
         if (profileClassNumber != null && profileClassNumber > 0) {
             return profileClassNumber;
         }
 
-        String classGroup = student.getClassGroup();
+        String classGroup = student == null ? null : student.getClassGroup();
         Integer classGroupNumber = extractTrailingInteger(classGroup);
         if (classGroupNumber != null && classGroupNumber > 0) {
             return classGroupNumber;
         }
-        int serial = extractSerialNumber(student, profile);
-        return serial <= 0 ? 1 : ((serial - 1) / CLASS_SIZE) + 1;
+        int batchNumber = extractBatchNumber(student, profile);
+        return batchNumber <= 0 ? 1 : ((batchNumber - 1) / DEFAULT_CLUSTER_COUNT) + 1;
     }
 
     private int extractBatchNumber(Student student) {
@@ -429,21 +442,24 @@ public class AdminHierarchyController {
     }
 
     private int extractBatchNumber(Student student, StudentProfile profile) {
-        if (profile != null && profile.getTeamNumber() != null && profile.getTeamNumber() > 0) {
-            return profile.getTeamNumber();
+        if (student != null && student.getAcademicBatch() != null && student.getAcademicBatch().getBatchNumber() != null) {
+            return student.getAcademicBatch().getBatchNumber();
         }
 
-        String batchGroup = student.getBatchGroup();
+        if (profile != null && profile.getTeamNumber() != null && profile.getTeamNumber() > 0) {
+            Integer classNumber = extractTrailingInteger(profile.getFoundationClassroom());
+            if (classNumber != null && classNumber > 0) {
+                return ((classNumber - 1) * DEFAULT_CLUSTER_COUNT) + profile.getTeamNumber();
+            }
+        }
+
+        String batchGroup = student == null ? null : student.getBatchGroup();
         Integer batchGroupNumber = extractTrailingInteger(batchGroup);
         if (batchGroupNumber != null && batchGroupNumber > 0) {
             return batchGroupNumber;
         }
         int serial = extractSerialNumber(student, profile);
-        return serial <= 0 ? 1 : (((serial - 1) % CLASS_SIZE) / BATCH_SIZE) + 1;
-    }
-
-    private int extractSerialNumber(Student student) {
-        return extractSerialNumber(student, null);
+        return serial <= 0 ? 1 : ((serial - 1) / BATCH_SIZE) + 1;
     }
 
     private int extractSerialNumber(Student student, StudentProfile profile) {
@@ -481,7 +497,7 @@ public class AdminHierarchyController {
         }
 
         try {
-            return Integer.parseInt(matcher.group(1));
+            return Integer.valueOf(matcher.group(1));
         } catch (NumberFormatException ignored) {
             return null;
         }

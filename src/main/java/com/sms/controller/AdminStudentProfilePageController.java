@@ -16,4 +16,11 @@ public class AdminStudentProfilePageController {
         model.addAttribute("targetStudentId", studentId);
         return "student-profile";
     }
+
+    @GetMapping("/students/{studentId}")
+    public String openStudentProfileFromHierarchy(@PathVariable String studentId, Model model) {
+        model.addAttribute("profileMode", "ADMIN");
+        model.addAttribute("targetStudentId", studentId);
+        return "student-profile";
+    }
 }
