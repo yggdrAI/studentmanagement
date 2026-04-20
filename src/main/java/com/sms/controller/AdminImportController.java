@@ -131,6 +131,7 @@ public class AdminImportController {
                 "Enrollment Number",
                 "Roll Number",
                 "Email",
+                "Personal Email",
                 "Phone",
                 "Program",
                 "Course",
@@ -140,6 +141,9 @@ public class AdminImportController {
                 "Section",
                 "Class",
                 "House",
+                "Foundation Classroom",
+                "Team Number",
+                "Member Number",
                 "Joining Year",
                 "Leaving Year",
                 "Date of Birth",
@@ -156,21 +160,26 @@ public class AdminImportController {
             sample.createCell(1).setCellValue("BU2026001");
             sample.createCell(2).setCellValue("22BCS045");
             sample.createCell(3).setCellValue("aarav.sharma@bennett.edu.in");
-            sample.createCell(4).setCellValue("9876543210");
-            sample.createCell(5).setCellValue("B.Tech CSE");
+            sample.createCell(4).setCellValue("aarav.personal@example.com");
+            sample.createCell(5).setCellValue("9876543210");
             sample.createCell(6).setCellValue("B.Tech CSE");
-            sample.createCell(7).setCellValue("Semester 1");
-            sample.createCell(8).setCellValue("Computer Science");
-            sample.createCell(9).setCellValue("School of Engineering");
-            sample.createCell(10).setCellValue("CSE-A");
-            sample.createCell(11).setCellValue("Cedar");
-            sample.createCell(12).setCellValue("2022");
-            sample.createCell(13).setCellValue("2026");
-            sample.createCell(14).setCellValue("2005-08-15");
-            sample.createCell(15).setCellValue("Male");
-            sample.createCell(16).setCellValue("Greater Noida, UP");
-            sample.createCell(17).setCellValue("O+");
-            sample.createCell(18).setCellValue("Rajesh Sharma");
+            sample.createCell(7).setCellValue("B.Tech CSE");
+            sample.createCell(8).setCellValue("Semester 1");
+            sample.createCell(9).setCellValue("Computer Science Engineering");
+            sample.createCell(10).setCellValue("Bennett University");
+            sample.createCell(11).setCellValue("CSE-A");
+            sample.createCell(12).setCellValue("Class 9 / Batch 33");
+            sample.createCell(13).setCellValue("Keen Kickers");
+            sample.createCell(14).setCellValue("Foundation Alpha");
+            sample.createCell(15).setCellValue("3");
+            sample.createCell(16).setCellValue("21");
+            sample.createCell(17).setCellValue("2022");
+            sample.createCell(18).setCellValue("2026");
+            sample.createCell(19).setCellValue("2005-08-15");
+            sample.createCell(20).setCellValue("Male");
+            sample.createCell(21).setCellValue("Greater Noida, UP");
+            sample.createCell(22).setCellValue("O+");
+            sample.createCell(23).setCellValue("Rajesh Sharma");
             workbook.write(outputStream);
             return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=student-import-template.xlsx")

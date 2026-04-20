@@ -123,6 +123,7 @@ public class StudentFusionService {
         addValues(fieldValues, "enrollmentNumber", members.stream().map(StudentImportRow::getEnrollmentNumber).toList());
         addValues(fieldValues, "rollNumber", members.stream().map(StudentImportRow::getRollNumber).toList());
         addValues(fieldValues, "email", members.stream().map(StudentImportRow::getEmail).toList());
+        addValues(fieldValues, "personalEmail", members.stream().map(StudentImportRow::getPersonalEmail).toList());
         addValues(fieldValues, "phone", members.stream().map(StudentImportRow::getPhone).toList());
         addValues(fieldValues, "course", members.stream().map(StudentImportRow::getCourse).toList());
         addValues(fieldValues, "program", members.stream().map(StudentImportRow::getProgram).toList());
@@ -130,6 +131,9 @@ public class StudentFusionService {
         addValues(fieldValues, "semester", members.stream().map(StudentImportRow::getSemester).toList());
         addValues(fieldValues, "department", members.stream().map(StudentImportRow::getDepartment).toList());
         addValues(fieldValues, "section", members.stream().map(StudentImportRow::getSection).toList());
+        addValues(fieldValues, "foundationClassroom", members.stream().map(StudentImportRow::getFoundationClassroom).toList());
+        addValues(fieldValues, "teamNumber", members.stream().map(StudentImportRow::getTeamNumber).toList());
+        addValues(fieldValues, "memberNumber", members.stream().map(StudentImportRow::getMemberNumber).toList());
         addValues(fieldValues, "house", members.stream().map(StudentImportRow::getHouse).toList());
         addValues(fieldValues, "joiningYear", members.stream().map(StudentImportRow::getJoiningYear).toList());
         addValues(fieldValues, "leavingYear", members.stream().map(StudentImportRow::getLeavingYear).toList());
@@ -147,7 +151,11 @@ public class StudentFusionService {
         String program = normalizeProgram(select(fieldValues, "program", "course"));
         String department = normalizeDepartment(select(fieldValues, "department"), program);
         String school = normalizeSchool(select(fieldValues, "school"), department, program);
+        String personalEmail = select(fieldValues, "personalEmail", "email");
         String house = select(fieldValues, "house");
+        String foundationClassroom = normalizeClassName(select(fieldValues, "foundationClassroom", "className"));
+        String teamNumber = select(fieldValues, "teamNumber");
+        String memberNumber = select(fieldValues, "memberNumber");
         String joiningYear = normalizeYear(select(fieldValues, "joiningYear"));
         String leavingYear = normalizeYear(select(fieldValues, "leavingYear"));
         String className = normalizeClassName(select(fieldValues, "className", "section"));
@@ -187,10 +195,14 @@ public class StudentFusionService {
             item.put("fullName", row.getFullName());
             item.put("enrollmentNumber", row.getEnrollmentNumber());
             item.put("rollNumber", row.getRollNumber());
+            item.put("personalEmail", row.getPersonalEmail());
             item.put("course", row.getCourse());
             item.put("department", row.getDepartment());
             item.put("section", row.getSection());
             item.put("house", row.getHouse());
+            item.put("foundationClassroom", row.getFoundationClassroom());
+            item.put("teamNumber", row.getTeamNumber());
+            item.put("memberNumber", row.getMemberNumber());
             return item;
         }).toList();
 
@@ -220,9 +232,13 @@ public class StudentFusionService {
         preview.put("fullName", fullName);
         preview.put("enrollmentNumber", enrollment);
         preview.put("rollNumber", rollNumber);
+        preview.put("personalEmail", personalEmail);
         preview.put("program", program);
         preview.put("department", department);
         preview.put("school", school);
+        preview.put("foundationClassroom", foundationClassroom);
+        preview.put("teamNumber", teamNumber);
+        preview.put("memberNumber", memberNumber);
         preview.put("joiningYear", joiningYear);
         preview.put("leavingYear", leavingYear);
         preview.put("className", className);

@@ -1,16 +1,29 @@
 package com.sms.controller;
 
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
+import com.sms.model.User;
+import com.sms.repository.UserRepository;
+
 @Controller
 public class AuthController {
 
+    private final UserRepository userRepository;
+
+    public AuthController(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
     @GetMapping("/")
-    public String home() {
+    public String home(Authentication authentication) {
+        if (isAuthenticated(authentication)) {
+            return "redirect:/dashboard";
+        }
         return "redirect:/login";
     }
 
@@ -28,7 +41,7 @@ public class AuthController {
 
     @GetMapping("/dashboard")
     public String dashboard(Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
+        if (!isAuthenticated(authentication)) {
             return "redirect:/login";
         }
 
@@ -45,10 +58,22 @@ public class AuthController {
         }
 
         if (isStudent) {
+            boolean firstLogin = userRepository.findByUsername(authentication.getName())
+                    .map(User::getIsFirstLogin)
+                    .orElse(false);
+            if (firstLogin) {
+                return "redirect:/student/profile?forcePasswordChange=1";
+            }
             return "redirect:/student/dashboard";
         }
 
-        return "redirect:/student/dashboard";
+        return "redirect:/login";
+    }
+
+    private boolean isAuthenticated(Authentication authentication) {
+        return authentication != null
+                && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken);
     }
 
     private boolean hasAuthority(Authentication authentication, String expectedAuthority) {

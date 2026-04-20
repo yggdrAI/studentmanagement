@@ -145,6 +145,12 @@
         put: (url, body, headers) => request(url, { method: 'PUT', body: body !== undefined ? JSON.stringify(body) : undefined, headers: headers || {} }),
         delete: (url, headers) => request(url, { method: 'DELETE', headers: headers || {} }),
 
+        auth: {
+            login: (payload) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
+            changePassword: (payload) => request('/api/auth/change-password', { method: 'POST', body: JSON.stringify(payload) }),
+            me: () => request('/api/auth/me')
+        },
+
         student: {
             dashboard: () => request('/api/student/dashboard'),
             completeTask: (taskId) => request('/api/student/task/' + encodeURIComponent(taskId) + '/complete', { method: 'POST' }),

@@ -1,6 +1,7 @@
 package com.sms.model;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,6 +10,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 @Entity
@@ -27,10 +30,56 @@ public class User implements Serializable {
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    @Column(name = "is_first_login", nullable = false)
+    private Boolean isFirstLogin = true;
+
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
+
+    @Column(name = "failed_login_attempts", nullable = false)
+    private Integer failedLoginAttempts = 0;
+
+    @Column(name = "account_locked_until")
+    private LocalDateTime accountLockedUntil;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId = 1L;
 
     public User() {}
+
+    @PrePersist
+    protected void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+        if (isFirstLogin == null) {
+            isFirstLogin = true;
+        }
+        if (isActive == null) {
+            isActive = true;
+        }
+        if (failedLoginAttempts == null) {
+            failedLoginAttempts = 0;
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+        if (failedLoginAttempts == null) {
+            failedLoginAttempts = 0;
+        }
+    }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -40,6 +89,18 @@ public class User implements Serializable {
     public void setPassword(String password) { this.password = password; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
+    public Boolean getIsFirstLogin() { return isFirstLogin; }
+    public void setIsFirstLogin(Boolean isFirstLogin) { this.isFirstLogin = isFirstLogin; }
+    public Boolean getIsActive() { return isActive; }
+    public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+    public Integer getFailedLoginAttempts() { return failedLoginAttempts; }
+    public void setFailedLoginAttempts(Integer failedLoginAttempts) { this.failedLoginAttempts = failedLoginAttempts; }
+    public LocalDateTime getAccountLockedUntil() { return accountLockedUntil; }
+    public void setAccountLockedUntil(LocalDateTime accountLockedUntil) { this.accountLockedUntil = accountLockedUntil; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     public Long getTenantId() { return tenantId; }
     public void setTenantId(Long tenantId) { this.tenantId = tenantId; }
 }

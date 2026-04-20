@@ -9,11 +9,16 @@
         'fullName',
         'enrollmentNumber',
         'email',
+        'personalEmail',
         'phone',
         'course',
         'semester',
         'department',
         'section',
+        'house',
+        'foundationClassroom',
+        'teamNumber',
+        'memberNumber',
         'dateOfBirth',
         'gender',
         'address',
@@ -253,6 +258,10 @@
             rollNumber: row.rollNumber || '',
             program: row.program || '',
             school: row.school || '',
+            personalEmail: row.personalEmail || '',
+            foundationClassroom: row.foundationClassroom || '',
+            teamNumber: row.teamNumber || '',
+            memberNumber: row.memberNumber || '',
             sourceFileName: row.sourceFileName || '',
             confidenceScore: row.confidenceScore || 0,
             dateOfBirth: row.dateOfBirth || '',
@@ -331,7 +340,7 @@
 
     function renderMergePreview() {
         if (!state.mergedStudents.length) {
-            refs.mergeBody.innerHTML = '<tr><td colspan="10" class="empty-state">No merged students to display.</td></tr>';
+            refs.mergeBody.innerHTML = '<tr><td colspan="14" class="empty-state">No merged students to display.</td></tr>';
             return;
         }
 
@@ -346,6 +355,10 @@
                 '<td>' + escapeHtml(firstNonBlank(student.program, student.course, '-')) + '</td>' +
                 '<td>' + escapeHtml(firstNonBlank(student.department, '-')) + '</td>' +
                 '<td>' + escapeHtml(firstNonBlank(student.school, '-')) + '</td>' +
+                '<td>' + escapeHtml(firstNonBlank(student.personalEmail, '-')) + '</td>' +
+                '<td>' + escapeHtml(firstNonBlank(student.foundationClassroom, '-')) + '</td>' +
+                '<td>' + escapeHtml(firstNonBlank(student.teamNumber, '-')) + '</td>' +
+                '<td>' + escapeHtml(firstNonBlank(student.memberNumber, '-')) + '</td>' +
                 '<td>' + escapeHtml(firstNonBlank(student.joiningYear, student.leavingYear, '-')) + '</td>' +
                 '<td>' + escapeHtml(classGroup) + '</td>' +
                 '<td>' + escapeHtml(batchGroup) + '</td>' +
@@ -381,7 +394,7 @@
         });
 
         if (!filtered.length) {
-            refs.previewBody.innerHTML = '<tr><td colspan="17" class="empty-state">No preview rows to display.</td></tr>';
+            refs.previewBody.innerHTML = '<tr><td colspan="22" class="empty-state">No preview rows to display.</td></tr>';
             return;
         }
 
@@ -397,6 +410,11 @@
                 editableCell(row, 'semester') +
                 editableCell(row, 'department') +
                 editableCell(row, 'section') +
+                editableCell(row, 'personalEmail') +
+                editableCell(row, 'foundationClassroom') +
+                editableCell(row, 'teamNumber') +
+                editableCell(row, 'memberNumber') +
+                editableCell(row, 'house') +
                 editableCell(row, 'dateOfBirth') +
                 editableCell(row, 'gender') +
                 editableCell(row, 'address') +
@@ -480,11 +498,16 @@
                 fullName: row.fullName,
                 enrollmentNumber: row.enrollmentNumber,
                 email: row.email,
+                personalEmail: row.personalEmail,
                 phone: row.phone,
                 course: row.course,
                 semester: row.semester,
                 department: row.department,
                 section: row.section,
+                house: row.house,
+                foundationClassroom: row.foundationClassroom,
+                teamNumber: row.teamNumber,
+                memberNumber: row.memberNumber,
                 dateOfBirth: row.dateOfBirth,
                 gender: row.gender,
                 address: row.address,

@@ -21,6 +21,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\repository\AnalyticsSnapshotRe
 F:\Coding\studentmanagement\src\main\java\com\sms\service\TimetableService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\RefreshToken.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\StudentDocumentRepository.java
+F:\Coding\studentmanagement\src\main\java\com\sms\config\FirstLoginEnforcementFilter.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\profile\StudentProfileResponseDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\imports\StudentImportConfirmRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\ImportArtifactService.java
@@ -41,6 +42,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\dto\AutoScheduleRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\RefreshTokenService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\AcademicRecordRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\auth\LoginResponse.java
+F:\Coding\studentmanagement\src\main\java\com\sms\gui\UITheme.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\WeeklyScheduleUpdateRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\EmbeddingCryptoService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\AnalyticsReportService.java
@@ -69,6 +71,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\dto\TimetableConflictDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\util\LoggerUtil.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\ClassSession.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\TimetableController.java
+F:\Coding\studentmanagement\src\main\java\com\sms\gui\MainFrame.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\SubjectDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\config\WebSocketConfig.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\AnalyticsSnapshotService.java
@@ -98,6 +101,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\MarkAttendanceR
 F:\Coding\studentmanagement\src\main\java\com\sms\model\StudentImportRow.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AnalyticsApiController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\CustomUserDetailsService.java
+F:\Coding\studentmanagement\src\main\java\com\sms\service\StudentFieldDerivationUtils.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\TenantAccessService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\DietAIService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\Tenant.java
@@ -127,6 +131,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\CreateTaskReques
 F:\Coding\studentmanagement\src\main\java\com\sms\model\Admin.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\StudentDocument.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AuthController.java
+F:\Coding\studentmanagement\src\main\java\com\sms\dto\profile\StudentDemographicConsentRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\RefreshTokenRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminStudentProfilePageController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\TaskItem.java

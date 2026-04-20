@@ -37,6 +37,9 @@ public class StudentImportRow {
     @Column(name = "email")
     private String email;
 
+    @Column(name = "personal_email")
+    private String personalEmail;
+
     @Column(name = "phone")
     private String phone;
 
@@ -78,6 +81,15 @@ public class StudentImportRow {
 
     @Column(name = "house")
     private String house;
+
+    @Column(name = "foundation_classroom")
+    private String foundationClassroom;
+
+    @Column(name = "team_number")
+    private String teamNumber;
+
+    @Column(name = "member_number")
+    private String memberNumber;
 
     @Column(name = "joining_year")
     private String joiningYear;
@@ -134,6 +146,8 @@ public class StudentImportRow {
     public void setEnrollmentNumber(String enrollmentNumber) { this.enrollmentNumber = enrollmentNumber; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+    public String getPersonalEmail() { return personalEmail; }
+    public void setPersonalEmail(String personalEmail) { this.personalEmail = personalEmail; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
     public String getCourse() { return course; }
@@ -162,6 +176,12 @@ public class StudentImportRow {
     public void setSchool(String school) { this.school = school; }
     public String getHouse() { return house; }
     public void setHouse(String house) { this.house = house; }
+    public String getFoundationClassroom() { return foundationClassroom; }
+    public void setFoundationClassroom(String foundationClassroom) { this.foundationClassroom = foundationClassroom; }
+    public String getTeamNumber() { return teamNumber; }
+    public void setTeamNumber(String teamNumber) { this.teamNumber = teamNumber; }
+    public String getMemberNumber() { return memberNumber; }
+    public void setMemberNumber(String memberNumber) { this.memberNumber = memberNumber; }
     public String getJoiningYear() { return joiningYear; }
     public void setJoiningYear(String joiningYear) { this.joiningYear = joiningYear; }
     public String getLeavingYear() { return leavingYear; }

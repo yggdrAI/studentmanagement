@@ -21,6 +21,7 @@ public class AdminUpdateStudentProfileRequest {
     private String department;
     private String semester;
     private String section;
+    private String house;
     private String foundationClassroom;
     private Integer teamNumber;
     private Integer memberNumber;
@@ -65,6 +66,8 @@ public class AdminUpdateStudentProfileRequest {
     public void setSemester(String semester) { this.semester = semester; }
     public String getSection() { return section; }
     public void setSection(String section) { this.section = section; }
+    public String getHouse() { return house; }
+    public void setHouse(String house) { this.house = house; }
     public String getFoundationClassroom() { return foundationClassroom; }
     public void setFoundationClassroom(String foundationClassroom) { this.foundationClassroom = foundationClassroom; }
     public Integer getTeamNumber() { return teamNumber; }

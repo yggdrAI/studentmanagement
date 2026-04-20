@@ -175,7 +175,7 @@ if ('serviceWorker' in navigator) {
                 }));
             })
             .then(function () {
-                return navigator.serviceWorker.register('/service-worker.js?v=3', { updateViaCache: 'none' });
+                return navigator.serviceWorker.register('/service-worker.js?v=5', { updateViaCache: 'none' });
             })
             .catch(function (error) {
                 console.debug('Service worker refresh skipped:', error);

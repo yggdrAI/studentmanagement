@@ -1,5 +1,6 @@
 package com.sms.repository;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,6 +11,7 @@ import com.sms.model.Enrollment;
 @Repository
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     List<Enrollment> findByStudentId(String studentId);
+    List<Enrollment> findByStudentIdIn(Collection<String> studentIds);
 
     void deleteByStudentId(String studentId);
 

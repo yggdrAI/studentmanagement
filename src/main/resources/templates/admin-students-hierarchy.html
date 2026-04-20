@@ -4,31 +4,117 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Hierarchy - Class & Batch Management</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
     <link rel="stylesheet" th:href="@{/css/hierarchy-students.css}">
 </head>
-<body>
+<body class="app-container hierarchy-page">
 <div th:replace="~{fragments/sidebar :: sidebar(activeTab='students')}"></div>
 
 <main class="content-area" id="maincontent" tabindex="-1">
     <div class="content-wrapper hierarchy-shell">
-        
-        <!-- ===== TOP BAR ===== -->
         <header class="unified-topbar hierarchy-topbar app-enter">
-            <div>
-                <h1 class="page-title">🏫 Student Hierarchy</h1>
-                <p class="dashboard-subtitle">Organized by Class → Batch → Students with real-time analytics.</p>
+            <div class="hero-copy">
+                <span class="eyebrow">Student Identity Workspace</span>
+                <h1 class="page-title">Class &rarr; Batch &rarr; Student</h1>
+                <p class="dashboard-subtitle">Fullscreen hierarchy management with drag-and-drop, analytics, and a single-scroll layout.</p>
             </div>
-            <div class="top-actions">
-                <input id="globalSearch" class="global-search" type="search" 
-                       placeholder="Search students, class, or batch..." aria-label="Search">
-                <button id="sidebarToggle" class="icon-btn" type="button" aria-label="Toggle sidebar">☰</button>
+            <div class="hero-actions">
+                <input id="globalSearch" class="global-search" type="search" placeholder="Search students, class, or batch..." aria-label="Search">
+                <button id="sidebarToggle" class="icon-btn" type="button" aria-label="Toggle sidebar">&#9776;</button>
             </div>
         </header>
 
-        <!-- ===== FILTERS & CONTROLS ===== -->
-        <section class="filters-section">
+        <section class="workspace-controls">
+            <div class="controls-row">
+                <div class="create-section glass-panel">
+                    <h2 class="section-title">Create Student</h2>
+                    <p class="section-subtitle">Enterprise onboarding wizard with validation and smart defaults.</p>
+                    <div class="stepper" aria-label="Create student progress">
+                        <div class="step active"></div>
+                        <div class="step"></div>
+                        <div class="step"></div>
+                    </div>
+                    <p id="stepLabel" class="section-subtitle">Step 1 of 3</p>
+                    <form id="createStudentForm" novalidate>
+                        <div data-step-panel="1" class="form-grid">
+                            <div class="field">
+                                <label for="studentIdInput">Student ID *</label>
+                                <input id="studentIdInput" name="id" required aria-required="true" autocomplete="off">
+                            </div>
+                            <div class="field">
+                                <label for="studentNameInput">Full Name *</label>
+                                <input id="studentNameInput" name="name" required aria-required="true" autocomplete="off">
+                            </div>
+                        </div>
+                        <div data-step-panel="2" class="form-grid" hidden>
+                            <div class="field">
+                                <label for="studentCourseInput">Course</label>
+                                <select id="studentCourseInput" name="course">
+                                    <option value="">Select course</option>
+                                    <option value="B.Tech">B.Tech</option>
+                                    <option value="BBA">BBA</option>
+                                    <option value="MBA">MBA</option>
+                                    <option value="M.Tech">M.Tech</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="studentSemesterInput">Semester</label>
+                                <select id="studentSemesterInput" name="semester">
+                                    <option value="">Select semester</option>
+                                    <option value="Semester 1">Semester 1</option>
+                                    <option value="Semester 2">Semester 2</option>
+                                    <option value="Semester 3">Semester 3</option>
+                                    <option value="Semester 4">Semester 4</option>
+                                    <option value="Semester 5">Semester 5</option>
+                                    <option value="Semester 6">Semester 6</option>
+                                    <option value="Semester 7">Semester 7</option>
+                                    <option value="Semester 8">Semester 8</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div data-step-panel="3" class="form-grid" hidden>
+                            <div class="field">
+                                <label for="studentPhoneInput">Phone</label>
+                                <input id="studentPhoneInput" name="phone" autocomplete="off">
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:8px; margin-top:12px;">
+                            <button type="button" id="stepPrevBtn" class="btn-small">Back</button>
+                            <button type="button" id="stepNextBtn" class="btn-small">Next</button>
+                            <button type="submit" id="createSubmitBtn" class="btn-small btn-primary" hidden>Create</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="insights-section glass-panel">
+                    <h2 class="section-title">Smart Insights</h2>
+                    <p class="section-subtitle">Performance analytics and student distribution.</p>
+                    <div class="kpi-grid">
+                        <article class="kpi-card">
+                            <h4>Total Students</h4>
+                            <div id="totalLabel" class="kpi-value">0 records</div>
+                        </article>
+                        <article class="kpi-card">
+                            <h4>Avg Marks</h4>
+                            <div id="avgMarksLabel" class="kpi-value">0.0</div>
+                        </article>
+                    </div>
+                    <h3 class="section-subtitle" style="margin-top:14px;">Top Performers</h3>
+                    <ul id="topPerformers" class="audit-list"></ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="filters-section glass-panel">
+            <div class="filter-group">
+                <label for="groupingMode">Grouping</label>
+                <select id="groupingMode">
+                    <option value="performance">Performance</option>
+                    <option value="attendance">Attendance</option>
+                    <option value="ai">AI Smart Grouping</option>
+                </select>
+            </div>
             <div class="filter-group">
                 <label for="courseFilter">Course</label>
                 <select id="courseFilter">
@@ -60,50 +146,45 @@
                     <option value="excellent">Excellent (75+)</option>
                     <option value="good">Good (60-74)</option>
                     <option value="average">Average (50-59)</option>
-                    <option value="poor">Poor (<50)</option>
+                    <option value="poor">Poor (&lt;50)</option>
                 </select>
             </div>
-            <button id="refreshBtn" class="btn-secondary" aria-label="Refresh data">↻ Refresh</button>
-            <button id="viewToggleBtn" class="btn-secondary" aria-label="Toggle view mode">📊 Expand All</button>
+            <button id="refreshBtn" class="btn-secondary" type="button" aria-label="Refresh data">&#8635; Refresh</button>
+            <button id="expandAllBtn" class="btn-secondary" type="button" aria-label="Expand all classes">Expand All</button>
+            <button id="collapseAllBtn" class="btn-secondary" type="button" aria-label="Collapse all classes">Collapse All</button>
+            <button id="aiGroupBtn" class="btn-secondary btn-secondary-strong" type="button" aria-label="Run AI grouping">AI Grouping</button>
         </section>
 
-        <!-- ===== STRUCTURE OVERVIEW ===== -->
-        <section class="structure-overview">
-            <div class="stat-card">
+        <section class="structure-overview dashboard-grid">
+            <article class="stat-card glass-panel">
                 <div class="stat-label">Total Classes</div>
                 <div class="stat-value" id="totalClasses">0</div>
-            </div>
-            <div class="stat-card">
+            </article>
+            <article class="stat-card glass-panel">
                 <div class="stat-label">Total Batches</div>
                 <div class="stat-value" id="totalBatches">0</div>
-            </div>
-            <div class="stat-card">
+            </article>
+            <article class="stat-card glass-panel">
                 <div class="stat-label">Total Students</div>
                 <div class="stat-value" id="totalStudents">0</div>
-            </div>
-            <div class="stat-card">
+            </article>
+            <article class="stat-card glass-panel">
                 <div class="stat-label">Avg Attendance</div>
                 <div class="stat-value" id="avgAttendance">--</div>
-            </div>
+            </article>
         </section>
 
-        <!-- ===== CLASSES CONTAINER ===== -->
-        <section class="classes-container" id="classesContainer">
-            <!-- Dynamically populated -->
-        </section>
+        <section class="classes-container" id="classesContainer"></section>
 
-        <!-- ===== LOADING STATE ===== -->
         <div id="loadingSpinner" class="loading-spinner" hidden>
             <div class="spinner"></div>
             <p>Loading student hierarchy...</p>
         </div>
 
-        <!-- ===== NO DATA STATE ===== -->
         <div id="noDataState" class="no-data-state" hidden>
-            <div class="no-data-icon">📭</div>
+            <div class="no-data-icon">&#128228;</div>
             <p>No students found. Try adjusting your filters.</p>
         </div>
-
     </div>
 </main>
 

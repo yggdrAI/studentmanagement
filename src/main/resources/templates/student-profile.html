@@ -584,6 +584,42 @@
             display: block;
         }
 
+        .consent-panel {
+            display: grid;
+            gap: var(--space-3);
+        }
+
+        .consent-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .consent-note {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .consent-check {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            line-height: 1.35;
+        }
+
+        .consent-check input {
+            margin-top: 0.2rem;
+        }
+
+        .consent-meta {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+        }
+
         .smart-hints {
             margin-top: var(--space-3);
             border: 1px dashed var(--card-border);
@@ -928,6 +964,7 @@
                 <div id="profileBody" style="display:none;">
                     <div class="tabs">
                         <button class="tab-btn active" data-tab="personal">Personal</button>
+                        <button class="tab-btn" data-tab="demographics" th:if="${profileMode != 'ADMIN'}">Demographics</button>
                         <button class="tab-btn" data-tab="academic">Academic</button>
                         <button class="tab-btn" data-tab="identity">Identity</button>
                         <button class="tab-btn" data-tab="contact">Contact</button>
@@ -940,6 +977,65 @@
 
                     <section class="tab-pane active" data-pane="personal">
                         <div class="field-grid" id="personalGrid"></div>
+                    </section>
+                    <section class="tab-pane" data-pane="demographics" th:if="${profileMode != 'ADMIN'}">
+                        <div class="field-grid" style="grid-template-columns: 1fr;">
+                            <div class="field-card full consent-panel">
+                                <h3 class="consent-title">Demographic Self Declaration</h3>
+                                <p class="consent-note">These details are saved only when you explicitly provide consent.</p>
+                                <div class="field-grid" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+                                    <div class="field-card">
+                                        <label class="field-label" for="demoGender">Gender</label>
+                                        <select id="demoGender" class="field-input editable">
+                                            <option value="">Select</option>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                            <option value="Non-binary">Non-binary</option>
+                                            <option value="Prefer not to say">Prefer not to say</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="field-card">
+                                        <label class="field-label" for="demoReligion">Religion</label>
+                                        <select id="demoReligion" class="field-input editable">
+                                            <option value="">Select</option>
+                                            <option value="Hindu">Hindu</option>
+                                            <option value="Muslim">Muslim</option>
+                                            <option value="Christian">Christian</option>
+                                            <option value="Sikh">Sikh</option>
+                                            <option value="Buddhist">Buddhist</option>
+                                            <option value="Jain">Jain</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="field-card">
+                                        <label class="field-label" for="demoCategory">Category</label>
+                                        <select id="demoCategory" class="field-input editable">
+                                            <option value="">Select</option>
+                                            <option value="General">General</option>
+                                            <option value="OBC">OBC</option>
+                                            <option value="SC">SC</option>
+                                            <option value="ST">ST</option>
+                                            <option value="EWS">EWS</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="field-card">
+                                        <label class="field-label" for="demoSpecificCaste">Specific Caste (Optional)</label>
+                                        <input id="demoSpecificCaste" class="field-input editable" type="text" placeholder="Optional" />
+                                    </div>
+                                </div>
+                                <label class="consent-check" for="demoConsentGiven">
+                                    <input id="demoConsentGiven" type="checkbox" />
+                                    <span>I consent to storing my self-declared demographic data for profile and academic administration purposes.</span>
+                                </label>
+                                <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                                    <button class="btn btn-primary" type="button" id="submitDemographicsBtn">Submit Demographics</button>
+                                    <span id="demographicsStatus" class="field-value">No consent submission yet.</span>
+                                </div>
+                                <div class="consent-meta" id="demographicsMeta"></div>
+                            </div>
+                        </div>
                     </section>
                     <section class="tab-pane" data-pane="academic">
                         <div class="field-grid" id="academicGrid"></div>
@@ -1000,6 +1096,7 @@
     const TARGET_STUDENT_ID = /*[[${targetStudentId}]]*/ '';
     const CAN_ADMIN_EDIT = PROFILE_MODE === 'ADMIN';
     const PROFILE_QUERY = new URLSearchParams(window.location.search);
+    const FORCE_PASSWORD_CHANGE = PROFILE_QUERY.get('forcePasswordChange') === '1';
 
     let currentProfile = null;
     let originalProfileSnapshot = null;
@@ -1025,6 +1122,7 @@
         { key: 'semester', label: 'Semester', section: 'academic', type: 'select', required: true },
         { key: 'section', label: 'Section', section: 'academic', type: 'select', required: true,
             options: ['A', 'B', 'C', 'D'] },
+        { key: 'house', label: 'House', section: 'academic', type: 'text' },
         { key: 'foundationClassroom', label: 'Foundation Classroom', section: 'academic', type: 'text' },
         { key: 'teamNumber', label: 'Team Number', section: 'academic', type: 'number' },
         { key: 'memberNumber', label: 'Member Number', section: 'academic', type: 'number' },
@@ -1465,6 +1563,7 @@
         renderSection('identityGrid', sections.identity);
         renderSection('contactGrid', sections.contact);
         renderSection('guardianGrid', sections.guardian);
+        renderDemographicConsentPane();
         renderDocuments();
         renderAnalytics();
         renderMetadata();
@@ -1485,6 +1584,93 @@
         avatarPlus.style.display = CAN_ADMIN_EDIT ? 'inline-flex' : 'none';
 
         bindFieldEvents();
+    }
+
+    function setSelectIfPresent(elementId, value) {
+        const select = document.getElementById(elementId);
+        if (!select) {
+            return;
+        }
+        const normalizedValue = normalize(value);
+        const hasExactOption = Array.from(select.options).some((option) => option.value === normalizedValue);
+        if (normalizedValue && !hasExactOption) {
+            const extraOption = document.createElement('option');
+            extraOption.value = normalizedValue;
+            extraOption.textContent = normalizedValue;
+            select.appendChild(extraOption);
+        }
+        select.value = normalizedValue;
+    }
+
+    function renderDemographicConsentPane() {
+        const statusEl = document.getElementById('demographicsStatus');
+        const metaEl = document.getElementById('demographicsMeta');
+        const specificCasteInput = document.getElementById('demoSpecificCaste');
+        const consentCheck = document.getElementById('demoConsentGiven');
+        if (!statusEl || !metaEl || !specificCasteInput || !consentCheck || !currentProfile) {
+            return;
+        }
+
+        setSelectIfPresent('demoGender', currentProfile.gender);
+        setSelectIfPresent('demoReligion', currentProfile.religion);
+        setSelectIfPresent('demoCategory', currentProfile.casteCategory);
+        specificCasteInput.value = normalize(currentProfile.caste || '');
+        consentCheck.checked = false;
+
+        if (currentProfile.demographicConsentGiven) {
+            statusEl.textContent = 'Consent recorded.';
+            const consentDate = formatDate(currentProfile.demographicConsentAt);
+            const version = normalize(currentProfile.demographicConsentVersion) || '1.0';
+            const genderSource = normalize(currentProfile.genderSource) || 'N/A';
+            const religionSource = normalize(currentProfile.religionSource) || 'N/A';
+            const categorySource = normalize(currentProfile.casteSource) || 'N/A';
+            metaEl.textContent = `Last consent at ${consentDate} (v${version}) | Sources: gender=${genderSource}, religion=${religionSource}, category=${categorySource}`;
+        } else {
+            statusEl.textContent = 'No consent submission yet.';
+            metaEl.textContent = 'Data source is system default until you submit this form with consent.';
+        }
+    }
+
+    async function submitDemographicsConsent() {
+        const gender = normalize(document.getElementById('demoGender')?.value).trim();
+        const religion = normalize(document.getElementById('demoReligion')?.value).trim();
+        const category = normalize(document.getElementById('demoCategory')?.value).trim();
+        const specificCaste = normalize(document.getElementById('demoSpecificCaste')?.value).trim();
+        const consentGiven = Boolean(document.getElementById('demoConsentGiven')?.checked);
+        const statusEl = document.getElementById('demographicsStatus');
+
+        if (!gender || !religion || !category) {
+            statusEl.textContent = 'Gender, religion, and category are required.';
+            return;
+        }
+
+        if (!consentGiven) {
+            statusEl.textContent = 'Please confirm consent before submission.';
+            return;
+        }
+
+        const payload = {
+            consentGiven: true,
+            gender,
+            religion,
+            category,
+            specificCaste
+        };
+
+        const submitBtn = document.getElementById('submitDemographicsBtn');
+        submitBtn.disabled = true;
+        statusEl.textContent = 'Submitting...';
+
+        try {
+            currentProfile = await window.smsApi.put('/api/student/profile/demographics', payload);
+            originalProfileSnapshot = JSON.parse(JSON.stringify(currentProfile));
+            renderProfile();
+            showToast('Demographics submitted with consent');
+        } catch (error) {
+            statusEl.textContent = error.message || 'Unable to submit demographics.';
+        } finally {
+            submitBtn.disabled = false;
+        }
     }
 
     function destroyProfileChart(id) {
@@ -1646,6 +1832,7 @@
                 department: allValues.department,
                 semester: allValues.semester,
                 section: allValues.section,
+                house: allValues.house,
                 foundationClassroom: allValues.foundationClassroom,
                 teamNumber: allValues.teamNumber,
                 memberNumber: allValues.memberNumber,
@@ -1692,6 +1879,7 @@
                 department: allValues.department,
                 semester: allValues.semester,
                 section: allValues.section,
+                house: allValues.house,
                 foundationClassroom: allValues.foundationClassroom,
                 teamNumber: allValues.teamNumber ? Number(allValues.teamNumber) : null,
                 memberNumber: allValues.memberNumber ? Number(allValues.memberNumber) : null,
@@ -1968,7 +2156,7 @@
                 }
 
                 try {
-                    await window.smsApi.put('/api/student/profile/password', {
+                    await window.smsApi.put('/api/auth/change-password', {
                         currentPassword,
                         newPassword,
                         confirmPassword
@@ -1977,9 +2165,26 @@
                     document.getElementById('newPassword').value = '';
                     document.getElementById('confirmPassword').value = '';
                     statusEl.textContent = 'Password changed successfully.';
+                    if (FORCE_PASSWORD_CHANGE) {
+                        window.location.href = '/student/dashboard';
+                    }
                 } catch (error) {
                     statusEl.textContent = error.message || 'Unable to change password.';
                 }
+            });
+        }
+
+        if (FORCE_PASSWORD_CHANGE) {
+            const statusEl = document.getElementById('changePasswordStatus');
+            if (statusEl) {
+                statusEl.textContent = 'First login detected. Please change your default password to continue.';
+            }
+        }
+
+        const submitDemographicsBtn = document.getElementById('submitDemographicsBtn');
+        if (submitDemographicsBtn) {
+            submitDemographicsBtn.addEventListener('click', async () => {
+                await submitDemographicsConsent();
             });
         }
     }

@@ -84,7 +84,7 @@ body {
 
 .grid-2 {
     display: grid;
-    grid-template-columns: 1.55fr 1fr;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
     gap: 16px;
     align-items: start;
 }
@@ -106,6 +106,7 @@ body {
 .panel {
     padding: 20px;
     box-shadow: none;
+    min-width: 0;
 }
 
 .panel-title {
@@ -209,6 +210,13 @@ body {
     border: 1px solid var(--border);
     background: color-mix(in srgb, var(--card-bg) 75%, transparent);
     line-height: 1.35;
+    word-break: break-word;
+}
+
+@media (max-width: 1240px) {
+    .grid-2 {
+        grid-template-columns: 1fr;
+    }
 }
 
 .student-toolbar {

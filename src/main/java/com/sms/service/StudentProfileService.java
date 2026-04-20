@@ -1,6 +1,7 @@
 package com.sms.service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.sms.dto.profile.AcademicRecordDTO;
 import com.sms.dto.profile.AdminUpdateStudentProfileRequest;
+import com.sms.dto.profile.StudentDemographicConsentRequest;
 import com.sms.dto.profile.StudentDocumentDTO;
 import com.sms.dto.profile.StudentProfileResponseDTO;
 import com.sms.dto.profile.StudentSelfUpdateProfileRequest;
@@ -26,6 +28,8 @@ import com.sms.repository.StudentRepository;
 
 @Service
 public class StudentProfileService {
+
+    private static final String DEMOGRAPHIC_CONSENT_VERSION = "1.0";
 
     private final StudentRepository studentRepository;
     private final StudentProfileRepository studentProfileRepository;
@@ -85,7 +89,7 @@ public class StudentProfileService {
             }
         }
         
-        String gender = firstNonBlank(request.getGender(), profile.getGender(), student.getGender());
+        String gender = StudentFieldDerivationUtils.inferGender(fullName, firstNonBlank(request.getGender(), profile.getGender(), student.getGender()));
         String religion = firstNonBlank(request.getReligion(), profile.getReligion());
         String bloodGroup = firstNonBlank(request.getBloodGroup(), profile.getBloodGroup());
         String phone = firstNonBlank(request.getPhone(), profile.getPhone(), student.getPhone());
@@ -94,23 +98,28 @@ public class StudentProfileService {
         String address = firstNonBlank(request.getAddress(), profile.getAddress(), student.getAddress());
         String guardianName = firstNonBlank(request.getGuardianName(), profile.getGuardianName());
         String guardianPhone = firstNonBlank(request.getGuardianPhone(), profile.getGuardianPhone());
-        String college = firstNonBlank(request.getCollege(), profile.getCollege(), "Bennett University");
+        String college = StudentFieldDerivationUtils.resolveCollegeName(firstNonBlank(request.getCollege(), profile.getCollege()), firstNonBlank(request.getCourse(), profile.getCourse(), student.getCourse()));
         String course = firstNonBlank(request.getCourse(), profile.getCourse(), student.getCourse());
         String department = firstNonBlank(request.getDepartment(), profile.getDepartment(), student.getDepartment());
         String semester = firstNonBlank(request.getSemester(), profile.getSemester(), student.getSemester());
         String section = firstNonBlank(request.getSection(), profile.getSection());
-        String foundationClassroom = firstNonBlank(request.getFoundationClassroom(), profile.getFoundationClassroom());
+        String house = StudentFieldDerivationUtils.resolveHouse(firstNonBlank(request.getHouse(), profile.getHouse()), null);
+        String foundationClassroom = normalizeFoundationClassroom(firstNonBlank(request.getFoundationClassroom(), profile.getFoundationClassroom()), house);
         Integer teamNumber = request.getTeamNumber() != null ? request.getTeamNumber() : profile.getTeamNumber();
         Integer memberNumber = request.getMemberNumber() != null ? request.getMemberNumber() : profile.getMemberNumber();
         Integer admissionYear = request.getAdmissionYear() != null ? request.getAdmissionYear() : profile.getAdmissionYear();
-        Integer passingYear = request.getPassingYear() != null ? request.getPassingYear() : profile.getPassingYear();
+        Integer passingYear = StudentFieldDerivationUtils.derivePassingYear(course, admissionYear, request.getPassingYear() != null ? request.getPassingYear() : profile.getPassingYear());
         LocalDate dob = request.getDob() != null ? request.getDob() : (profile.getDob() != null ? profile.getDob() : student.getDob());
-        LocalDate validUpto = request.getValidUpto() != null ? request.getValidUpto() : profile.getValidUpto();
+        LocalDate validUpto = StudentFieldDerivationUtils.deriveValidUpto(course, admissionYear, passingYear, request.getValidUpto());
         String idCardNumber = firstNonBlank(request.getIdCardNumber(), profile.getIdCardNumber(), "BU-" + normalizedStudentId);
 
         profile.setStudentId(normalizedStudentId);
+        if (student.getUser() != null) {
+            profile.setUserId(student.getUser().getId());
+        }
         profile.setFullName(fullName);
         profile.setProfileImage(profileImage);
+        profile.setProfilePhotoUrl(profileImage);
         profile.setDob(dob);
         profile.setGender(gender);
         profile.setReligion(religion);
@@ -127,6 +136,7 @@ public class StudentProfileService {
         profile.setDepartment(department);
         profile.setSemester(semester);
         profile.setSection(section);
+        profile.setHouse(house);
         profile.setFoundationClassroom(foundationClassroom);
         profile.setTeamNumber(teamNumber);
         profile.setMemberNumber(memberNumber);
@@ -187,6 +197,10 @@ public class StudentProfileService {
         profile.setEmail(universityEmail);
         profile.setAddress(request.getAddress());
         profile.setProfileImage(profileImage);
+        profile.setProfilePhotoUrl(profileImage);
+        if (student.getUser() != null) {
+            profile.setUserId(student.getUser().getId());
+        }
         profile.setUpdatedBy(normalizedUsername);
         studentProfileRepository.save(profile);
 
@@ -195,6 +209,39 @@ public class StudentProfileService {
         student.setProfileImageUrl(profileImage);
         student.setEmail(universityEmail);
         studentRepository.save(student);
+
+        return mapProfile(student.getId(), "STUDENT");
+    }
+
+    @Transactional
+    @CacheEvict(value = "studentProfile", allEntries = true)
+    public StudentProfileResponseDTO submitDemographicConsent(String username, StudentDemographicConsentRequest request) {
+        String normalizedUsername = java.util.Objects.requireNonNull(username, "Username must not be null");
+        Student student = studentRepository.findByUserUsername(normalizedUsername)
+            .orElseThrow(() -> new IllegalArgumentException("Student not found for username: " + normalizedUsername));
+
+        if (!Boolean.TRUE.equals(request.getConsentGiven())) {
+            throw new IllegalArgumentException("Consent is required before saving demographics");
+        }
+
+        StudentProfile profile = studentProfileRepository.findByStudentId(student.getId())
+            .orElseGet(() -> createProfileFromStudent(student));
+
+        profile.setGender(clean(request.getGender()));
+        profile.setGenderSource("SELF_DECLARED");
+        profile.setReligion(clean(request.getReligion()));
+        profile.setReligionSource("SELF_DECLARED");
+        profile.setCaste(clean(request.getSpecificCaste()));
+        profile.setCasteCategory(clean(request.getCategory()));
+        profile.setCasteSource("SELF_DECLARED");
+        profile.setDemographicConsentGiven(true);
+        profile.setDemographicConsentAt(LocalDateTime.now());
+        profile.setDemographicConsentVersion(DEMOGRAPHIC_CONSENT_VERSION);
+        profile.setUpdatedBy(normalizedUsername);
+
+        student.setGender(clean(request.getGender()));
+        studentRepository.save(student);
+        studentProfileRepository.save(profile);
 
         return mapProfile(student.getId(), "STUDENT");
     }
@@ -214,12 +261,13 @@ public class StudentProfileService {
         dto.setStudentId(normalizedStudentId);
         dto.setFullName(firstNonBlank(profile.getFullName(), student.getName()));
         dto.setEnrollmentNumber(firstNonBlank(profile.getEnrollmentNumber(), student.getId()));
-        dto.setProfileImage(firstNonBlank(profile.getProfileImage(), student.getProfileImageUrl()));
+        dto.setProfileImage(firstNonBlank(profile.getProfilePhotoUrl(), profile.getProfileImage(), student.getProfileImageUrl()));
 
         dto.setDob(profile.getDob() != null ? profile.getDob() : student.getDob());
         dto.setGender(firstNonBlank(profile.getGender(), student.getGender()));
         dto.setReligion(profile.getReligion());
         dto.setBloodGroup(profile.getBloodGroup());
+        dto.setCasteCategory(profile.getCasteCategory());
 
         dto.setPhone(firstNonBlank(profile.getPhone(), student.getPhone()));
         String universityEmail = firstNonBlank(profile.getUniversityEmail(), profile.getEmail(), student.getEmail(), deriveStudentEmail(studentId));
@@ -231,16 +279,17 @@ public class StudentProfileService {
         dto.setGuardianName(profile.getGuardianName());
         dto.setGuardianPhone(profile.getGuardianPhone());
 
-        dto.setCollege(firstNonBlank(profile.getCollege(), "Bennett University"));
+        dto.setCollege(StudentFieldDerivationUtils.resolveCollegeName(profile.getCollege(), profile.getCourse()));
         dto.setCourse(firstNonBlank(profile.getCourse(), student.getCourse()));
         dto.setDepartment(firstNonBlank(profile.getDepartment(), student.getDepartment()));
         dto.setSemester(firstNonBlank(profile.getSemester(), student.getSemester()));
         dto.setSection(profile.getSection());
-        dto.setFoundationClassroom(profile.getFoundationClassroom());
+        dto.setHouse(profile.getHouse());
+        dto.setFoundationClassroom(normalizeFoundationClassroom(profile.getFoundationClassroom(), profile.getHouse()));
         dto.setTeamNumber(profile.getTeamNumber());
         dto.setMemberNumber(profile.getMemberNumber());
         dto.setAdmissionYear(profile.getAdmissionYear() != null ? profile.getAdmissionYear() : parseYear(student.getEnrollmentYear()));
-        dto.setPassingYear(profile.getPassingYear());
+        dto.setPassingYear(StudentFieldDerivationUtils.derivePassingYear(dto.getCourse(), dto.getAdmissionYear(), profile.getPassingYear()));
 
         dto.setValidUpto(profile.getValidUpto());
         dto.setIdCardNumber(firstNonBlank(profile.getIdCardNumber(), "BU-" + studentId));
@@ -248,6 +297,12 @@ public class StudentProfileService {
         dto.setCreatedAt(profile.getCreatedAt());
         dto.setUpdatedAt(profile.getUpdatedAt());
         dto.setUpdatedBy(firstNonBlank(profile.getUpdatedBy(), "System"));
+        dto.setDemographicConsentGiven(Boolean.TRUE.equals(profile.getDemographicConsentGiven()));
+        dto.setDemographicConsentAt(profile.getDemographicConsentAt());
+        dto.setDemographicConsentVersion(profile.getDemographicConsentVersion());
+        dto.setGenderSource(profile.getGenderSource());
+        dto.setReligionSource(profile.getReligionSource());
+        dto.setCasteSource(profile.getCasteSource());
 
         dto.setProfileQrUrl("/student/profile?studentId=" + normalizedStudentId);
         dto.setViewerRole(viewerRole);
@@ -263,11 +318,15 @@ public class StudentProfileService {
     private StudentProfile createProfileFromStudent(Student student) {
         StudentProfile profile = new StudentProfile();
         profile.setStudentId(student.getId());
+        if (student.getUser() != null) {
+            profile.setUserId(student.getUser().getId());
+        }
         profile.setFullName(student.getName());
         profile.setEnrollmentNumber(student.getId());
         profile.setProfileImage(student.getProfileImageUrl());
+        profile.setProfilePhotoUrl(student.getProfileImageUrl());
         profile.setDob(student.getDob());
-        profile.setGender(student.getGender());
+        profile.setGender(StudentFieldDerivationUtils.inferGender(student.getName(), student.getGender()));
         profile.setReligion(null);
         profile.setPhone(student.getPhone());
         String universityEmail = firstNonBlank(student.getEmail(), deriveStudentEmail(student.getId()));
@@ -278,15 +337,34 @@ public class StudentProfileService {
         profile.setCourse(student.getCourse());
         profile.setDepartment(student.getDepartment());
         profile.setSemester(student.getSemester());
+        profile.setHouse(null);
         profile.setFoundationClassroom(null);
         profile.setTeamNumber(null);
         profile.setMemberNumber(null);
         profile.setAdmissionYear(parseYear(student.getEnrollmentYear()));
-        profile.setCollege("Bennett University");
-        profile.setValidUpto(LocalDate.now().plusYears(4));
+        profile.setCollege(StudentFieldDerivationUtils.resolveCollegeName(null, student.getCourse()));
+        profile.setPassingYear(StudentFieldDerivationUtils.derivePassingYear(student.getCourse(), profile.getAdmissionYear(), null));
+        profile.setValidUpto(StudentFieldDerivationUtils.deriveValidUpto(student.getCourse(), profile.getAdmissionYear(), profile.getPassingYear(), null));
         profile.setIdCardNumber("BU-" + student.getId());
         profile.setUpdatedBy("System");
+        profile.setDemographicConsentGiven(Boolean.FALSE);
+        profile.setDemographicConsentVersion(DEMOGRAPHIC_CONSENT_VERSION);
+        profile.setGenderSource("SYSTEM_DEFAULT");
+        profile.setReligionSource("SYSTEM_DEFAULT");
+        profile.setCasteSource("SYSTEM_DEFAULT");
         return studentProfileRepository.save(profile);
+    }
+
+    private String clean(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private String normalizeFoundationClassroom(String foundationClassroom, String house) {
+        String cleanedFoundation = clean(foundationClassroom);
+        if (cleanedFoundation == null) {
+            return null;
+        }
+        return cleanedFoundation;
     }
 
     private List<StudentDocumentDTO> mapDocuments(List<StudentDocument> documents) {
@@ -316,21 +394,21 @@ public class StudentProfileService {
     }
 
     private int calculateCompletion(StudentProfileResponseDTO dto) {
-        int filled = 0;
-        int total = 28;
-
         List<Object> fields = Arrays.asList(
             dto.getFullName(), dto.getEnrollmentNumber(), dto.getProfileImage(),
             dto.getDob(), dto.getGender(), dto.getReligion(), dto.getBloodGroup(),
             dto.getPhone(), dto.getEmail(), dto.getAddress(),
             dto.getUniversityEmail(), dto.getPersonalEmail(),
             dto.getGuardianName(), dto.getGuardianPhone(),
-            dto.getCollege(), dto.getCourse(), dto.getDepartment(), dto.getSemester(), dto.getSection(),
+            dto.getCollege(), dto.getCourse(), dto.getDepartment(), dto.getSemester(), dto.getSection(), dto.getHouse(),
             dto.getFoundationClassroom(), dto.getTeamNumber(), dto.getMemberNumber(),
             dto.getAdmissionYear(), dto.getPassingYear(),
             dto.getValidUpto(), dto.getIdCardNumber(),
             dto.getCreatedAt(), dto.getUpdatedAt()
         );
+
+        int filled = 0;
+        int total = fields.size();
 
         for (Object field : fields) {
             if (field instanceof String s) {

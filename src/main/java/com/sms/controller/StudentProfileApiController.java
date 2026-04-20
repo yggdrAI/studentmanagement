@@ -1,6 +1,5 @@
 package com.sms.controller;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -9,10 +8,11 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.sms.dto.auth.ChangePasswordRequest;
+import com.sms.dto.profile.StudentDemographicConsentRequest;
 import com.sms.dto.profile.StudentProfileResponseDTO;
+import com.sms.dto.profile.StudentSelfUpdateProfileRequest;
 import com.sms.service.CredentialService;
 import com.sms.service.StudentProfileService;
 
@@ -38,8 +38,15 @@ public class StudentProfileApiController {
     }
 
     @PutMapping("/profile")
-    public ResponseEntity<StudentProfileResponseDTO> updateOwnProfile() {
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Profile editing is restricted to admins");
+    public ResponseEntity<StudentProfileResponseDTO> updateOwnProfile(@RequestBody StudentSelfUpdateProfileRequest request,
+                                                                      Authentication auth) {
+        return ResponseEntity.ok(studentProfileService.updateByStudent(auth.getName(), request));
+    }
+
+    @PutMapping("/profile/demographics")
+    public ResponseEntity<StudentProfileResponseDTO> submitDemographics(@Valid @RequestBody StudentDemographicConsentRequest request,
+                                                                         Authentication auth) {
+        return ResponseEntity.ok(studentProfileService.submitDemographicConsent(auth.getName(), request));
     }
 
     @PutMapping("/profile/password")

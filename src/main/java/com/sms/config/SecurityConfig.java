@@ -20,17 +20,20 @@ import com.sms.service.CustomUserDetailsService;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final FirstLoginEnforcementFilter firstLoginEnforcementFilter;
     private final TenantContextFilter tenantContextFilter;
     private final ApiRateLimitFilter apiRateLimitFilter;
     private final AdminActionAuditFilter adminActionAuditFilter;
     private final CustomUserDetailsService customUserDetailsService;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                          FirstLoginEnforcementFilter firstLoginEnforcementFilter,
                           TenantContextFilter tenantContextFilter,
                           ApiRateLimitFilter apiRateLimitFilter,
                           AdminActionAuditFilter adminActionAuditFilter,
                           CustomUserDetailsService customUserDetailsService) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.firstLoginEnforcementFilter = firstLoginEnforcementFilter;
         this.tenantContextFilter = tenantContextFilter;
         this.apiRateLimitFilter = apiRateLimitFilter;
         this.adminActionAuditFilter = adminActionAuditFilter;
@@ -63,7 +66,9 @@ public class SecurityConfig {
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/css/**", "/js/**", "/images/**", "/api/auth/**", "/ws/**", "/topic/**", "/app/**", "/student-login").permitAll()
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/ws/**", "/topic/**", "/app/**", "/student-login").permitAll()
+                .requestMatchers("/api/auth/login").permitAll()
+                .requestMatchers("/api/auth/change-password", "/api/auth/me").authenticated()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/teacher/**").hasRole("TEACHER")
                 .requestMatchers("/api/student/**").hasRole("STUDENT")
@@ -112,6 +117,7 @@ public class SecurityConfig {
 
         http.addFilterBefore(apiRateLimitFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(firstLoginEnforcementFilter, JwtAuthenticationFilter.class);
         http.addFilterAfter(tenantContextFilter, JwtAuthenticationFilter.class);
         http.addFilterAfter(adminActionAuditFilter, TenantContextFilter.class);
 

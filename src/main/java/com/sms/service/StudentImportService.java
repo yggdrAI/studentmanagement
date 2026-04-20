@@ -61,6 +61,7 @@ public class StudentImportService {
         "enrollmentNumber",
         "rollNumber",
         "email",
+        "personalEmail",
         "phone",
         "program",
         "course",
@@ -70,6 +71,9 @@ public class StudentImportService {
         "section",
         "className",
         "house",
+        "foundationClassroom",
+        "teamNumber",
+        "memberNumber",
         "joiningYear",
         "leavingYear",
         "dateOfBirth",
@@ -84,6 +88,7 @@ public class StudentImportService {
         Map.entry("enrollmentNumber", "Enrollment Number"),
         Map.entry("rollNumber", "Roll Number"),
         Map.entry("email", "Email"),
+        Map.entry("personalEmail", "Personal Email"),
         Map.entry("phone", "Phone"),
         Map.entry("program", "Program"),
         Map.entry("course", "Course"),
@@ -93,6 +98,9 @@ public class StudentImportService {
         Map.entry("section", "Section / Class"),
         Map.entry("className", "Class"),
         Map.entry("house", "House"),
+        Map.entry("foundationClassroom", "Foundation Classroom"),
+        Map.entry("teamNumber", "Team Number"),
+        Map.entry("memberNumber", "Member Number"),
         Map.entry("joiningYear", "Joining Year"),
         Map.entry("leavingYear", "Leaving Year"),
         Map.entry("dateOfBirth", "Date of Birth"),
@@ -289,11 +297,16 @@ public class StudentImportService {
         if (request.getFullName() != null) row.setFullName(clean(request.getFullName()));
         if (request.getEnrollmentNumber() != null) row.setEnrollmentNumber(clean(request.getEnrollmentNumber()));
         if (request.getEmail() != null) row.setEmail(clean(request.getEmail()));
+        if (request.getPersonalEmail() != null) row.setPersonalEmail(clean(request.getPersonalEmail()));
         if (request.getPhone() != null) row.setPhone(clean(request.getPhone()));
         if (request.getCourse() != null) row.setCourse(clean(request.getCourse()));
         if (request.getSemester() != null) row.setSemester(clean(request.getSemester()));
         if (request.getDepartment() != null) row.setDepartment(clean(request.getDepartment()));
         if (request.getSection() != null) row.setSection(clean(request.getSection()));
+        if (request.getHouse() != null) row.setHouse(clean(request.getHouse()));
+        if (request.getFoundationClassroom() != null) row.setFoundationClassroom(clean(request.getFoundationClassroom()));
+        if (request.getTeamNumber() != null) row.setTeamNumber(clean(request.getTeamNumber()));
+        if (request.getMemberNumber() != null) row.setMemberNumber(clean(request.getMemberNumber()));
         if (request.getDateOfBirth() != null) row.setDateOfBirth(clean(request.getDateOfBirth()));
         if (request.getGender() != null) row.setGender(clean(request.getGender()));
         if (request.getAddress() != null) row.setAddress(clean(request.getAddress()));
@@ -623,6 +636,7 @@ public class StudentImportService {
             row.setEnrollmentNumber(value(values, headerIndex, "enrollmentNumber"));
             row.setRollNumber(value(values, headerIndex, "rollNumber"));
             row.setEmail(value(values, headerIndex, "email"));
+            row.setPersonalEmail(value(values, headerIndex, "personalEmail"));
             row.setPhone(value(values, headerIndex, "phone"));
             row.setProgram(value(values, headerIndex, "program"));
             row.setCourse(value(values, headerIndex, "course"));
@@ -632,6 +646,9 @@ public class StudentImportService {
             row.setSection(value(values, headerIndex, "section"));
             row.setClassName(value(values, headerIndex, "className"));
             row.setHouse(value(values, headerIndex, "house"));
+            row.setFoundationClassroom(value(values, headerIndex, "foundationClassroom"));
+            row.setTeamNumber(value(values, headerIndex, "teamNumber"));
+            row.setMemberNumber(value(values, headerIndex, "memberNumber"));
             row.setJoiningYear(value(values, headerIndex, "joiningYear"));
             row.setLeavingYear(value(values, headerIndex, "leavingYear"));
             row.setDateOfBirth(value(values, headerIndex, "dateOfBirth"));
@@ -671,6 +688,9 @@ public class StudentImportService {
         }
         if (StringUtils.hasText(row.getEmail()) && !EMAIL_PATTERN.matcher(row.getEmail().trim()).matches()) {
             errors.add("Email is invalid");
+        }
+        if (StringUtils.hasText(row.getPersonalEmail()) && !EMAIL_PATTERN.matcher(row.getPersonalEmail().trim()).matches()) {
+            errors.add("Personal Email is invalid");
         }
         if (StringUtils.hasText(row.getPhone()) && !PHONE_PATTERN.matcher(row.getPhone().trim()).matches()) {
             errors.add("Phone must contain 7-15 digits");
@@ -769,61 +789,91 @@ public class StudentImportService {
     }
 
     private ImportResult persistMergedStudent(Student student, Map<String, Object> mergedStudent, List<StudentImportRow> rows) {
-        student.setName(firstNonBlank(stringValue(mergedStudent.get("fullName"), null), student.getName()));
-        student.setEmail(firstNonBlank(stringValue(mergedStudent.get("email"), null), student.getEmail()));
-        student.setPhone(firstNonBlank(stringValue(mergedStudent.get("phone"), null), student.getPhone()));
-        student.setCourse(firstNonBlank(stringValue(mergedStudent.get("course"), null), stringValue(mergedStudent.get("program"), null), student.getCourse()));
-        student.setSemester(firstNonBlank(stringValue(mergedStudent.get("semester"), null), student.getSemester()));
-        student.setDepartment(firstNonBlank(stringValue(mergedStudent.get("department"), null), student.getDepartment()));
-        student.setSection(firstNonBlank(stringValue(mergedStudent.get("section"), null), stringValue(mergedStudent.get("className"), null), student.getSection()));
-        student.setGender(firstNonBlank(stringValue(mergedStudent.get("gender"), null), student.getGender()));
-        student.setAddress(firstNonBlank(stringValue(mergedStudent.get("address"), null), student.getAddress()));
-        student.setEnrollmentYear(firstNonBlank(stringValue(mergedStudent.get("joiningYear"), null), extractYear(student.getId())));
+        boolean preferExisting = student.getId() != null && studentRepository.existsById(student.getId());
+
+        String mergedName = mergeValue(student.getName(), stringValue(mergedStudent.get("fullName"), null), preferExisting);
+        student.setName(firstNonBlank(mergedName, student.getName(), stringValue(mergedStudent.get("fullName"), null)));
+        student.setEmail(mergeValue(student.getEmail(), stringValue(mergedStudent.get("email"), null), preferExisting));
+        student.setPhone(mergeValue(student.getPhone(), stringValue(mergedStudent.get("phone"), null), preferExisting));
+        student.setCourse(mergeValue(student.getCourse(), firstNonBlank(stringValue(mergedStudent.get("course"), null), stringValue(mergedStudent.get("program"), null)), preferExisting));
+        student.setSemester(mergeValue(student.getSemester(), stringValue(mergedStudent.get("semester"), null), preferExisting));
+        student.setDepartment(mergeValue(student.getDepartment(), stringValue(mergedStudent.get("department"), null), preferExisting));
+        student.setSection(mergeValue(student.getSection(), firstNonBlank(stringValue(mergedStudent.get("section"), null), stringValue(mergedStudent.get("className"), null)), preferExisting));
+        student.setGender(StudentFieldDerivationUtils.inferGender(student.getName(), mergeValue(student.getGender(), stringValue(mergedStudent.get("gender"), null), preferExisting)));
+        student.setAddress(mergeValue(student.getAddress(), stringValue(mergedStudent.get("address"), null), preferExisting));
+        student.setEnrollmentYear(mergeValue(student.getEnrollmentYear(), firstNonBlank(stringValue(mergedStudent.get("joiningYear"), null), extractYear(student.getId())), preferExisting));
         if (hasText(stringValue(mergedStudent.get("dateOfBirth"), null))) {
             try {
-                student.setDob(parseDate(stringValue(mergedStudent.get("dateOfBirth"), null)));
+                LocalDate parsedDob = parseDate(stringValue(mergedStudent.get("dateOfBirth"), null));
+                if (!preferExisting || student.getDob() == null) {
+                    student.setDob(parsedDob);
+                }
             } catch (Exception ignored) {
-                student.setDob(null);
+                if (!preferExisting) {
+                    student.setDob(null);
+                }
             }
         }
 
         Student saved = studentService.save(student);
         upsertEnrollment(saved, firstNonBlank(saved.getCourse(), stringValue(mergedStudent.get("course"), null), stringValue(mergedStudent.get("program"), null)));
-        updateStudentProfileMetadata(saved.getId(), mergedStudent);
+        updateStudentProfileMetadata(saved.getId(), mergedStudent, preferExisting);
         return ImportResult.imported(saved.getId());
     }
 
-    private void updateStudentProfileMetadata(String studentId, Map<String, Object> mergedStudent) {
+    private void updateStudentProfileMetadata(String studentId, Map<String, Object> mergedStudent, boolean preferExisting) {
         StudentProfile profile = studentProfileRepository.findByStudentId(studentId).orElseGet(StudentProfile::new);
         String universityEmail = firstNonBlank(profile.getUniversityEmail(), profile.getEmail(), deriveUniversityEmail(studentId));
-        String personalEmail = firstNonBlank(stringValue(mergedStudent.get("email"), null), profile.getPersonalEmail());
+        String personalEmail = mergeValue(
+            profile.getPersonalEmail(),
+            firstNonBlank(stringValue(mergedStudent.get("personalEmail"), null), stringValue(mergedStudent.get("email"), null)),
+            preferExisting
+        );
 
         profile.setStudentId(studentId);
-        profile.setFullName(firstNonBlank(stringValue(mergedStudent.get("fullName"), null), profile.getFullName()));
+        profile.setFullName(mergeValue(profile.getFullName(), stringValue(mergedStudent.get("fullName"), null), preferExisting));
         profile.setEnrollmentNumber(firstNonBlank(stringValue(mergedStudent.get("enrollmentNumber"), null), studentId));
         profile.setProfileImage(firstNonBlank(profile.getProfileImage(), null));
-        profile.setDob(parseOptionalDate(stringValue(mergedStudent.get("dateOfBirth"), null), profile.getDob()));
-        profile.setGender(firstNonBlank(stringValue(mergedStudent.get("gender"), null), profile.getGender()));
-        profile.setPhone(firstNonBlank(stringValue(mergedStudent.get("phone"), null), profile.getPhone()));
+        if (!preferExisting || profile.getDob() == null) {
+            profile.setDob(parseOptionalDate(stringValue(mergedStudent.get("dateOfBirth"), null), profile.getDob()));
+        }
+        profile.setGender(StudentFieldDerivationUtils.inferGender(profile.getFullName(), mergeValue(profile.getGender(), stringValue(mergedStudent.get("gender"), null), preferExisting)));
+        profile.setPhone(mergeValue(profile.getPhone(), stringValue(mergedStudent.get("phone"), null), preferExisting));
         profile.setUniversityEmail(universityEmail);
         profile.setPersonalEmail(personalEmail);
         profile.setEmail(universityEmail);
-        profile.setAddress(firstNonBlank(stringValue(mergedStudent.get("address"), null), profile.getAddress()));
-        profile.setFoundationClassroom(firstNonBlank(stringValue(mergedStudent.get("house"), null), profile.getFoundationClassroom()));
-        profile.setCaste(firstNonBlank(stringValue(mergedStudent.get("caste"), null), profile.getCaste()));
+        profile.setAddress(mergeValue(profile.getAddress(), stringValue(mergedStudent.get("address"), null), preferExisting));
+        profile.setHouse(mergeValue(profile.getHouse(), stringValue(mergedStudent.get("house"), null), preferExisting));
+        String incomingFoundationClassroom = firstNonBlank(
+            stringValue(mergedStudent.get("foundationClassroom"), null),
+            stringValue(mergedStudent.get("className"), null)
+        );
+        profile.setFoundationClassroom(normalizeFoundationClassroom(mergeValue(profile.getFoundationClassroom(), incomingFoundationClassroom, preferExisting), profile.getHouse()));
+        profile.setTeamNumber(parseInteger(mergeValue(
+            profile.getTeamNumber() == null ? null : String.valueOf(profile.getTeamNumber()),
+            stringValue(mergedStudent.get("teamNumber"), null),
+            preferExisting
+        ), profile.getTeamNumber()));
+        profile.setMemberNumber(parseInteger(mergeValue(
+            profile.getMemberNumber() == null ? null : String.valueOf(profile.getMemberNumber()),
+            stringValue(mergedStudent.get("memberNumber"), null),
+            preferExisting
+        ), profile.getMemberNumber()));
+        profile.setCaste(mergeValue(profile.getCaste(), stringValue(mergedStudent.get("caste"), null), preferExisting));
         profile.setPlaceOfOrigin(firstNonBlank(
-            stringValue(mergedStudent.get("placeOfOrigin"), null),
-            stringValue(mergedStudent.get("origin"), null),
-            stringValue(mergedStudent.get("city"), null),
+            mergeValue(profile.getPlaceOfOrigin(), stringValue(mergedStudent.get("placeOfOrigin"), null), preferExisting),
+            mergeValue(profile.getPlaceOfOrigin(), stringValue(mergedStudent.get("origin"), null), preferExisting),
+            mergeValue(profile.getPlaceOfOrigin(), stringValue(mergedStudent.get("city"), null), preferExisting),
             profile.getPlaceOfOrigin()
         ));
-        profile.setCourse(firstNonBlank(stringValue(mergedStudent.get("course"), null), stringValue(mergedStudent.get("program"), null), profile.getCourse()));
-        profile.setDepartment(firstNonBlank(stringValue(mergedStudent.get("department"), null), profile.getDepartment()));
-        profile.setSemester(firstNonBlank(stringValue(mergedStudent.get("semester"), null), profile.getSemester()));
-        profile.setSection(firstNonBlank(stringValue(mergedStudent.get("section"), null), stringValue(mergedStudent.get("className"), null), profile.getSection()));
+        profile.setCourse(mergeValue(profile.getCourse(), firstNonBlank(stringValue(mergedStudent.get("course"), null), stringValue(mergedStudent.get("program"), null)), preferExisting));
+        profile.setDepartment(mergeValue(profile.getDepartment(), stringValue(mergedStudent.get("department"), null), preferExisting));
+        profile.setSemester(mergeValue(profile.getSemester(), stringValue(mergedStudent.get("semester"), null), preferExisting));
+        profile.setSection(mergeValue(profile.getSection(), firstNonBlank(stringValue(mergedStudent.get("section"), null), stringValue(mergedStudent.get("className"), null)), preferExisting));
         profile.setAdmissionYear(parseYear(firstNonBlank(stringValue(mergedStudent.get("joiningYear"), null), profile.getAdmissionYear() == null ? null : String.valueOf(profile.getAdmissionYear()))));
-        profile.setCollege(firstNonBlank(stringValue(mergedStudent.get("school"), null), profile.getCollege(), "Bennett University"));
-        profile.setValidUpto(profile.getValidUpto() == null ? LocalDate.now().plusYears(4) : profile.getValidUpto());
+        profile.setCollege(StudentFieldDerivationUtils.resolveCollegeName(firstNonBlank(stringValue(mergedStudent.get("school"), null), profile.getCollege()), profile.getCourse()));
+        profile.setPassingYear(StudentFieldDerivationUtils.derivePassingYear(profile.getCourse(), profile.getAdmissionYear(), profile.getPassingYear()));
+        profile.setValidUpto(StudentFieldDerivationUtils.deriveValidUpto(profile.getCourse(), profile.getAdmissionYear(), profile.getPassingYear(), null));
         profile.setIdCardNumber(firstNonBlank(profile.getIdCardNumber(), "BU-" + studentId));
         profile.setUpdatedBy("Import Fusion");
         studentProfileRepository.save(profile);
@@ -844,7 +894,7 @@ public class StudentImportService {
         student.setSemester(clean(row.getSemester()));
         student.setDepartment(clean(row.getDepartment()));
         student.setSection(firstNonBlank(clean(row.getSection()), clean(row.getClassName())));
-        student.setGender(clean(row.getGender()));
+        student.setGender(StudentFieldDerivationUtils.inferGender(student.getName(), clean(row.getGender())));
         student.setAddress(clean(row.getAddress()));
         student.setEnrollmentYear(firstNonBlank(clean(row.getJoiningYear()), parseEnrollmentYear(row.getEnrollmentNumber())));
         try {
@@ -904,6 +954,34 @@ public class StudentImportService {
         } catch (Exception ignored) {
             return fallback;
         }
+    }
+
+    private String mergeValue(String existingValue, String incomingValue, boolean preferExisting) {
+        String cleanedExisting = clean(existingValue);
+        String cleanedIncoming = clean(incomingValue);
+        if (preferExisting) {
+            return firstNonBlank(cleanedExisting, cleanedIncoming);
+        }
+        return firstNonBlank(cleanedIncoming, cleanedExisting);
+    }
+
+    private Integer parseInteger(String value, Integer fallback) {
+        if (!hasText(value)) {
+            return fallback;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException ex) {
+            return fallback;
+        }
+    }
+
+    private String normalizeFoundationClassroom(String foundationClassroom, String house) {
+        String cleanedFoundation = clean(foundationClassroom);
+        if (!hasText(cleanedFoundation)) {
+            return null;
+        }
+        return cleanedFoundation;
     }
 
     private void upsertEnrollment(Student student, String courseValue) {
@@ -1084,6 +1162,7 @@ public class StudentImportService {
         item.put("enrollmentNumber", row.getEnrollmentNumber());
         item.put("rollNumber", row.getRollNumber());
         item.put("email", row.getEmail());
+        item.put("personalEmail", row.getPersonalEmail());
         item.put("phone", row.getPhone());
         item.put("program", row.getProgram());
         item.put("course", row.getCourse());
@@ -1093,6 +1172,9 @@ public class StudentImportService {
         item.put("section", row.getSection());
         item.put("className", row.getClassName());
         item.put("house", row.getHouse());
+        item.put("foundationClassroom", row.getFoundationClassroom());
+        item.put("teamNumber", row.getTeamNumber());
+        item.put("memberNumber", row.getMemberNumber());
         item.put("joiningYear", row.getJoiningYear());
         item.put("leavingYear", row.getLeavingYear());
         item.put("dateOfBirth", row.getDateOfBirth());
@@ -1131,11 +1213,11 @@ public class StudentImportService {
     }
 
     private String normalizeDuplicateStrategy(String duplicateStrategy) {
-        String normalized = duplicateStrategy == null ? "SKIP" : duplicateStrategy.trim().toUpperCase(Locale.ROOT);
+        String normalized = duplicateStrategy == null ? "UPDATE" : duplicateStrategy.trim().toUpperCase(Locale.ROOT);
         if (List.of("SKIP", "OVERWRITE", "UPDATE", "REJECT").contains(normalized)) {
             return normalized;
         }
-        return "SKIP";
+        return "UPDATE";
     }
 
     private String safeFileName(String fileName) {
@@ -1380,6 +1462,7 @@ public class StudentImportService {
             );
             case "rollNumber" -> List.of("Roll Number", "Roll No", "Roll", "Student Roll");
             case "email" -> List.of("Email", "Email Address", "Mail");
+            case "personalEmail" -> List.of("Personal Email", "Personal Email Address", "Private Email", "Alternate Email");
             case "phone" -> List.of("Phone", "Mobile", "Contact", "Phone Number", "Mobile Number");
             case "program" -> List.of("Program", "Degree", "Qualification", "Stream");
             case "course" -> List.of("Course", "Program", "Branch");
@@ -1389,6 +1472,9 @@ public class StudentImportService {
             case "section" -> List.of("Section", "Class", "Class Name", "Section Name", "Group");
             case "className" -> List.of("Class", "Class Name", "Class Section", "Batch Class");
             case "house" -> List.of("House", "House Name", "Hostel House");
+            case "foundationClassroom" -> List.of("Foundation Classroom", "Foundation Class", "Foundation Classroom Name", "Foundation", "Classroom", "Foundation Group");
+            case "teamNumber" -> List.of("Team Number", "Team No", "Team No.", "Team");
+            case "memberNumber" -> List.of("Member Number", "Member No", "Member No.", "Member");
             case "joiningYear" -> List.of("Joining Year", "Admission Year", "Year Of Joining");
             case "leavingYear" -> List.of("Leaving Year", "Pass Out Year", "Year Of Leaving");
             case "dateOfBirth" -> List.of("Date of Birth", "DOB", "Birth Date", "Date Of Birth");
@@ -1482,6 +1568,7 @@ public class StudentImportService {
         row.setEnrollmentNumber(cleanEnrollment(row.getEnrollmentNumber()));
         row.setRollNumber(cleanEnrollment(row.getRollNumber()));
         row.setEmail(cleanEmail(row.getEmail()));
+        row.setPersonalEmail(cleanEmail(row.getPersonalEmail()));
         row.setPhone(cleanPhone(row.getPhone()));
         row.setProgram(clean(row.getProgram()));
         row.setCourse(clean(row.getCourse()));
@@ -1491,6 +1578,9 @@ public class StudentImportService {
         row.setSection(clean(row.getSection()));
         row.setClassName(clean(row.getClassName()));
         row.setHouse(clean(row.getHouse()));
+        row.setFoundationClassroom(clean(row.getFoundationClassroom()));
+        row.setTeamNumber(clean(row.getTeamNumber()));
+        row.setMemberNumber(clean(row.getMemberNumber()));
         row.setJoiningYear(clean(row.getJoiningYear()));
         row.setLeavingYear(clean(row.getLeavingYear()));
         row.setDateOfBirth(clean(row.getDateOfBirth()));

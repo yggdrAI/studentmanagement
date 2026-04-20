@@ -43,6 +43,7 @@ import com.sms.service.CredentialService;
 import com.sms.service.DashboardService;
 import com.sms.service.DatabaseMigrationService;
 import com.sms.service.FaceVerificationService;
+import com.sms.service.StudentFieldDerivationUtils;
 import com.sms.service.StudentService;
 
 import jakarta.validation.Valid;
@@ -163,10 +164,13 @@ public class AdminApiController {
         );
 
         Map<String, Double> averageMap = studentService.getAverageMarksMap(studentsPage.getContent());
+        Map<String, StudentProfile> profileByStudentId = new HashMap<>();
+        List<String> studentIds = studentsPage.getContent().stream().map(Student::getId).toList();
+        studentProfileRepository.findAllById(studentIds).forEach(profile -> profileByStudentId.put(profile.getStudentId(), profile));
         List<Map<String, Object>> items = new ArrayList<>();
 
         for (Student student : studentsPage.getContent()) {
-            StudentProfile profile = studentProfileRepository.findByStudentId(student.getId()).orElse(null);
+            StudentProfile profile = profileByStudentId.get(student.getId());
             Map<String, Object> row = new HashMap<>();
             row.put("id", student.getId());
             row.put("name", student.getName());
@@ -178,10 +182,10 @@ public class AdminApiController {
             row.put("batch", student.getEnrollmentYear());
             row.put("classGroup", student.getClassGroup());
             row.put("batchGroup", student.getBatchGroup());
-            row.put("gender", profile != null && profile.getGender() != null ? profile.getGender() : student.getGender());
+            row.put("gender", profile != null && profile.getGender() != null ? profile.getGender() : StudentFieldDerivationUtils.inferGender(student.getName(), student.getGender()));
             row.put("degree", profile != null && profile.getCourse() != null ? profile.getCourse() : student.getCourse());
-            row.put("school", profile != null ? profile.getCollege() : null);
-            row.put("house", profile != null ? profile.getFoundationClassroom() : null);
+            row.put("school", profile != null ? StudentFieldDerivationUtils.resolveCollegeName(profile.getCollege(), profile.getCourse()) : StudentFieldDerivationUtils.resolveCollegeName(null, student.getCourse()));
+            row.put("house", profile != null ? profile.getHouse() : null);
             row.put("religion", profile != null ? profile.getReligion() : null);
             row.put("caste", profile != null ? profile.getCaste() : null);
             row.put("placeOfOrigin", profile != null ? profile.getPlaceOfOrigin() : null);

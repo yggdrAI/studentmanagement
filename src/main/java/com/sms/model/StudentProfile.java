@@ -25,9 +25,15 @@ public class StudentProfile {
     @Column(name = "enrollment_number")
     private String enrollmentNumber;
 
+    @Column(name = "user_id", unique = true)
+    private Long userId;
+
     @Lob
     @Column(name = "profile_image")
     private String profileImage;
+
+    @Column(name = "profile_photo_url")
+    private String profilePhotoUrl;
 
     @Column(name = "dob")
     private LocalDate dob;
@@ -35,11 +41,32 @@ public class StudentProfile {
     @Column(name = "gender")
     private String gender;
 
+    @Column(name = "gender_source")
+    private String genderSource;
+
+    @Column(name = "religion_source")
+    private String religionSource;
+
+    @Column(name = "caste_source")
+    private String casteSource;
+
+    @Column(name = "demographic_consent_given")
+    private Boolean demographicConsentGiven = false;
+
+    @Column(name = "demographic_consent_at")
+    private LocalDateTime demographicConsentAt;
+
+    @Column(name = "demographic_consent_version")
+    private String demographicConsentVersion;
+
     @Column(name = "religion")
     private String religion;
 
     @Column(name = "caste")
     private String caste;
+
+    @Column(name = "caste_category")
+    private String casteCategory;
 
     @Column(name = "blood_group")
     private String bloodGroup;
@@ -82,6 +109,9 @@ public class StudentProfile {
 
     @Column(name = "section")
     private String section;
+
+    @Column(name = "house")
+    private String house;
 
     @Column(name = "foundation_classroom")
     private String foundationClassroom;
@@ -135,16 +165,34 @@ public class StudentProfile {
     public void setFullName(String fullName) { this.fullName = fullName; }
     public String getEnrollmentNumber() { return enrollmentNumber; }
     public void setEnrollmentNumber(String enrollmentNumber) { this.enrollmentNumber = enrollmentNumber; }
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
     public String getProfileImage() { return profileImage; }
     public void setProfileImage(String profileImage) { this.profileImage = profileImage; }
+    public String getProfilePhotoUrl() { return profilePhotoUrl; }
+    public void setProfilePhotoUrl(String profilePhotoUrl) { this.profilePhotoUrl = profilePhotoUrl; }
     public LocalDate getDob() { return dob; }
     public void setDob(LocalDate dob) { this.dob = dob; }
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
+    public String getGenderSource() { return genderSource; }
+    public void setGenderSource(String genderSource) { this.genderSource = genderSource; }
+    public String getReligionSource() { return religionSource; }
+    public void setReligionSource(String religionSource) { this.religionSource = religionSource; }
+    public String getCasteSource() { return casteSource; }
+    public void setCasteSource(String casteSource) { this.casteSource = casteSource; }
+    public Boolean getDemographicConsentGiven() { return demographicConsentGiven; }
+    public void setDemographicConsentGiven(Boolean demographicConsentGiven) { this.demographicConsentGiven = demographicConsentGiven; }
+    public LocalDateTime getDemographicConsentAt() { return demographicConsentAt; }
+    public void setDemographicConsentAt(LocalDateTime demographicConsentAt) { this.demographicConsentAt = demographicConsentAt; }
+    public String getDemographicConsentVersion() { return demographicConsentVersion; }
+    public void setDemographicConsentVersion(String demographicConsentVersion) { this.demographicConsentVersion = demographicConsentVersion; }
     public String getReligion() { return religion; }
     public void setReligion(String religion) { this.religion = religion; }
     public String getCaste() { return caste; }
     public void setCaste(String caste) { this.caste = caste; }
+    public String getCasteCategory() { return casteCategory; }
+    public void setCasteCategory(String casteCategory) { this.casteCategory = casteCategory; }
     public String getBloodGroup() { return bloodGroup; }
     public void setBloodGroup(String bloodGroup) { this.bloodGroup = bloodGroup; }
     public String getPhone() { return phone; }
@@ -173,6 +221,8 @@ public class StudentProfile {
     public void setSemester(String semester) { this.semester = semester; }
     public String getSection() { return section; }
     public void setSection(String section) { this.section = section; }
+    public String getHouse() { return house; }
+    public void setHouse(String house) { this.house = house; }
     public String getFoundationClassroom() { return foundationClassroom; }
     public void setFoundationClassroom(String foundationClassroom) { this.foundationClassroom = foundationClassroom; }
     public Integer getTeamNumber() { return teamNumber; }

@@ -4,11 +4,16 @@ public class StudentImportRowUpdateRequest {
     private String fullName;
     private String enrollmentNumber;
     private String email;
+    private String personalEmail;
     private String phone;
     private String course;
     private String semester;
     private String department;
     private String section;
+    private String house;
+    private String foundationClassroom;
+    private String teamNumber;
+    private String memberNumber;
     private String dateOfBirth;
     private String gender;
     private String address;
@@ -21,6 +26,8 @@ public class StudentImportRowUpdateRequest {
     public void setEnrollmentNumber(String enrollmentNumber) { this.enrollmentNumber = enrollmentNumber; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+    public String getPersonalEmail() { return personalEmail; }
+    public void setPersonalEmail(String personalEmail) { this.personalEmail = personalEmail; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
     public String getCourse() { return course; }
@@ -31,6 +38,14 @@ public class StudentImportRowUpdateRequest {
     public void setDepartment(String department) { this.department = department; }
     public String getSection() { return section; }
     public void setSection(String section) { this.section = section; }
+    public String getHouse() { return house; }
+    public void setHouse(String house) { this.house = house; }
+    public String getFoundationClassroom() { return foundationClassroom; }
+    public void setFoundationClassroom(String foundationClassroom) { this.foundationClassroom = foundationClassroom; }
+    public String getTeamNumber() { return teamNumber; }
+    public void setTeamNumber(String teamNumber) { this.teamNumber = teamNumber; }
+    public String getMemberNumber() { return memberNumber; }
+    public void setMemberNumber(String memberNumber) { this.memberNumber = memberNumber; }
     public String getDateOfBirth() { return dateOfBirth; }
     public void setDateOfBirth(String dateOfBirth) { this.dateOfBirth = dateOfBirth; }
     public String getGender() { return gender; }

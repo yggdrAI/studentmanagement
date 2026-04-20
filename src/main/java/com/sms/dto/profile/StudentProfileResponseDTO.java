@@ -15,6 +15,7 @@ public class StudentProfileResponseDTO {
     private String gender;
     private String religion;
     private String bloodGroup;
+    private String casteCategory;
 
     private String phone;
     private String email;
@@ -30,6 +31,7 @@ public class StudentProfileResponseDTO {
     private String department;
     private String semester;
     private String section;
+    private String house;
     private String foundationClassroom;
     private Integer teamNumber;
     private Integer memberNumber;
@@ -42,6 +44,12 @@ public class StudentProfileResponseDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String updatedBy;
+    private boolean demographicConsentGiven;
+    private LocalDateTime demographicConsentAt;
+    private String demographicConsentVersion;
+    private String genderSource;
+    private String religionSource;
+    private String casteSource;
 
     private int completionPercentage;
     private String profileQrUrl;
@@ -67,6 +75,8 @@ public class StudentProfileResponseDTO {
     public void setReligion(String religion) { this.religion = religion; }
     public String getBloodGroup() { return bloodGroup; }
     public void setBloodGroup(String bloodGroup) { this.bloodGroup = bloodGroup; }
+    public String getCasteCategory() { return casteCategory; }
+    public void setCasteCategory(String casteCategory) { this.casteCategory = casteCategory; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
     public String getEmail() { return email; }
@@ -91,6 +101,8 @@ public class StudentProfileResponseDTO {
     public void setSemester(String semester) { this.semester = semester; }
     public String getSection() { return section; }
     public void setSection(String section) { this.section = section; }
+    public String getHouse() { return house; }
+    public void setHouse(String house) { this.house = house; }
     public String getFoundationClassroom() { return foundationClassroom; }
     public void setFoundationClassroom(String foundationClassroom) { this.foundationClassroom = foundationClassroom; }
     public Integer getTeamNumber() { return teamNumber; }
@@ -111,6 +123,18 @@ public class StudentProfileResponseDTO {
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     public String getUpdatedBy() { return updatedBy; }
     public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
+    public boolean isDemographicConsentGiven() { return demographicConsentGiven; }
+    public void setDemographicConsentGiven(boolean demographicConsentGiven) { this.demographicConsentGiven = demographicConsentGiven; }
+    public LocalDateTime getDemographicConsentAt() { return demographicConsentAt; }
+    public void setDemographicConsentAt(LocalDateTime demographicConsentAt) { this.demographicConsentAt = demographicConsentAt; }
+    public String getDemographicConsentVersion() { return demographicConsentVersion; }
+    public void setDemographicConsentVersion(String demographicConsentVersion) { this.demographicConsentVersion = demographicConsentVersion; }
+    public String getGenderSource() { return genderSource; }
+    public void setGenderSource(String genderSource) { this.genderSource = genderSource; }
+    public String getReligionSource() { return religionSource; }
+    public void setReligionSource(String religionSource) { this.religionSource = religionSource; }
+    public String getCasteSource() { return casteSource; }
+    public void setCasteSource(String casteSource) { this.casteSource = casteSource; }
     public int getCompletionPercentage() { return completionPercentage; }
     public void setCompletionPercentage(int completionPercentage) { this.completionPercentage = completionPercentage; }
     public String getProfileQrUrl() { return profileQrUrl; }

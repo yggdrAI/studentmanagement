@@ -61,6 +61,29 @@
             background-color: #ffffff; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
         }
 
+        .password-wrap {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            border: none;
+            background: transparent;
+            color: #475569;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .password-toggle:hover {
+            background: #e2e8f0;
+        }
+
         .btn-login {
             width: 100%; padding: 14px; background: var(--accent-gradient);
             color: white; border: none; border-radius: 8px;
@@ -102,6 +125,9 @@
         <div th:if="${param.roleError}" class="alert alert-error" th:text="${studentLoginMode} ? 'This portal is for students only.' : 'Student accounts must use Student Login.'">
             This account cannot sign in from this portal.
         </div>
+        <div th:if="${param.forcePasswordChange}" class="alert alert-error">
+            First login detected. Change your default password to continue.
+        </div>
         <div th:if="${param.logout}" class="alert alert-success">
             You have been logged out successfully.
         </div>
@@ -114,7 +140,10 @@
             </div>
             <div class="form-group">
                 <label for="password" class="form-label">Password</label>
-                <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" required>
+                <div class="password-wrap">
+                    <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" required>
+                    <button class="password-toggle" type="button" id="passwordToggle" aria-label="Show password">Show</button>
+                </div>
             </div>
             <button type="submit" class="btn-login">Sign In</button>
         </form>
@@ -129,6 +158,23 @@
             <a href="/student-login" style="color: #2563eb; text-decoration: none; font-weight: 600;">Student Login</a>
         </div>
     </div>
+
+    <script>
+        (function () {
+            const toggle = document.getElementById('passwordToggle');
+            const input = document.getElementById('password');
+            if (!toggle || !input) {
+                return;
+            }
+
+            toggle.addEventListener('click', function () {
+                const isPassword = input.type === 'password';
+                input.type = isPassword ? 'text' : 'password';
+                toggle.textContent = isPassword ? 'Hide' : 'Show';
+                toggle.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+            });
+        })();
+    </script>
 
 </body>
 </html>

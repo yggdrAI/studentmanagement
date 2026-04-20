@@ -246,7 +246,7 @@ public class StudentService {
             return false;
         }
 
-        if (hasText(house) && !containsIgnoreCase(profile == null ? null : profile.getFoundationClassroom(), house)) {
+        if (hasText(house) && !containsIgnoreCase(profile == null ? null : profile.getHouse(), house)) {
             return false;
         }
 
@@ -322,8 +322,16 @@ public class StudentService {
 
     public Map<String, Double> getAverageMarksMap(List<Student> students) {
         Map<String, Double> averages = new HashMap<>();
+        if (students == null || students.isEmpty()) {
+            return averages;
+        }
+
+        Map<String, List<Enrollment>> enrollmentsByStudentId = enrollmentRepository.findByStudentIdIn(
+                students.stream().map(Student::getId).collect(Collectors.toList())
+        ).stream().collect(Collectors.groupingBy(enrollment -> enrollment.getStudent() == null ? null : enrollment.getStudent().getId()));
+
         for (Student student : students) {
-            List<Enrollment> enrollments = enrollmentRepository.findByStudentId(student.getId());
+            List<Enrollment> enrollments = enrollmentsByStudentId.getOrDefault(student.getId(), List.of());
             double avg = enrollments.stream()
                     .map(Enrollment::getMarks)
                     .filter(java.util.Objects::nonNull)
@@ -348,6 +356,7 @@ public class StudentService {
         if (studentToSave.getEmail() == null || studentToSave.getEmail().isBlank()) {
             studentToSave.setEmail(derivedEmail);
         }
+        studentToSave.setGender(StudentFieldDerivationUtils.inferGender(studentToSave.getName(), studentToSave.getGender()));
         assignClassAndBatchGroups(studentToSave);
 
         if (studentToSave.getUser() == null) {
@@ -356,6 +365,8 @@ public class StudentService {
             user.setUsername(studentId);
             user.setPassword(passwordEncoder.encode(studentId));
             user.setRole(Role.STUDENT);
+            user.setIsFirstLogin(true);
+            user.setIsActive(true);
             try {
                 studentToSave.setUser(userRepository.save(user));
             } catch (DataIntegrityViolationException ex) {
@@ -373,6 +384,10 @@ public class StudentService {
             }
             if (user.getPassword() == null || user.getPassword().isBlank()) {
                 user.setPassword(passwordEncoder.encode(studentId));
+                user.setIsFirstLogin(true);
+            }
+            if (user.getIsActive() == null) {
+                user.setIsActive(true);
             }
             studentToSave.setUser(userRepository.save(user));
         }
@@ -456,7 +471,7 @@ public class StudentService {
         dto.setEmail(deriveStudentEmail(student.getId()));
         dto.setPhone(student.getPhone());
 
-        dto.setGender(student.getGender());
+        dto.setGender(StudentFieldDerivationUtils.inferGender(student.getName(), student.getGender()));
         dto.setDob(student.getDob() != null ? student.getDob().toString() : null);
         dto.setAddress(student.getAddress());
 
@@ -513,7 +528,7 @@ public class StudentService {
         profile.setEnrollmentNumber(student.getId());
         profile.setProfileImage(student.getProfileImageUrl());
         profile.setDob(student.getDob());
-        profile.setGender(student.getGender());
+        profile.setGender(StudentFieldDerivationUtils.inferGender(student.getName(), student.getGender()));
         profile.setPhone(student.getPhone());
         String universityEmail = student.getEmail() == null || student.getEmail().isBlank()
             ? deriveStudentEmail(student.getId())
@@ -533,8 +548,9 @@ public class StudentService {
             profile.setSection(student.getClassGroup() + " / " + student.getBatchGroup());
         }
         profile.setAdmissionYear(parseBatchYear(student.getEnrollmentYear()));
-        profile.setCollege("Bennett University");
-        profile.setValidUpto(LocalDate.now().plusYears(4));
+        profile.setCollege(StudentFieldDerivationUtils.resolveCollegeName(profile.getCollege(), student.getCourse()));
+        profile.setPassingYear(StudentFieldDerivationUtils.derivePassingYear(student.getCourse(), profile.getAdmissionYear(), profile.getPassingYear()));
+        profile.setValidUpto(StudentFieldDerivationUtils.deriveValidUpto(student.getCourse(), profile.getAdmissionYear(), profile.getPassingYear(), null));
         profile.setIdCardNumber("BU-" + student.getId());
         profile.setUpdatedBy("Admin Create");
 

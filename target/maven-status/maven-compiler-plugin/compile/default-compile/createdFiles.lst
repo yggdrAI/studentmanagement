@@ -1,6 +1,5 @@
 com\sms\config\ApiRateLimitFilter.class
 com\sms\model\ClassSession.class
-com\sms\controller\AdminHierarchyController$AiGroupingRequest.class
 com\sms\model\TimetableConflict$Severity.class
 com\sms\dto\attendance\FraudAlertDTO.class
 com\sms\dto\diet\DietLogBatchRequest.class
@@ -13,12 +12,10 @@ com\sms\service\TimetableService$Assignment.class
 com\sms\repository\DietLogRepository.class
 com\sms\dto\TimetableConflictDTO.class
 com\sms\service\FraudDetectionService.class
-com\sms\controller\AdminHierarchyController$FeaturePoint.class
 com\sms\repository\CourseRepository.class
 com\sms\dto\dashboard\CreateTaskRequest.class
 com\sms\service\RefreshTokenService$RotationResult.class
 com\sms\service\StudentFusionService$FusionResult.class
-com\sms\controller\AdminHierarchyController.class
 com\sms\service\QRService$IDTokenClaims.class
 com\sms\config\AdminActionAuditFilter.class
 com\sms\controller\StudentController.class
@@ -48,13 +45,10 @@ com\sms\repository\StudentRepository.class
 com\sms\dto\attendance\ManualAttendanceRequest$StudentAttendanceRecord.class
 com\sms\model\Teacher.class
 com\sms\service\FaceVerificationService$FaceVerificationResult.class
-com\sms\controller\DigitalIDApi.class
 com\sms\service\ImageUploadService.class
-com\sms\controller\AdminHierarchyController$ReassignRequest.class
 com\sms\controller\DietPlannerController.class
 com\sms\repository\TaskItemRepository.class
 com\sms\service\AnalyticsCacheService.class
-com\sms\controller\AdminController.class
 com\sms\repository\StudentImportJobRepository.class
 com\sms\dto\attendance\MarkAttendanceRequest.class
 com\sms\model\StudentDocument.class
@@ -74,7 +68,6 @@ com\sms\util\StudentComparators.class
 com\sms\repository\TimetableHolidayRepository.class
 com\sms\dto\dashboard\SubjectDTO.class
 com\sms\dto\profile\StudentDocumentDTO.class
-com\sms\service\StudentService.class
 com\sms\dto\AutoScheduleRequest$SlotDTO.class
 com\sms\service\DietAIService.class
 com\sms\model\UserRole.class
@@ -92,6 +85,7 @@ com\sms\model\TimetableConflict.class
 com\sms\service\RefreshTokenService$RotationStatus.class
 com\sms\service\AttendanceQRTokenService$AttendanceTokenClaims.class
 com\sms\model\ScheduleEntry.class
+com\sms\config\FirstLoginEnforcementFilter.class
 com\sms\repository\SecurityAuditRepository.class
 com\sms\dto\MoveScheduleRequest.class
 com\sms\dto\MoveScheduleResponse.class
@@ -155,16 +149,19 @@ com\sms\service\JwtService.class
 com\sms\dto\auth\LoginResponse.class
 com\sms\dto\profile\StudentProfileResponseDTO.class
 com\sms\service\UserService.class
+com\sms\gui\MainFrame.class
 com\sms\StudentManagementApplication.class
 com\sms\dto\dashboard\ClassDTO.class
 com\sms\controller\ApiExceptionHandler.class
 com\sms\service\CollaborationRealtimeService$LockState.class
 com\sms\config\DemoDataLoader.class
 com\sms\dto\ScheduleEntryDTO.class
+com\sms\service\StudentFieldDerivationUtils.class
 com\sms\dto\identity\DigitalIDCardDTO.class
 com\sms\model\TimetableHoliday.class
 com\sms\repository\ScheduleEntryRepository.class
 com\sms\service\DietMLService$DietMLResult.class
+com\sms\dto\profile\StudentDemographicConsentRequest.class
 com\sms\dto\auth\LoginRequest.class
 com\sms\service\RefreshTokenService.class
 com\sms\repository\StudentLocationRepository.class
@@ -211,6 +208,7 @@ com\sms\model\Tenant.class
 com\sms\dto\attendance\AttendanceQRResponse.class
 com\sms\controller\TeacherController.class
 com\sms\repository\TimetableVersionRepository.class
+com\sms\gui\UITheme.class
 com\sms\dto\dashboard\CourseProgressDto.class
 com\sms\dto\imports\StudentImportUploadRequest.class
 com\sms\controller\AdminDashboardApiController.class
@@ -256,6 +254,5 @@ com\sms\model\Role.class
 com\sms\dto\campus\LocationDTO.class
 com\sms\config\AnalyticsRedisBridge$1.class
 com\sms\config\SecurityConfig.class
-com\sms\controller\AdminApiController.class
 com\sms\service\FraudDetectionService$FraudAssessment.class
 com\sms\service\AnalyticsReportService.class

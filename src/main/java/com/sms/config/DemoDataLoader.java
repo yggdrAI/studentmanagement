@@ -31,6 +31,7 @@ import com.sms.repository.StudentTaskRepository;
 import com.sms.repository.TaskItemRepository;
 import com.sms.repository.TeacherRepository;
 import com.sms.repository.UserRepository;
+import com.sms.service.StudentFieldDerivationUtils;
 
 @Component
 public class DemoDataLoader implements CommandLineRunner {
@@ -108,7 +109,7 @@ public class DemoDataLoader implements CommandLineRunner {
         student.setUser(studentUser);
         student.setEmail("S25CSEU1006@bennett.edu.in");
         student.setPhone("+91-7668464847");
-        student.setGender("Female");
+        student.setGender(StudentFieldDerivationUtils.inferGender(student.getName(), "Female"));
         student.setDob(LocalDate.of(2007, 3, 15));
         student.setAddress("Delhi Road, Meerut");
         student.setCourse("Bachelor of Technology (Computer Science and Engineering)");
@@ -123,7 +124,7 @@ public class DemoDataLoader implements CommandLineRunner {
         profile.setStudentId(student.getId());
         profile.setFullName("Bhavya Jain");
         profile.setEnrollmentNumber("S25CSEU1006");
-        profile.setCollege("Bennett University");
+        profile.setCollege(StudentFieldDerivationUtils.resolveCollegeName("Bennett University", student.getCourse()));
         profile.setCourse("Bachelor of Technology (Computer Science and Engineering)");
         profile.setDepartment("CSE");
         profile.setSemester("Semester 2");
@@ -132,14 +133,14 @@ public class DemoDataLoader implements CommandLineRunner {
         profile.setEmail("S25CSEU1006@bennett.edu.in");
         profile.setBloodGroup("O+ve");
         profile.setDob(LocalDate.of(2007, 3, 15));
-        profile.setGender("Female");
+        profile.setGender(StudentFieldDerivationUtils.inferGender(student.getName(), "Female"));
         profile.setReligion("Hindu");
         profile.setGuardianName("Ashok Kumar Jain");
         profile.setGuardianPhone("+91-9999988888");
         profile.setAddress("Delhi Road, Meerut");
         profile.setAdmissionYear(2025);
-        profile.setPassingYear(2029);
-        profile.setValidUpto(LocalDate.of(2029, 6, 30));
+        profile.setPassingYear(StudentFieldDerivationUtils.derivePassingYear(profile.getCourse(), profile.getAdmissionYear(), 2029));
+        profile.setValidUpto(StudentFieldDerivationUtils.deriveValidUpto(profile.getCourse(), profile.getAdmissionYear(), profile.getPassingYear(), null));
         profile.setIdCardNumber("BU-2025-S25CSEU1006");
         profile.setUpdatedBy("System Seed");
         studentProfileRepository.save(profile);
@@ -252,6 +253,10 @@ public class DemoDataLoader implements CommandLineRunner {
         adminUser.setUsername("bhavya");
         adminUser.setPassword(passwordEncoder.encode("999"));
         adminUser.setRole(Role.ADMIN);
+        adminUser.setIsActive(true);
+        if (adminUser.getIsFirstLogin() == null) {
+            adminUser.setIsFirstLogin(false);
+        }
         userRepository.save(adminUser);
     }
 
@@ -275,8 +280,13 @@ public class DemoDataLoader implements CommandLineRunner {
             user.setUsername(studentId);
             if (user.getPassword() == null || user.getPassword().isBlank()) {
                 user.setPassword(passwordEncoder.encode(studentId));
+                user.setIsFirstLogin(true);
+            }
+            if (user.getIsFirstLogin() == null) {
+                user.setIsFirstLogin(true);
             }
             user.setRole(Role.STUDENT);
+            user.setIsActive(true);
             user = userRepository.save(user);
 
             if (student.getUser() == null || !user.getId().equals(student.getUser().getId())) {
@@ -306,8 +316,13 @@ public class DemoDataLoader implements CommandLineRunner {
             user.setUsername(teacherId);
             if (user.getPassword() == null || user.getPassword().isBlank()) {
                 user.setPassword(passwordEncoder.encode(teacherId));
+                user.setIsFirstLogin(true);
+            }
+            if (user.getIsFirstLogin() == null) {
+                user.setIsFirstLogin(true);
             }
             user.setRole(Role.TEACHER);
+            user.setIsActive(true);
             user = userRepository.save(user);
 
             if (teacher.getUser() == null || !user.getId().equals(teacher.getUser().getId())) {
@@ -326,6 +341,8 @@ public class DemoDataLoader implements CommandLineRunner {
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
         user.setRole(role);
+        user.setIsActive(true);
+        user.setIsFirstLogin(role == Role.ADMIN ? false : true);
         return user;
     }
 }

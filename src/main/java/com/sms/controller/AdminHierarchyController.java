@@ -69,14 +69,15 @@ public class AdminHierarchyController {
             @RequestParam(required = false) String performance) {
 
         List<Student> students = studentRepository.findAll();
+        Map<String, StudentProfile> profileByStudentId = loadProfilesByStudentId(students);
         Map<String, Double> marksMap = studentService.getAverageMarksMap(students);
         Map<String, Double> attendanceMap = loadAttendanceRateMap();
 
         List<Student> filtered = students.stream()
                 .filter(student -> course == null || course.isBlank() || matchesIgnoreCase(student.getCourse(), course))
                 .filter(student -> semester == null || semester.isBlank() || matchesIgnoreCase(student.getSemester(), semester))
-                .filter(student -> classNumber == null || extractClassNumber(student) == classNumber)
-                .filter(student -> batchNumber == null || extractBatchNumber(student) == batchNumber)
+            .filter(student -> classNumber == null || extractClassNumber(student, profileByStudentId.get(student.getId())) == classNumber)
+            .filter(student -> batchNumber == null || extractBatchNumber(student, profileByStudentId.get(student.getId())) == batchNumber)
                 .filter(student -> performance == null || performance.isBlank()
                         || performanceBand(marksMap.getOrDefault(student.getId(), 0.0)).equalsIgnoreCase(performance))
                 .collect(Collectors.toList());
@@ -93,11 +94,14 @@ public class AdminHierarchyController {
         }
 
         Map<Integer, Map<Integer, List<Student>>> grouped = filtered.stream()
-                .collect(Collectors.groupingBy(this::extractClassNumber, Collectors.groupingBy(this::extractBatchNumber)));
+            .collect(Collectors.groupingBy(
+                student -> extractClassNumber(student, profileByStudentId.get(student.getId())),
+                Collectors.groupingBy(student -> extractBatchNumber(student, profileByStudentId.get(student.getId())))
+            ));
 
         List<Map<String, Object>> classes = grouped.keySet().stream()
                 .sorted()
-                .map(classKey -> buildClassNode(classKey, grouped.get(classKey), marksMap, attendanceMap))
+                .map(classKey -> buildClassNode(classKey, grouped.get(classKey), marksMap, attendanceMap, profileByStudentId))
                 .collect(Collectors.toList());
 
         int totalBatchCount = grouped.values().stream().mapToInt(Map::size).sum();
@@ -114,8 +118,10 @@ public class AdminHierarchyController {
 
     @GetMapping("/class/{classNumber}/analytics")
     public ResponseEntity<Map<String, Object>> getClassAnalytics(@PathVariable Integer classNumber) {
-        List<Student> classStudents = studentRepository.findAll().stream()
-                .filter(student -> extractClassNumber(student) == classNumber)
+        List<Student> allStudents = studentRepository.findAll();
+        Map<String, StudentProfile> profileByStudentId = loadProfilesByStudentId(allStudents);
+        List<Student> classStudents = allStudents.stream()
+                .filter(student -> extractClassNumber(student, profileByStudentId.get(student.getId())) == classNumber)
                 .collect(Collectors.toList());
 
         if (classStudents.isEmpty()) {
@@ -125,7 +131,7 @@ public class AdminHierarchyController {
         Map<String, Double> marksMap = studentService.getAverageMarksMap(classStudents);
         Map<String, Double> attendanceMap = loadAttendanceRateMap();
 
-        Map<String, Object> analytics = buildClassAnalytics(classStudents, marksMap, attendanceMap);
+        Map<String, Object> analytics = buildClassAnalytics(classStudents, marksMap, attendanceMap, profileByStudentId);
         Map<String, Object> payload = new HashMap<>(analytics);
         payload.put("classNumber", classNumber);
         payload.put("totalStudents", classStudents.size());
@@ -224,14 +230,15 @@ public class AdminHierarchyController {
     private Map<String, Object> buildClassNode(Integer classNumber,
                                                Map<Integer, List<Student>> classBatches,
                                                Map<String, Double> marksMap,
-                                               Map<String, Double> attendanceMap) {
+                               Map<String, Double> attendanceMap,
+                               Map<String, StudentProfile> profileByStudentId) {
         List<Map<String, Object>> batches = classBatches.keySet().stream()
                 .sorted()
-                .map(batchNumber -> buildBatchNode(classNumber, batchNumber, classBatches.get(batchNumber), marksMap, attendanceMap))
+            .map(batchNumber -> buildBatchNode(classNumber, batchNumber, classBatches.get(batchNumber), marksMap, attendanceMap, profileByStudentId))
                 .collect(Collectors.toList());
 
         List<Student> classStudents = classBatches.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
-        Map<String, Object> classAnalytics = buildClassAnalytics(classStudents, marksMap, attendanceMap);
+        Map<String, Object> classAnalytics = buildClassAnalytics(classStudents, marksMap, attendanceMap, profileByStudentId);
 
         Map<String, Object> node = new HashMap<>();
         node.put("id", "class-" + classNumber);
@@ -247,10 +254,11 @@ public class AdminHierarchyController {
                                                Integer batchNumber,
                                                List<Student> batchStudents,
                                                Map<String, Double> marksMap,
-                                               Map<String, Double> attendanceMap) {
+                               Map<String, Double> attendanceMap,
+                               Map<String, StudentProfile> profileByStudentId) {
         List<Map<String, Object>> students = batchStudents.stream()
-                .sorted(Comparator.comparingInt(this::extractSerialNumber))
-                .map(student -> buildStudentNode(student, marksMap, attendanceMap))
+                .sorted(Comparator.comparingInt(student -> extractBatchMemberOrder(student, profileByStudentId.get(student.getId()))))
+            .map(student -> buildStudentNode(student, marksMap, attendanceMap, profileByStudentId.get(student.getId())))
                 .collect(Collectors.toList());
 
         double avgMarks = average(batchStudents.stream().map(student -> marksMap.getOrDefault(student.getId(), 0.0)).collect(Collectors.toList()));
@@ -275,8 +283,8 @@ public class AdminHierarchyController {
 
     private Map<String, Object> buildStudentNode(Student student,
                                                  Map<String, Double> marksMap,
-                                                 Map<String, Double> attendanceMap) {
-        StudentProfile profile = studentProfileRepository.findByStudentId(student.getId()).orElse(null);
+                             Map<String, Double> attendanceMap,
+                             StudentProfile profile) {
         String enrollment = profile != null && profile.getEnrollmentNumber() != null && !profile.getEnrollmentNumber().isBlank()
                 ? profile.getEnrollmentNumber()
                 : student.getId();
@@ -300,8 +308,9 @@ public class AdminHierarchyController {
 
     private Map<String, Object> buildClassAnalytics(List<Student> students,
                                                     Map<String, Double> marksMap,
-                                                    Map<String, Double> attendanceMap) {
-        Map<Integer, List<Student>> byBatch = students.stream().collect(Collectors.groupingBy(this::extractBatchNumber));
+                                                    Map<String, Double> attendanceMap,
+                                                    Map<String, StudentProfile> profileByStudentId) {
+        Map<Integer, List<Student>> byBatch = students.stream().collect(Collectors.groupingBy(student -> extractBatchNumber(student, profileByStudentId.get(student.getId()))));
 
         int topBatch = 1;
         double topBatchMarks = -1;
@@ -361,6 +370,13 @@ public class AdminHierarchyController {
         return result;
     }
 
+    private Map<String, StudentProfile> loadProfilesByStudentId(Collection<Student> students) {
+        List<String> studentIds = students.stream().map(Student::getId).collect(Collectors.toList());
+        Map<String, StudentProfile> result = new HashMap<>();
+        studentProfileRepository.findAllById(studentIds).forEach(profile -> result.put(profile.getStudentId(), profile));
+        return result;
+    }
+
     private long toLong(Object value) {
         if (value instanceof Number number) {
             return number.longValue();
@@ -390,39 +406,47 @@ public class AdminHierarchyController {
     }
 
     private int extractClassNumber(Student student) {
-        String classGroup = student.getClassGroup();
-        if (classGroup != null && classGroup.toLowerCase().startsWith("class")) {
-            String[] parts = classGroup.trim().split("\\s+");
-            if (parts.length >= 2) {
-                try {
-                    return Integer.parseInt(parts[1]);
-                } catch (NumberFormatException ignored) {
-                    // fallback below
-                }
-            }
+        return extractClassNumber(student, null);
+    }
+
+    private int extractClassNumber(Student student, StudentProfile profile) {
+        Integer profileClassNumber = extractTrailingInteger(profile == null ? null : profile.getFoundationClassroom());
+        if (profileClassNumber != null && profileClassNumber > 0) {
+            return profileClassNumber;
         }
-        int serial = extractSerialNumber(student);
+
+        String classGroup = student.getClassGroup();
+        Integer classGroupNumber = extractTrailingInteger(classGroup);
+        if (classGroupNumber != null && classGroupNumber > 0) {
+            return classGroupNumber;
+        }
+        int serial = extractSerialNumber(student, profile);
         return serial <= 0 ? 1 : ((serial - 1) / CLASS_SIZE) + 1;
     }
 
     private int extractBatchNumber(Student student) {
-        String batchGroup = student.getBatchGroup();
-        if (batchGroup != null && batchGroup.toLowerCase().startsWith("batch")) {
-            String[] parts = batchGroup.trim().split("\\s+");
-            if (parts.length >= 2) {
-                try {
-                    return Integer.parseInt(parts[1]);
-                } catch (NumberFormatException ignored) {
-                    // fallback below
-                }
-            }
+        return extractBatchNumber(student, null);
+    }
+
+    private int extractBatchNumber(Student student, StudentProfile profile) {
+        if (profile != null && profile.getTeamNumber() != null && profile.getTeamNumber() > 0) {
+            return profile.getTeamNumber();
         }
-        int serial = extractSerialNumber(student);
+
+        String batchGroup = student.getBatchGroup();
+        Integer batchGroupNumber = extractTrailingInteger(batchGroup);
+        if (batchGroupNumber != null && batchGroupNumber > 0) {
+            return batchGroupNumber;
+        }
+        int serial = extractSerialNumber(student, profile);
         return serial <= 0 ? 1 : (((serial - 1) % CLASS_SIZE) / BATCH_SIZE) + 1;
     }
 
     private int extractSerialNumber(Student student) {
-        StudentProfile profile = studentProfileRepository.findByStudentId(student.getId()).orElse(null);
+        return extractSerialNumber(student, null);
+    }
+
+    private int extractSerialNumber(Student student, StudentProfile profile) {
         String enrollment = profile != null && profile.getEnrollmentNumber() != null && !profile.getEnrollmentNumber().isBlank()
                 ? profile.getEnrollmentNumber().trim()
                 : student.getId();
@@ -436,6 +460,30 @@ public class AdminHierarchyController {
             return Integer.parseInt(matcher.group(1));
         } catch (NumberFormatException ignored) {
             return 0;
+        }
+    }
+
+    private int extractBatchMemberOrder(Student student, StudentProfile profile) {
+        if (profile != null && profile.getMemberNumber() != null && profile.getMemberNumber() > 0) {
+            return profile.getMemberNumber();
+        }
+        return extractSerialNumber(student, profile);
+    }
+
+    private Integer extractTrailingInteger(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        Matcher matcher = TRAILING_NUMBER_PATTERN.matcher(value.trim());
+        if (!matcher.find()) {
+            return null;
+        }
+
+        try {
+            return Integer.parseInt(matcher.group(1));
+        } catch (NumberFormatException ignored) {
+            return null;
         }
     }
 
