@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Control Center</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
-    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
-    <link rel="stylesheet" th:href="@{/css/admin-dashboard.css}">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css(v=${assetVersion})}">
+    <link rel="stylesheet" th:href="@{/css/admin-dashboard.css(v=${assetVersion})}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -84,17 +84,47 @@
                 <p>Lazy-loaded operational trends</p>
             </header>
             <div class="chart-grid">
-                <article class="chart-box">
-                    <h3>Students Growth</h3>
-                    <canvas id="studentsGrowthChart"></canvas>
+                <article class="chart-box premium-chart">
+                    <div class="chart-head">
+                        <div>
+                            <div class="chart-kicker"><span class="chart-icon">↗</span><span>Growth</span></div>
+                            <h3>Students Growth</h3>
+                            <p class="chart-insight" id="studentsGrowthInsight">Tracking student and teacher momentum across recent periods.</p>
+                        </div>
+                        <span class="chart-meta">Blue → Violet</span>
+                    </div>
+                    <div class="chart-viewport">
+                        <canvas id="studentsGrowthChart"></canvas>
+                        <div class="chart-empty" id="studentsGrowthChartEmpty" hidden>No analytics data available yet.</div>
+                    </div>
                 </article>
-                <article class="chart-box">
-                    <h3>Attendance Trends</h3>
-                    <canvas id="attendanceTrendChart"></canvas>
+                <article class="chart-box premium-chart">
+                    <div class="chart-head">
+                        <div>
+                            <div class="chart-kicker"><span class="chart-icon">●</span><span>Attendance</span></div>
+                            <h3>Attendance Trends</h3>
+                            <p class="chart-insight" id="attendanceInsight">Attendance is watched as a smooth line with an average benchmark.</p>
+                        </div>
+                        <span class="chart-meta">Emerald → Lime</span>
+                    </div>
+                    <div class="chart-viewport">
+                        <canvas id="attendanceTrendChart"></canvas>
+                        <div class="chart-empty" id="attendanceTrendChartEmpty" hidden>No analytics data available yet.</div>
+                    </div>
                 </article>
-                <article class="chart-box">
-                    <h3>Classes Per Day</h3>
-                    <canvas id="classesPerDayChart"></canvas>
+                <article class="chart-box premium-chart">
+                    <div class="chart-head">
+                        <div>
+                            <div class="chart-kicker"><span class="chart-icon">▮</span><span>Throughput</span></div>
+                            <h3>Classes Per Day</h3>
+                            <p class="chart-insight" id="classesInsight">Rounded bars show campus activity density at a glance.</p>
+                        </div>
+                        <span class="chart-meta">Teal → Cyan</span>
+                    </div>
+                    <div class="chart-viewport">
+                        <canvas id="classesPerDayChart"></canvas>
+                        <div class="chart-empty" id="classesPerDayChartEmpty" hidden>No analytics data available yet.</div>
+                    </div>
                 </article>
             </div>
         </section>
@@ -134,6 +164,24 @@
 
 <div th:replace="~{fragments/sidebar :: floating-tools}"></div>
 
-<script th:src="@{/js/admin-dashboard.js}"></script>
+<script th:src="@{/js/admin-dashboard.js(v=${assetVersion})}"></script>
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+        navigator.serviceWorker.getRegistrations()
+            .then(function (registrations) {
+                return Promise.all(registrations.map(function (registration) {
+                    return registration.unregister();
+                }));
+            })
+            .then(function () {
+                return navigator.serviceWorker.register('/service-worker.js?v=3', { updateViaCache: 'none' });
+            })
+            .catch(function (error) {
+                console.debug('Service worker refresh skipped:', error);
+            });
+    });
+}
+</script>
 </body>
 </html>

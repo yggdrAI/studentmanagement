@@ -420,22 +420,50 @@
     
     window.uploadFace = function(studentId) {
         console.log("📷 Upload face for student:", studentId);
-        // TODO: Implement face upload modal/dialog
-        alert("Face upload feature coming soon!");
+        // Navigate to face upload page
+        window.location.href = `/admin/students/${studentId}/upload-face`;
     };
     
     window.showStudentMenu = function(e, studentId) {
         e.stopPropagation();
         console.log("⋯ Menu for student:", studentId);
         
-        // TODO: Implement context menu with options:
-        // - View Profile
-        // - Upload Face
-        // - Edit Details
-        // - Attendance
-        // - Marks
-        // - Delete
+        const confirmed = window.confirm(
+            "Student Actions:\n\n" +
+            "- Click OK to delete this student\n" +
+            "- Click Cancel to go back"
+        );
+        
+        if (confirmed) {
+            deleteStudent(studentId);
+        }
     };
+    
+    function deleteStudent(studentId) {
+        const confirmDelete = window.confirm(
+            `Are you sure you want to delete student ${studentId}?\n\nThis action cannot be undone.`
+        );
+        
+        if (!confirmDelete) return;
+        
+        fetch(`/api/admin/students/${studentId}`, {
+            method: "DELETE",
+            headers: {
+                "Authorization": `Bearer ${localStorage.getItem("token") || ""}`
+            }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            alert(`✅ Student ${studentId} deleted successfully`);
+            loadHierarchy();
+        })
+        .catch(error => {
+            alert(`❌ Failed to delete student: ${error.message}`);
+        });
+    }
     
     // ===== INITIALIZATION =====
     if (document.readyState === "loading") {

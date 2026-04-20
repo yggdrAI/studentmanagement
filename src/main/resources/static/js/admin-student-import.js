@@ -173,7 +173,7 @@
             refs.uploadBtn.disabled = false;
             refs.reapplyMappingBtn.disabled = false;
             if (xhr.status >= 200 && xhr.status < 300) {
-                applyPreviewPayload(xhr.response || {});
+                applyPreviewPayload(unwrapPayload(xhr.response || {}));
                 setProgress(100);
                 refs.jobStatus.textContent = 'Preview ready';
                 toast('File validated successfully', 'success');
@@ -331,27 +331,25 @@
 
     function renderMergePreview() {
         if (!state.mergedStudents.length) {
-            refs.mergeBody.innerHTML = '<tr><td colspan="11" class="empty-state">No merged students to display.</td></tr>';
+            refs.mergeBody.innerHTML = '<tr><td colspan="10" class="empty-state">No merged students to display.</td></tr>';
             return;
         }
 
         refs.mergeBody.innerHTML = state.mergedStudents.map(function (student) {
-            var sourceFiles = (student.sources || []).map(escapeHtml).join('<br>') || '-';
-            var conflicts = (student.conflicts || []).map(function (conflict) {
-                return '<div><strong>' + escapeHtml(conflict.field || '-') + ':</strong> ' + escapeHtml((conflict.values || []).join(', ')) + '</div>';
-            }).join('') || '-';
+            var enrollment = firstNonBlank(student.enrollmentNumber, student.rollNumber, student.identityKey, '-');
+            var classGroup = firstNonBlank(student.classGroup, '-');
+            var batchGroup = firstNonBlank(student.batchGroup, '-');
             return '<tr>' +
-                '<td><strong>' + escapeHtml(student.confidenceScore || 0) + '%</strong></td>' +
+                '<td><strong>' + escapeHtml(formatConfidence(student.confidenceScore)) + '%</strong></td>' +
                 '<td>' + escapeHtml(student.fullName || [student.firstName, student.middleName, student.lastName].filter(Boolean).join(' ')) + '</td>' +
-                '<td>' + escapeHtml(firstNonBlank(student.enrollmentNumber, student.rollNumber, student.identityKey, '-')) + '</td>' +
+                '<td>' + escapeHtml(enrollment) + '</td>' +
                 '<td>' + escapeHtml(firstNonBlank(student.program, student.course, '-')) + '</td>' +
                 '<td>' + escapeHtml(firstNonBlank(student.department, '-')) + '</td>' +
                 '<td>' + escapeHtml(firstNonBlank(student.school, '-')) + '</td>' +
                 '<td>' + escapeHtml(firstNonBlank(student.joiningYear, student.leavingYear, '-')) + '</td>' +
-                '<td>' + escapeHtml(firstNonBlank(student.className, student.section, '-')) + '</td>' +
+                '<td>' + escapeHtml(classGroup) + '</td>' +
+                '<td>' + escapeHtml(batchGroup) + '</td>' +
                 '<td>' + escapeHtml(firstNonBlank(student.house, '-')) + '</td>' +
-                '<td>' + sourceFiles + '</td>' +
-                '<td>' + conflicts + '</td>' +
                 '</tr>';
         }).join('');
     }
@@ -451,6 +449,9 @@
         if (!row) {
             return;
         }
+        if (field === 'enrollmentNumber' && value) {
+            value = String(value).toUpperCase();
+        }
         row[field] = value || '';
         row.errorMessage = validateLocalRow(row);
         row.status = row.errorMessage ? 'INVALID' : 'VALID';
@@ -535,9 +536,14 @@
             toast('Upload a file first', 'error');
             return;
         }
-        if (state.rows.some(function (row) { return row.status === 'INVALID'; })) {
-            toast('Fix invalid rows before confirming', 'error');
+        var validRows = state.rows.filter(isValidRow).length;
+        if (!validRows) {
+            toast('No valid rows available to import', 'error');
             return;
+        }
+
+        if (state.rows.some(function (row) { return row.status === 'INVALID'; })) {
+            toast('Some rows are invalid and will be skipped', 'warning');
         }
 
         api.request('/api/admin/import/confirm', {
@@ -547,15 +553,30 @@
                 duplicateStrategy: refs.duplicateStrategy.value,
                 rollbackOnFailure: refs.rollbackOnFailure.value === 'true'
             })
-        }).then(function (response) {
+        }).then(function (rawResponse) {
+            var response = unwrapPayload(rawResponse || {});
             refs.jobStatus.textContent = response.status || 'Confirmed';
-            toast((response.successCount || 0) + ' students imported', 'success');
+
+            var successCount = Number(response.successCount || 0);
+            var skippedCount = Number(response.skippedCount || 0);
+            var failureCount = Number(response.failureCount || 0);
+
+            if (response.status === 'ROLLED_BACK' || (failureCount > 0 && successCount === 0 && skippedCount === 0)) {
+                toast(response.message || 'Import confirmation failed', 'error');
+            } else if (skippedCount > 0) {
+                toast(successCount + ' students imported, ' + skippedCount + ' skipped', 'warning');
+            } else {
+                toast((successCount || 0) + ' students imported', 'success');
+            }
+
             if (response.errorReport) {
                 refs.downloadErrorsBtn.href = response.errorReport;
                 refs.downloadErrorsBtn.hidden = false;
             }
             loadLogs();
-            refs.confirmImportBtn.disabled = true;
+
+            // Keep retry possible when rollback or hard failure occurs.
+            refs.confirmImportBtn.disabled = response.status === 'CONFIRMED' && failureCount === 0;
         }).catch(function (error) {
             toast(error.message || 'Import confirmation failed', 'error');
         });
@@ -575,7 +596,7 @@
     function loadLogs() {
         api.request('/api/admin/import/logs')
             .then(function (items) {
-                state.logs = items || [];
+                state.logs = unwrapList(items);
                 renderLogs();
             })
             .catch(function () {
@@ -624,7 +645,28 @@
 
     function errorMessage(response) {
         if (!response) return '';
-        return response.message || response.error || 'Unexpected import error';
+        var payload = unwrapPayload(response);
+        return payload.message || payload.error || 'Unexpected import error';
+    }
+
+    function unwrapPayload(payload) {
+        if (!payload || typeof payload !== 'object') {
+            return payload;
+        }
+        if (payload.data && typeof payload.data === 'object') {
+            return payload.data;
+        }
+        return payload;
+    }
+
+    function unwrapList(payload) {
+        if (Array.isArray(payload)) {
+            return payload;
+        }
+        if (payload && Array.isArray(payload.data)) {
+            return payload.data;
+        }
+        return [];
     }
 
     function escapeHtml(value) {
@@ -648,5 +690,19 @@
             }
         }
         return '';
+    }
+
+    function formatConfidence(value) {
+        var numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+            return 50;
+        }
+        if (numeric < 0) {
+            return 0;
+        }
+        if (numeric > 100) {
+            return 100;
+        }
+        return Math.round(numeric);
     }
 })();

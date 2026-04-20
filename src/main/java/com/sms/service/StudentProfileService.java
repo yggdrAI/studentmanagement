@@ -1,5 +1,15 @@
 package com.sms.service;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.sms.dto.profile.AcademicRecordDTO;
 import com.sms.dto.profile.AdminUpdateStudentProfileRequest;
 import com.sms.dto.profile.StudentDocumentDTO;
@@ -13,15 +23,6 @@ import com.sms.repository.AcademicRecordRepository;
 import com.sms.repository.StudentDocumentRepository;
 import com.sms.repository.StudentProfileRepository;
 import com.sms.repository.StudentRepository;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 @Service
 public class StudentProfileService {
@@ -88,6 +89,8 @@ public class StudentProfileService {
         String religion = firstNonBlank(request.getReligion(), profile.getReligion());
         String bloodGroup = firstNonBlank(request.getBloodGroup(), profile.getBloodGroup());
         String phone = firstNonBlank(request.getPhone(), profile.getPhone(), student.getPhone());
+        String universityEmail = firstNonBlank(request.getUniversityEmail(), request.getEmail(), profile.getUniversityEmail(), profile.getEmail(), student.getEmail(), deriveStudentEmail(normalizedStudentId));
+        String personalEmail = firstNonBlank(request.getPersonalEmail(), profile.getPersonalEmail());
         String address = firstNonBlank(request.getAddress(), profile.getAddress(), student.getAddress());
         String guardianName = firstNonBlank(request.getGuardianName(), profile.getGuardianName());
         String guardianPhone = firstNonBlank(request.getGuardianPhone(), profile.getGuardianPhone());
@@ -96,6 +99,9 @@ public class StudentProfileService {
         String department = firstNonBlank(request.getDepartment(), profile.getDepartment(), student.getDepartment());
         String semester = firstNonBlank(request.getSemester(), profile.getSemester(), student.getSemester());
         String section = firstNonBlank(request.getSection(), profile.getSection());
+        String foundationClassroom = firstNonBlank(request.getFoundationClassroom(), profile.getFoundationClassroom());
+        Integer teamNumber = request.getTeamNumber() != null ? request.getTeamNumber() : profile.getTeamNumber();
+        Integer memberNumber = request.getMemberNumber() != null ? request.getMemberNumber() : profile.getMemberNumber();
         Integer admissionYear = request.getAdmissionYear() != null ? request.getAdmissionYear() : profile.getAdmissionYear();
         Integer passingYear = request.getPassingYear() != null ? request.getPassingYear() : profile.getPassingYear();
         LocalDate dob = request.getDob() != null ? request.getDob() : (profile.getDob() != null ? profile.getDob() : student.getDob());
@@ -110,7 +116,9 @@ public class StudentProfileService {
         profile.setReligion(religion);
         profile.setBloodGroup(bloodGroup);
         profile.setPhone(phone);
-        profile.setEmail(deriveStudentEmail(normalizedStudentId));
+        profile.setUniversityEmail(universityEmail);
+        profile.setPersonalEmail(personalEmail);
+        profile.setEmail(universityEmail);
         profile.setAddress(address);
         profile.setGuardianName(guardianName);
         profile.setGuardianPhone(guardianPhone);
@@ -119,6 +127,9 @@ public class StudentProfileService {
         profile.setDepartment(department);
         profile.setSemester(semester);
         profile.setSection(section);
+        profile.setFoundationClassroom(foundationClassroom);
+        profile.setTeamNumber(teamNumber);
+        profile.setMemberNumber(memberNumber);
         profile.setAdmissionYear(admissionYear);
         profile.setPassingYear(passingYear);
         profile.setValidUpto(validUpto);
@@ -132,7 +143,7 @@ public class StudentProfileService {
         studentProfileRepository.save(profile);
 
         student.setName(fullName);
-        student.setEmail(deriveStudentEmail(normalizedStudentId));
+        student.setEmail(universityEmail);
         student.setPhone(phone);
         student.setGender(gender);
         student.setDob(dob);
@@ -171,7 +182,9 @@ public class StudentProfileService {
         }
 
         profile.setPhone(request.getPhone());
-        profile.setEmail(deriveStudentEmail(student.getId()));
+        String universityEmail = firstNonBlank(profile.getUniversityEmail(), profile.getEmail(), deriveStudentEmail(student.getId()));
+        profile.setUniversityEmail(universityEmail);
+        profile.setEmail(universityEmail);
         profile.setAddress(request.getAddress());
         profile.setProfileImage(profileImage);
         profile.setUpdatedBy(normalizedUsername);
@@ -180,7 +193,7 @@ public class StudentProfileService {
         student.setPhone(request.getPhone());
         student.setAddress(request.getAddress());
         student.setProfileImageUrl(profileImage);
-        student.setEmail(deriveStudentEmail(student.getId()));
+        student.setEmail(universityEmail);
         studentRepository.save(student);
 
         return mapProfile(student.getId(), "STUDENT");
@@ -209,7 +222,10 @@ public class StudentProfileService {
         dto.setBloodGroup(profile.getBloodGroup());
 
         dto.setPhone(firstNonBlank(profile.getPhone(), student.getPhone()));
-        dto.setEmail(deriveStudentEmail(studentId));
+        String universityEmail = firstNonBlank(profile.getUniversityEmail(), profile.getEmail(), student.getEmail(), deriveStudentEmail(studentId));
+        dto.setUniversityEmail(universityEmail);
+        dto.setPersonalEmail(profile.getPersonalEmail());
+        dto.setEmail(universityEmail);
         dto.setAddress(firstNonBlank(profile.getAddress(), student.getAddress()));
 
         dto.setGuardianName(profile.getGuardianName());
@@ -220,6 +236,9 @@ public class StudentProfileService {
         dto.setDepartment(firstNonBlank(profile.getDepartment(), student.getDepartment()));
         dto.setSemester(firstNonBlank(profile.getSemester(), student.getSemester()));
         dto.setSection(profile.getSection());
+        dto.setFoundationClassroom(profile.getFoundationClassroom());
+        dto.setTeamNumber(profile.getTeamNumber());
+        dto.setMemberNumber(profile.getMemberNumber());
         dto.setAdmissionYear(profile.getAdmissionYear() != null ? profile.getAdmissionYear() : parseYear(student.getEnrollmentYear()));
         dto.setPassingYear(profile.getPassingYear());
 
@@ -251,11 +270,17 @@ public class StudentProfileService {
         profile.setGender(student.getGender());
         profile.setReligion(null);
         profile.setPhone(student.getPhone());
-        profile.setEmail(deriveStudentEmail(student.getId()));
+        String universityEmail = firstNonBlank(student.getEmail(), deriveStudentEmail(student.getId()));
+        profile.setUniversityEmail(universityEmail);
+        profile.setPersonalEmail(null);
+        profile.setEmail(universityEmail);
         profile.setAddress(student.getAddress());
         profile.setCourse(student.getCourse());
         profile.setDepartment(student.getDepartment());
         profile.setSemester(student.getSemester());
+        profile.setFoundationClassroom(null);
+        profile.setTeamNumber(null);
+        profile.setMemberNumber(null);
         profile.setAdmissionYear(parseYear(student.getEnrollmentYear()));
         profile.setCollege("Bennett University");
         profile.setValidUpto(LocalDate.now().plusYears(4));
@@ -292,14 +317,16 @@ public class StudentProfileService {
 
     private int calculateCompletion(StudentProfileResponseDTO dto) {
         int filled = 0;
-        int total = 23;
+        int total = 28;
 
         List<Object> fields = Arrays.asList(
             dto.getFullName(), dto.getEnrollmentNumber(), dto.getProfileImage(),
             dto.getDob(), dto.getGender(), dto.getReligion(), dto.getBloodGroup(),
             dto.getPhone(), dto.getEmail(), dto.getAddress(),
+            dto.getUniversityEmail(), dto.getPersonalEmail(),
             dto.getGuardianName(), dto.getGuardianPhone(),
             dto.getCollege(), dto.getCourse(), dto.getDepartment(), dto.getSemester(), dto.getSection(),
+            dto.getFoundationClassroom(), dto.getTeamNumber(), dto.getMemberNumber(),
             dto.getAdmissionYear(), dto.getPassingYear(),
             dto.getValidUpto(), dto.getIdCardNumber(),
             dto.getCreatedAt(), dto.getUpdatedAt()

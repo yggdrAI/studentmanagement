@@ -219,6 +219,11 @@ body {
     margin: 12px 0 16px;
 }
 
+.student-toolbar .input,
+.student-toolbar .select {
+    min-width: 150px;
+}
+
 #tenantSelector {
     min-width: 170px;
 }

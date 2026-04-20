@@ -38,6 +38,9 @@ public class StudentProfile {
     @Column(name = "religion")
     private String religion;
 
+    @Column(name = "caste")
+    private String caste;
+
     @Column(name = "blood_group")
     private String bloodGroup;
 
@@ -47,8 +50,17 @@ public class StudentProfile {
     @Column(name = "email")
     private String email;
 
+    @Column(name = "university_email")
+    private String universityEmail;
+
+    @Column(name = "personal_email")
+    private String personalEmail;
+
     @Column(name = "address", length = 500)
     private String address;
+
+    @Column(name = "place_of_origin")
+    private String placeOfOrigin;
 
     @Column(name = "guardian_name")
     private String guardianName;
@@ -70,6 +82,15 @@ public class StudentProfile {
 
     @Column(name = "section")
     private String section;
+
+    @Column(name = "foundation_classroom")
+    private String foundationClassroom;
+
+    @Column(name = "team_number")
+    private Integer teamNumber;
+
+    @Column(name = "member_number")
+    private Integer memberNumber;
 
     @Column(name = "admission_year")
     private Integer admissionYear;
@@ -122,14 +143,22 @@ public class StudentProfile {
     public void setGender(String gender) { this.gender = gender; }
     public String getReligion() { return religion; }
     public void setReligion(String religion) { this.religion = religion; }
+    public String getCaste() { return caste; }
+    public void setCaste(String caste) { this.caste = caste; }
     public String getBloodGroup() { return bloodGroup; }
     public void setBloodGroup(String bloodGroup) { this.bloodGroup = bloodGroup; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+    public String getUniversityEmail() { return universityEmail; }
+    public void setUniversityEmail(String universityEmail) { this.universityEmail = universityEmail; }
+    public String getPersonalEmail() { return personalEmail; }
+    public void setPersonalEmail(String personalEmail) { this.personalEmail = personalEmail; }
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
+    public String getPlaceOfOrigin() { return placeOfOrigin; }
+    public void setPlaceOfOrigin(String placeOfOrigin) { this.placeOfOrigin = placeOfOrigin; }
     public String getGuardianName() { return guardianName; }
     public void setGuardianName(String guardianName) { this.guardianName = guardianName; }
     public String getGuardianPhone() { return guardianPhone; }
@@ -144,6 +173,12 @@ public class StudentProfile {
     public void setSemester(String semester) { this.semester = semester; }
     public String getSection() { return section; }
     public void setSection(String section) { this.section = section; }
+    public String getFoundationClassroom() { return foundationClassroom; }
+    public void setFoundationClassroom(String foundationClassroom) { this.foundationClassroom = foundationClassroom; }
+    public Integer getTeamNumber() { return teamNumber; }
+    public void setTeamNumber(Integer teamNumber) { this.teamNumber = teamNumber; }
+    public Integer getMemberNumber() { return memberNumber; }
+    public void setMemberNumber(Integer memberNumber) { this.memberNumber = memberNumber; }
     public Integer getAdmissionYear() { return admissionYear; }
     public void setAdmissionYear(Integer admissionYear) { this.admissionYear = admissionYear; }
     public Integer getPassingYear() { return passingYear; }

@@ -146,12 +146,40 @@
                         <option value="MBA">MBA</option>
                         <option value="M.Tech">M.Tech</option>
                     </select>
+                    <input id="degreeFilter" class="input" type="search" placeholder="Degree" aria-label="Filter by degree">
+                    <input id="schoolFilter" class="input" type="search" placeholder="School" aria-label="Filter by school">
+                    <input id="houseFilter" class="input" type="search" placeholder="House" aria-label="Filter by house">
+                    <select id="genderFilter" class="select" aria-label="Filter by gender">
+                        <option value="">All genders</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input id="classGroupFilter" class="input" type="search" placeholder="Class (e.g. Class 2)" aria-label="Filter by class group">
+                    <input id="batchGroupFilter" class="input" type="search" placeholder="Batch (e.g. Batch 34)" aria-label="Filter by batch group">
+                    <input id="religionFilter" class="input" type="search" placeholder="Religion" aria-label="Filter by religion">
+                    <input id="casteFilter" class="input" type="search" placeholder="Caste" aria-label="Filter by caste">
+                    <input id="placeOfOriginFilter" class="input" type="search" placeholder="Place of origin" aria-label="Filter by place of origin">
+                    <select id="semesterFilter" class="select" aria-label="Filter by semester">
+                        <option value="">All semesters</option>
+                        <option value="Semester 1">Semester 1</option>
+                        <option value="Semester 2">Semester 2</option>
+                        <option value="Semester 3">Semester 3</option>
+                        <option value="Semester 4">Semester 4</option>
+                        <option value="Semester 5">Semester 5</option>
+                        <option value="Semester 6">Semester 6</option>
+                        <option value="Semester 7">Semester 7</option>
+                        <option value="Semester 8">Semester 8</option>
+                    </select>
+                    <input id="minAgeFilter" class="input" type="number" min="1" max="120" placeholder="Min age" aria-label="Minimum age">
+                    <input id="maxAgeFilter" class="input" type="number" min="1" max="120" placeholder="Max age" aria-label="Maximum age">
                     <select id="tenantSelector" class="select" aria-label="Tenant selector for super-admin uploads">
                         <option value="">Tenant: Auto (JWT)</option>
                         <option value="1">Tenant 1</option>
                         <option value="2">Tenant 2</option>
                         <option value="3">Tenant 3</option>
                     </select>
+                    <button id="clearFiltersBtn" class="btn btn-outline" type="button">Clear Filters</button>
                     <button id="bulkDeleteBtn" class="btn btn-danger" disabled>Bulk Delete</button>
                     <button id="exportBtn" class="btn btn-outline">Export CSV</button>
                 </div>

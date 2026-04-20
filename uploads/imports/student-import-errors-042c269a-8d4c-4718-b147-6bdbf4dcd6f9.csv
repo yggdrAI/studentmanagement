@@ -1,0 +1,2 @@
+Row,Error
+could not execute statement [Lock wait timeout exceeded; try restarting transaction] [insert into app_user (password;role;tenant_id;username) values (?;?;?;?)]; SQL [insert into app_user (password;role;tenant_id;username) values (?;?;?;?)] | cluster=A25ARIU0001

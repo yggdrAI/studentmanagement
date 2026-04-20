@@ -278,6 +278,19 @@
 
                 <ul id="fraudAlertsList" class="fraud-alerts-list"></ul>
             </section>
+
+            <section class="generic-card" style="margin-top: 1.5rem;">
+                <h2>Profile Security</h2>
+                <p>Initial login uses Teacher ID as username and password. Update your password below.</p>
+
+                <div class="live-toolbar">
+                    <input type="password" id="teacherCurrentPassword" class="live-input" placeholder="Current password" />
+                    <input type="password" id="teacherNewPassword" class="live-input" placeholder="New password" />
+                    <input type="password" id="teacherConfirmPassword" class="live-input" placeholder="Confirm new password" />
+                    <button type="button" class="btn btn-primary" id="teacherChangePasswordBtn">Change Password</button>
+                    <span class="live-status" id="teacherPasswordStatus">Enter current and new password.</span>
+                </div>
+            </section>
         </div>
     </main>
 
@@ -301,6 +314,7 @@
         function registerDashboardPwa() {
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('/service-worker.js?v=2').catch((error) => {
+                    navigator.serviceWorker.register('/service-worker.js?v=3').catch((error) => {
                     console.debug('Service worker registration failed:', error);
                 });
             }
@@ -553,9 +567,37 @@
             liveStatsState.timer = setInterval(fetchLiveStats, 5000);
         }
 
+        async function changeTeacherPassword() {
+            const currentPassword = document.getElementById('teacherCurrentPassword').value;
+            const newPassword = document.getElementById('teacherNewPassword').value;
+            const confirmPassword = document.getElementById('teacherConfirmPassword').value;
+            const status = document.getElementById('teacherPasswordStatus');
+
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                status.textContent = 'Please fill all password fields.';
+                return;
+            }
+
+            try {
+                await window.smsApi.put('/api/teacher/profile/password', {
+                    currentPassword,
+                    newPassword,
+                    confirmPassword
+                });
+
+                document.getElementById('teacherCurrentPassword').value = '';
+                document.getElementById('teacherNewPassword').value = '';
+                document.getElementById('teacherConfirmPassword').value = '';
+                status.textContent = 'Password changed successfully.';
+            } catch (error) {
+                status.textContent = error.message || 'Unable to change password.';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             registerDashboardPwa();
             document.getElementById('loadStatsBtn').addEventListener('click', startLivePolling);
+            document.getElementById('teacherChangePasswordBtn').addEventListener('click', changeTeacherPassword);
             connectCampusUpdates();
             connectFraudUpdates();
             refreshFraudSummary();

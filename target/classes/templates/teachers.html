@@ -27,10 +27,34 @@
                     <button type="button" class="btn btn-outline">Generate Reports</button>
                 </div>
             </section>
+
+            <section class="generic-card" style="margin-top: 1.5rem;">
+                <h2>Teacher Login Credentials</h2>
+                <p>Admin can reset or change passwords for all teachers from here.</p>
+                <div style="overflow:auto; margin-top: 1rem;">
+                    <table class="data-grid" style="min-width: 760px;">
+                        <thead>
+                        <tr>
+                            <th>Teacher ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Username</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody id="teacherGridBody">
+                        <tr><td colspan="5">Loading teachers...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
     </main>
 
     <div th:replace="~{fragments/sidebar :: floating-tools}"></div>
+
+    <script th:src="@{/js/api-client.js}"></script>
+    <script th:src="@{/js/admin-teachers-passwords.js}"></script>
 
 </body>
 </html>

@@ -1,5 +1,5 @@
 package com.sms.service;
-
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,6 +29,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -51,6 +52,9 @@ import com.sms.repository.StudentRepository;
 
 @Service
 public class StudentImportService {
+
+    private static final int BATCH_SIZE = 30;
+    private static final int CLASS_SIZE = 120;
 
     private static final List<String> FIELD_ORDER = List.of(
         "fullName",
@@ -104,6 +108,29 @@ public class StudentImportService {
     private static final Pattern PHONE_PATTERN = Pattern.compile("^[0-9]{7,15}$");
     private static final Pattern ENROLLMENT_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{3,64}$");
     private static final Pattern ENROLLMENT_SERIAL_PATTERN = Pattern.compile("(\\d+)");
+    private static final Pattern ENROLLMENT_YEAR_4_PATTERN = Pattern.compile("(19\\d{2}|20\\d{2})");
+    private static final Pattern ENROLLMENT_YEAR_2_PREFIX_PATTERN = Pattern.compile("^(\\d{2})[A-Z].*");
+    private static final List<String> ENROLLMENT_VALUE_ALIASES = List.of(
+        "Enrollment Number",
+        "Enrolment Number",
+        "Enrollment No",
+        "Enrollment No.",
+        "Enrolment No",
+        "Enrolment No.",
+        "Enrollment",
+        "Registration Number",
+        "Registration No",
+        "Registration No.",
+        "Admission Number",
+        "Admission No",
+        "Admission No.",
+        "Student Id",
+        "Student ID",
+        "Roll Number",
+        "Roll No",
+        "Roll No.",
+        "Roll"
+    );
     private static final DateTimeFormatter[] DATE_PATTERNS = new DateTimeFormatter[] {
         DateTimeFormatter.ISO_LOCAL_DATE,
         DateTimeFormatter.ofPattern("dd/MM/uuuu"),
@@ -192,10 +219,18 @@ public class StudentImportService {
 
         for (MultipartFile file : activeFiles) {
             String safeName = safeFileName(file.getOriginalFilename());
+            byte[] sourceBytes;
+            try {
+                sourceBytes = file.getBytes();
+            } catch (IOException ex) {
+                throw new UncheckedIOException(ex);
+            }
+
+            String sourceFilePath = importArtifactService.saveUploadedSource(safeName, sourceBytes);
             sourceFiles.add(safeName);
 
-            ParsedImport parsed = parse(file, mappingOverride == null ? Collections.emptyMap() : mappingOverride);
-            List<StudentImportRow> rows = validateRows(job, parsed.rows(), parsed.headerIndex());
+            ParsedImport parsed = parse(safeName, sourceBytes, mappingOverride == null ? Collections.emptyMap() : mappingOverride);
+            List<StudentImportRow> rows = validateRows(job, parsed.rows(), parsed.headerIndex(), parsed.headers());
             for (StudentImportRow row : rows) {
                 row.setSourceFileName(safeName);
             }
@@ -205,6 +240,7 @@ public class StudentImportService {
                 "fileName", safeName,
                 "headers", parsed.headers(),
                 "rowCount", rows.size(),
+                "filePath", sourceFilePath,
                 "warnings", parsed.warnings(),
                 "missingRequiredFields", parsed.missingRequiredFields(),
                 "suggestions", parsed.suggestions(),
@@ -218,13 +254,13 @@ public class StudentImportService {
         job.setRollbackOnFailure(Boolean.TRUE.equals(rollbackOnFailure));
         job.setStatus(StudentImportJob.Status.UPLOADED);
         job.setSourceFileCount(sourceFiles.size());
-        job.setSourceFilesJson(writeJson(sourceFiles));
+        job.setSourceFilesJson(compactForDb(writeJson(sourceFiles), 240));
         job = jobRepository.save(job);
 
         rowRepository.saveAll(allRows);
 
         StudentFusionService.FusionResult fusion = studentFusionService.analyze(allRows);
-        job.setMergeLogJson(fusion.mergeLogJson());
+        job.setMergeLogJson(buildMergeLogSummaryForDb(fusion));
         job.setFusedStudentCount(fusion.clusterCount());
         job.setTotalRows(allRows.size());
         job.setValidRows((int) allRows.stream().filter(row -> "VALID".equals(row.getStatus())).count());
@@ -282,19 +318,26 @@ public class StudentImportService {
         return buildPreviewPayload(job, rows, null, studentFusionService.analyze(rows), List.of());
     }
 
-    @Transactional
     public Map<String, Object> confirmImport(Long jobId, String requester, String duplicateStrategy, Boolean rollbackOnFailure) {
         StudentImportJob job = getOwnedJob(jobId, requester);
         List<StudentImportRow> rows = rowRepository.findByJobOrderByRowIndexAsc(job);
         String strategy = normalizeDuplicateStrategy(duplicateStrategy != null ? duplicateStrategy : job.getDuplicateStrategy());
         boolean rollback = rollbackOnFailure == null ? job.isRollbackOnFailure() : rollbackOnFailure;
 
-        StudentFusionService.FusionResult fusion = studentFusionService.analyze(rows);
+        List<StudentImportRow> validRows = rows.stream()
+            .filter(row -> "VALID".equals(row.getStatus()))
+            .toList();
+        if (validRows.isEmpty()) {
+            throw new IllegalArgumentException("No valid rows available to import");
+        }
+
+        StudentFusionService.FusionResult fusion = studentFusionService.analyze(validRows);
         List<Map<String, Object>> mergedStudents = fusion.mergedStudents();
 
         List<String> createdStudentIds = new ArrayList<>();
         int success = 0;
         int failure = 0;
+        int skipped = 0;
         List<String> errors = new ArrayList<>();
         String errorReportPath = null;
 
@@ -303,8 +346,7 @@ public class StudentImportService {
                 ImportResult result = importMergedStudent(mergedStudent, rows, strategy);
                 if (result.skipped()) {
                     markRowsForCluster(rows, mergedStudent, "SKIPPED", result.message(), null);
-                    failure++;
-                    errors.add(buildErrorLineForCluster(mergedStudent, result.message()));
+                    skipped++;
                 } else {
                     markRowsForCluster(rows, mergedStudent, "IMPORTED", null, result.studentId());
                     createdStudentIds.add(result.studentId());
@@ -325,14 +367,15 @@ public class StudentImportService {
                     }
                     jobRepository.save(job);
                     rowRepository.saveAll(rows);
-                    return Map.of(
-                        "jobId", job.getId(),
-                        "status", "ROLLED_BACK",
-                        "successCount", 0,
-                        "failureCount", mergedStudents.size(),
-                        "message", "Import failed and transaction was rolled back",
-                        "errorReport", errorReportPath
-                    );
+                    Map<String, Object> rolledBack = new LinkedHashMap<>();
+                    rolledBack.put("jobId", job.getId());
+                    rolledBack.put("status", "ROLLED_BACK");
+                    rolledBack.put("successCount", 0);
+                    rolledBack.put("failureCount", mergedStudents.size());
+                    rolledBack.put("skippedCount", skipped);
+                    rolledBack.put("message", "Import failed and transaction was rolled back");
+                    rolledBack.put("errorReport", errorReportPath);
+                    return rolledBack;
                 }
             }
         }
@@ -342,25 +385,26 @@ public class StudentImportService {
             attachErrorReport(job, errorReportPath);
         }
 
-    job.setStatus(success > 0 ? StudentImportJob.Status.CONFIRMED : StudentImportJob.Status.FAILED);
+    job.setStatus(failure == 0 ? StudentImportJob.Status.CONFIRMED : (success > 0 ? StudentImportJob.Status.CONFIRMED : StudentImportJob.Status.FAILED));
         job.setSuccessCount(success);
         job.setFailureCount(failure);
         job.setDuplicateStrategy(strategy);
     job.setFusedStudentCount(mergedStudents.size());
-    job.setMergeLogJson(fusion.mergeLogJson());
+    job.setMergeLogJson(buildMergeLogSummaryForDb(fusion));
         jobRepository.save(job);
         rowRepository.saveAll(rows);
         analyticsRealtimeNotifier.notifyStudentBulkImport(job.getId(), success);
         analyticsCacheService.evictAnalyticsCaches();
 
-        return Map.of(
-            "jobId", job.getId(),
-            "status", job.getStatus().name(),
-            "successCount", success,
-            "failureCount", failure,
-            "message", success + " students imported",
-            "errorReport", errorReportPath
-        );
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("jobId", job.getId());
+        response.put("status", job.getStatus().name());
+        response.put("successCount", success);
+        response.put("failureCount", failure);
+        response.put("skippedCount", skipped);
+        response.put("message", success + " students imported" + (skipped > 0 ? (", " + skipped + " skipped") : ""));
+        response.put("errorReport", errorReportPath);
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -376,6 +420,8 @@ public class StudentImportService {
             item.put("failureCount", job.getFailureCount());
             item.put("status", job.getStatus().name());
             item.put("duplicateStrategy", job.getDuplicateStrategy());
+            item.put("sourceFileCount", job.getSourceFileCount());
+            item.put("fusedStudentCount", job.getFusedStudentCount());
             item.put("errorReportName", job.getLastErrorReportName());
             item.put("errorReportPath", job.getLastErrorReportPath());
             return item;
@@ -422,9 +468,9 @@ public class StudentImportService {
         }
     }
 
-    private ParsedImport parse(MultipartFile file, Map<String, String> mappingOverride) {
-        try (InputStream inputStream = file.getInputStream()) {
-            if (safeFileName(file.getOriginalFilename()).toLowerCase(Locale.ROOT).endsWith(".csv")) {
+    private ParsedImport parse(String originalFileName, byte[] content, Map<String, String> mappingOverride) {
+        try (InputStream inputStream = new ByteArrayInputStream(content)) {
+            if (safeFileName(originalFileName).toLowerCase(Locale.ROOT).endsWith(".csv")) {
                 return parseCsv(inputStream, mappingOverride);
             }
             return parseXlsx(inputStream, mappingOverride);
@@ -556,7 +602,10 @@ public class StudentImportService {
         return rows;
     }
 
-    private List<StudentImportRow> validateRows(StudentImportJob job, List<List<String>> rows, Map<String, Integer> headerIndex) {
+    private List<StudentImportRow> validateRows(StudentImportJob job,
+                                                List<List<String>> rows,
+                                                Map<String, Integer> headerIndex,
+                                                List<String> headers) {
         List<StudentImportRow> items = new ArrayList<>();
         Set<String> seenEnrollments = new LinkedHashSet<>();
 
@@ -590,6 +639,17 @@ public class StudentImportService {
             row.setAddress(value(values, headerIndex, "address"));
             row.setBloodGroup(value(values, headerIndex, "bloodGroup"));
             row.setGuardianName(value(values, headerIndex, "guardianName"));
+
+            if (!hasText(row.getFullName())) {
+                row.setFullName(composeFullName(values, headerIndex, headers));
+            }
+
+            if (!hasText(row.getEnrollmentNumber())) {
+                row.setEnrollmentNumber(firstNonBlank(
+                    row.getRollNumber(),
+                    valueByAliases(values, headerIndex, headers, ENROLLMENT_VALUE_ALIASES)
+                ));
+            }
 
             sanitizeRow(row);
             row.setNormalizedEnrollment(normalize(row.getEnrollmentNumber()));
@@ -735,6 +795,9 @@ public class StudentImportService {
 
     private void updateStudentProfileMetadata(String studentId, Map<String, Object> mergedStudent) {
         StudentProfile profile = studentProfileRepository.findByStudentId(studentId).orElseGet(StudentProfile::new);
+        String universityEmail = firstNonBlank(profile.getUniversityEmail(), profile.getEmail(), deriveUniversityEmail(studentId));
+        String personalEmail = firstNonBlank(stringValue(mergedStudent.get("email"), null), profile.getPersonalEmail());
+
         profile.setStudentId(studentId);
         profile.setFullName(firstNonBlank(stringValue(mergedStudent.get("fullName"), null), profile.getFullName()));
         profile.setEnrollmentNumber(firstNonBlank(stringValue(mergedStudent.get("enrollmentNumber"), null), studentId));
@@ -742,8 +805,18 @@ public class StudentImportService {
         profile.setDob(parseOptionalDate(stringValue(mergedStudent.get("dateOfBirth"), null), profile.getDob()));
         profile.setGender(firstNonBlank(stringValue(mergedStudent.get("gender"), null), profile.getGender()));
         profile.setPhone(firstNonBlank(stringValue(mergedStudent.get("phone"), null), profile.getPhone()));
-        profile.setEmail(firstNonBlank(stringValue(mergedStudent.get("email"), null), profile.getEmail()));
+        profile.setUniversityEmail(universityEmail);
+        profile.setPersonalEmail(personalEmail);
+        profile.setEmail(universityEmail);
         profile.setAddress(firstNonBlank(stringValue(mergedStudent.get("address"), null), profile.getAddress()));
+        profile.setFoundationClassroom(firstNonBlank(stringValue(mergedStudent.get("house"), null), profile.getFoundationClassroom()));
+        profile.setCaste(firstNonBlank(stringValue(mergedStudent.get("caste"), null), profile.getCaste()));
+        profile.setPlaceOfOrigin(firstNonBlank(
+            stringValue(mergedStudent.get("placeOfOrigin"), null),
+            stringValue(mergedStudent.get("origin"), null),
+            stringValue(mergedStudent.get("city"), null),
+            profile.getPlaceOfOrigin()
+        ));
         profile.setCourse(firstNonBlank(stringValue(mergedStudent.get("course"), null), stringValue(mergedStudent.get("program"), null), profile.getCourse()));
         profile.setDepartment(firstNonBlank(stringValue(mergedStudent.get("department"), null), profile.getDepartment()));
         profile.setSemester(firstNonBlank(stringValue(mergedStudent.get("semester"), null), profile.getSemester()));
@@ -756,6 +829,13 @@ public class StudentImportService {
         studentProfileRepository.save(profile);
     }
 
+    private String deriveUniversityEmail(String studentId) {
+        if (!StringUtils.hasText(studentId)) {
+            return null;
+        }
+        return studentId + "@bennett.edu.in";
+    }
+
     private Student mapStudent(Student student, StudentImportRow row) {
         student.setName(clean(row.getFullName()));
         student.setEmail(clean(row.getEmail()));
@@ -766,7 +846,7 @@ public class StudentImportService {
         student.setSection(firstNonBlank(clean(row.getSection()), clean(row.getClassName())));
         student.setGender(clean(row.getGender()));
         student.setAddress(clean(row.getAddress()));
-        student.setEnrollmentYear(firstNonBlank(clean(row.getJoiningYear()), extractYear(row.getEnrollmentNumber())));
+        student.setEnrollmentYear(firstNonBlank(clean(row.getJoiningYear()), parseEnrollmentYear(row.getEnrollmentNumber())));
         try {
             student.setDob(parseDate(row.getDateOfBirth()));
         } catch (Exception ignored) {
@@ -831,17 +911,25 @@ public class StudentImportService {
             return;
         }
 
-        Course course = courseRepository.findByCode(courseValue.trim())
-            .orElseGet(() -> courseRepository.findAll().stream()
-                .filter(candidate -> courseValue.trim().equalsIgnoreCase(candidate.getCourseName()))
-                .findFirst()
-                .orElseGet(() -> {
-                    Course created = new Course();
-                    created.setCode(generateCourseCode(courseValue));
-                    created.setCourseName(courseValue.trim());
-                    created.setCredits(3);
-                    return courseRepository.save(created);
-                }));
+        String normalizedCourse = courseValue.trim();
+        String generatedCode = generateCourseCode(normalizedCourse);
+
+        Course course = courseRepository.findByCourseNameIgnoreCase(normalizedCourse)
+            .or(() -> courseRepository.findByCode(generatedCode))
+            .or(() -> courseRepository.findByCode(normalizedCourse))
+            .orElseGet(() -> {
+                Course created = new Course();
+                created.setCode(generatedCode);
+                created.setCourseName(normalizedCourse);
+                created.setCredits(3);
+                try {
+                    return courseRepository.saveAndFlush(created);
+                } catch (DataIntegrityViolationException ex) {
+                    return courseRepository.findByCode(generatedCode)
+                        .or(() -> courseRepository.findByCourseNameIgnoreCase(normalizedCourse))
+                        .orElseThrow(() -> ex);
+                }
+            });
 
         if (!enrollmentRepository.existsByStudentIdAndCourseId(student.getId(), course.getId())) {
             Enrollment enrollment = new Enrollment();
@@ -908,6 +996,24 @@ public class StudentImportService {
         } catch (Exception ex) {
             return "[]";
         }
+    }
+
+    private String compactForDb(String json, int maxLength) {
+        if (json == null) {
+            return null;
+        }
+        if (json.length() <= maxLength) {
+            return json;
+        }
+        return json.substring(0, Math.max(0, maxLength - 3)) + "...";
+    }
+
+    private String buildMergeLogSummaryForDb(StudentFusionService.FusionResult fusion) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("clusters", fusion.clusterCount());
+        summary.put("avgConfidence", fusion.averageConfidence());
+        summary.put("suggestions", fusion.suggestions().size());
+        return compactForDb(writeJson(summary), 240);
     }
 
     private Map<String, Object> buildPreviewPayload(StudentImportJob job, List<StudentImportRow> rows, ParsedImport parsed) {
@@ -999,10 +1105,24 @@ public class StudentImportService {
         item.put("sourceFileName", row.getSourceFileName());
         item.put("mergeGroupKey", row.getMergeGroupKey());
         item.put("identityKey", row.getIdentityKey());
-        item.put("confidenceScore", row.getConfidenceScore());
+        item.put("confidenceScore", resolveRowConfidence(row));
         item.put("status", row.getStatus());
         item.put("errorMessage", row.getErrorMessage());
         return item;
+    }
+
+    private double resolveRowConfidence(StudentImportRow row) {
+        if (row.getConfidenceScore() != null && row.getConfidenceScore() > 0) {
+            return row.getConfidenceScore();
+        }
+
+        double score = 45.0;
+        if (StringUtils.hasText(row.getEnrollmentNumber())) score += 25.0;
+        if (StringUtils.hasText(row.getFullName())) score += 15.0;
+        if (StringUtils.hasText(row.getCourse()) || StringUtils.hasText(row.getProgram())) score += 7.5;
+        if (StringUtils.hasText(row.getDepartment())) score += 5.0;
+        if (StringUtils.hasText(row.getSection()) || StringUtils.hasText(row.getClassName())) score += 2.5;
+        return Math.min(100.0, score);
     }
 
     private StudentImportJob getOwnedJob(Long jobId, String requester) {
@@ -1065,6 +1185,21 @@ public class StudentImportService {
             String suggestion = suggestHeader(field, headers);
             if (suggestion != null) {
                 suggestions.put(field, suggestion);
+            }
+        }
+
+        if (fieldIndex instanceof HeaderIndexMap indexMap) {
+            indexMap.setNormalizedHeaderIndex(headerIndexByNormalizedName);
+        }
+
+        // If enrollment is missing but roll number is present, use roll as enrollment fallback.
+        // Many institutional sheets use roll/registration as the primary student identifier.
+        if (!fieldIndex.containsKey("enrollmentNumber") && fieldIndex.containsKey("rollNumber")) {
+            Integer rollIndex = fieldIndex.get("rollNumber");
+            if (rollIndex != null) {
+                ((HeaderIndexMap) fieldIndex).put("enrollmentNumber", rollIndex);
+                mappingByField.put("enrollmentNumber", headers.get(rollIndex));
+                suggestions.remove("enrollmentNumber");
             }
         }
 
@@ -1214,7 +1349,35 @@ public class StudentImportService {
     private List<String> aliasesFor(String field) {
         return switch (field) {
             case "fullName" -> List.of("Full Name", "Name", "Student Name", "Candidate Name");
-            case "enrollmentNumber" -> List.of("Enrollment Number", "Enrollment No", "Enrollment", "Roll Number", "Student ID", "Enrollment Id");
+            case "enrollmentNumber" -> List.of(
+                "Enrollment Number",
+                "Enrolment Number",
+                "Enrollment No",
+                "Enrollment No.",
+                "Enrolment No",
+                "Enrolment No.",
+                "Enrollment",
+                "Enrollment Id",
+                "Enrollment ID",
+                "Student Enrollment",
+                "Student Enrollment Number",
+                "Student Id",
+                "Student ID",
+                "Registration Number",
+                "Registration No",
+                "Registration No.",
+                "Register Number",
+                "Admission Number",
+                "Admission No",
+                "Admission No.",
+                "University Roll Number",
+                "University Roll No",
+                "University Roll No.",
+                "Roll Number",
+                "Roll No",
+                "Roll No.",
+                "Roll"
+            );
             case "rollNumber" -> List.of("Roll Number", "Roll No", "Roll", "Student Roll");
             case "email" -> List.of("Email", "Email Address", "Mail");
             case "phone" -> List.of("Phone", "Mobile", "Contact", "Phone Number", "Mobile Number");
@@ -1244,6 +1407,64 @@ public class StudentImportService {
         return header.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", " ").trim();
     }
 
+    private String composeFullName(List<String> values, Map<String, Integer> headerIndex, List<String> headers) {
+        String fromSingleColumn = valueByAliases(values, headerIndex, headers, List.of("Student Name", "Candidate Name", "Name"));
+        if (hasText(fromSingleColumn)) {
+            return fromSingleColumn;
+        }
+
+        String firstName = valueByAliases(values, headerIndex, headers, List.of("First Name", "Given Name"));
+        String middleName = valueByAliases(values, headerIndex, headers, List.of("Middle Name"));
+        String lastName = valueByAliases(values, headerIndex, headers, List.of("Last Name", "Surname", "Family Name"));
+        return clean(String.join(" ",
+            hasText(firstName) ? firstName.trim() : "",
+            hasText(middleName) ? middleName.trim() : "",
+            hasText(lastName) ? lastName.trim() : "").trim());
+    }
+
+    private String valueByAliases(List<String> values,
+                                  Map<String, Integer> headerIndex,
+                                  List<String> headers,
+                                  List<String> aliases) {
+        Integer index = findHeaderIndexByAliases(headerIndex, aliases);
+        if (index == null) {
+            index = findHeaderIndexByAliases(headers, aliases);
+        }
+        if (index == null || index < 0 || index >= values.size()) {
+            return null;
+        }
+        return clean(values.get(index));
+    }
+
+    private Integer findHeaderIndexByAliases(Map<String, Integer> headerIndex, List<String> aliases) {
+        if (!(headerIndex instanceof HeaderIndexMap indexMap)) {
+            return null;
+        }
+        for (String alias : aliases) {
+            Integer index = indexMap.getNormalizedHeaderIndex().get(normalizeHeader(alias));
+            if (index != null) {
+                return index;
+            }
+        }
+        return null;
+    }
+
+    private Integer findHeaderIndexByAliases(List<String> headers, List<String> aliases) {
+        if (headers == null || headers.isEmpty()) {
+            return null;
+        }
+        for (int i = 0; i < headers.size(); i++) {
+            String normalizedHeader = normalizeHeader(headers.get(i));
+            for (String alias : aliases) {
+                String normalizedAlias = normalizeHeader(alias);
+                if (normalizedAlias.equals(normalizedHeader) || fuzzyScore(normalizedAlias, normalizedHeader) >= 2) {
+                    return i;
+                }
+            }
+        }
+        return null;
+    }
+
     private boolean isRowEmpty(List<String> values) {
         if (values == null || values.isEmpty()) {
             return true;
@@ -1257,7 +1478,7 @@ public class StudentImportService {
     }
 
     private void sanitizeRow(StudentImportRow row) {
-        row.setFullName(clean(row.getFullName()));
+        row.setFullName(cleanPersonName(row.getFullName()));
         row.setEnrollmentNumber(cleanEnrollment(row.getEnrollmentNumber()));
         row.setRollNumber(cleanEnrollment(row.getRollNumber()));
         row.setEmail(cleanEmail(row.getEmail()));
@@ -1343,11 +1564,7 @@ public class StudentImportService {
     }
 
     private String extractYear(String enrollmentNumber) {
-        if (!StringUtils.hasText(enrollmentNumber)) {
-            return null;
-        }
-        String digits = enrollmentNumber.replaceAll("\\D+", "");
-        return digits.length() >= 4 ? digits.substring(0, 4) : null;
+        return parseEnrollmentYear(enrollmentNumber);
     }
 
     private Integer parseYear(String year) {
@@ -1370,7 +1587,7 @@ public class StudentImportService {
         if (serial == null || serial <= 0) {
             return null;
         }
-        int classNumber = ((serial - 1) / 120) + 1;
+        int classNumber = ((serial - 1) / CLASS_SIZE) + 1;
         return "Class " + classNumber;
     }
 
@@ -1379,7 +1596,7 @@ public class StudentImportService {
         if (serial == null || serial <= 0) {
             return null;
         }
-        int batchNumber = (((serial - 1) % 120) / 30) + 1;
+        int batchNumber = (((serial - 1) % CLASS_SIZE) / BATCH_SIZE) + 1;
         return "Batch " + batchNumber;
     }
 
@@ -1388,19 +1605,110 @@ public class StudentImportService {
         if (!StringUtils.hasText(enrollmentNumber)) {
             return null;
         }
-        Matcher matcher = ENROLLMENT_SERIAL_PATTERN.matcher(enrollmentNumber);
-        String last = null;
-        while (matcher.find()) {
-            last = matcher.group(1);
-        }
-        if (last == null) {
+
+        String cleaned = cleanEnrollment(enrollmentNumber);
+        if (!StringUtils.hasText(cleaned)) {
             return null;
         }
+
+        String digitsOnly = cleaned.replaceAll("\\D+", "");
+        if (digitsOnly.isBlank()) {
+            return null;
+        }
+
+        String serialCandidate = null;
+        String year = parseEnrollmentYear(cleaned);
+        if (year != null && digitsOnly.startsWith(year) && digitsOnly.length() > year.length()) {
+            serialCandidate = digitsOnly.substring(year.length());
+        }
+        if (!StringUtils.hasText(serialCandidate)) {
+            Matcher trailingDigits = Pattern.compile("(\\d{2,4})$").matcher(cleaned);
+            if (trailingDigits.find()) {
+                serialCandidate = trailingDigits.group(1);
+            }
+        }
+        boolean blankOrZeros = !StringUtils.hasText(serialCandidate)
+            || (serialCandidate != null && serialCandidate.replace("0", "").isBlank());
+        if (blankOrZeros) {
+            Matcher matcher = ENROLLMENT_SERIAL_PATTERN.matcher(cleaned);
+            while (matcher.find()) {
+                serialCandidate = matcher.group(1);
+            }
+        }
+
+        if (!StringUtils.hasText(serialCandidate)) {
+            return null;
+        }
+
+        serialCandidate = serialCandidate == null ? null : serialCandidate.replaceFirst("^0+(?!$)", "");
+        if (serialCandidate.length() > 4) {
+            serialCandidate = serialCandidate.substring(serialCandidate.length() - 4);
+        }
+
+        if (!StringUtils.hasText(serialCandidate)) {
+            return null;
+        }
+
         try {
-            return Integer.parseInt(last);
+            return Integer.parseInt(serialCandidate);
         } catch (NumberFormatException ex) {
             return null;
         }
+    }
+
+    private String parseEnrollmentYear(String enrollmentNumber) {
+        if (!StringUtils.hasText(enrollmentNumber)) {
+            return null;
+        }
+
+        String cleaned = cleanEnrollment(enrollmentNumber);
+        Matcher year4 = ENROLLMENT_YEAR_4_PATTERN.matcher(cleaned);
+        if (year4.find()) {
+            return year4.group(1);
+        }
+
+        Matcher year2Prefix = ENROLLMENT_YEAR_2_PREFIX_PATTERN.matcher(cleaned);
+        if (year2Prefix.matches()) {
+            int yy = Integer.parseInt(year2Prefix.group(1));
+            int fullYear = yy <= 69 ? 2000 + yy : 1900 + yy;
+            return String.valueOf(fullYear);
+        }
+
+        String digits = cleaned.replaceAll("\\D+", "");
+        if (digits.length() >= 4) {
+            String candidate = digits.substring(0, 4);
+            try {
+                int year = Integer.parseInt(candidate);
+                if (year >= 1990 && year <= 2100) {
+                    return candidate;
+                }
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private String cleanPersonName(String value) {
+        String cleaned = clean(value);
+        if (!hasText(cleaned)) {
+            return null;
+        }
+
+        if (cleaned.matches(".*\\d.*") || cleaned.contains("@")) {
+            return cleaned;
+        }
+
+        String[] tokens = cleaned.split("\\s+");
+        List<String> normalized = new ArrayList<>(tokens.length);
+        for (String token : tokens) {
+            if (token.isBlank()) {
+                continue;
+            }
+            String lower = token.toLowerCase(Locale.ROOT);
+            normalized.add(Character.toUpperCase(lower.charAt(0)) + lower.substring(1));
+        }
+        return normalized.isEmpty() ? cleaned : String.join(" ", normalized);
     }
 
     private String generateCourseCode(String courseName) {
@@ -1461,6 +1769,7 @@ public class StudentImportService {
 
     private static final class HeaderIndexMap extends HashMap<String, Integer> {
         private int headerRowIndex;
+        private Map<String, Integer> normalizedHeaderIndex = Collections.emptyMap();
 
         int getHeaderRowIndex() {
             return headerRowIndex;
@@ -1468,6 +1777,14 @@ public class StudentImportService {
 
         void setHeaderRowIndex(int headerRowIndex) {
             this.headerRowIndex = headerRowIndex;
+        }
+
+        Map<String, Integer> getNormalizedHeaderIndex() {
+            return normalizedHeaderIndex;
+        }
+
+        void setNormalizedHeaderIndex(Map<String, Integer> normalizedHeaderIndex) {
+            this.normalizedHeaderIndex = normalizedHeaderIndex == null ? Collections.emptyMap() : new HashMap<>(normalizedHeaderIndex);
         }
     }
 

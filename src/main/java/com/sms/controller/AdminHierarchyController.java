@@ -249,7 +249,7 @@ public class AdminHierarchyController {
                                                Map<String, Double> marksMap,
                                                Map<String, Double> attendanceMap) {
         List<Map<String, Object>> students = batchStudents.stream()
-                .sorted(Comparator.comparing(Student::getName, String.CASE_INSENSITIVE_ORDER))
+                .sorted(Comparator.comparingInt(this::extractSerialNumber))
                 .map(student -> buildStudentNode(student, marksMap, attendanceMap))
                 .collect(Collectors.toList());
 

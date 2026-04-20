@@ -2,16 +2,17 @@ package com.sms.config;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import com.sms.model.AcademicRecord;
 import com.sms.model.ClassSession;
 import com.sms.model.Course;
 import com.sms.model.Enrollment;
 import com.sms.model.Role;
-import com.sms.model.AcademicRecord;
 import com.sms.model.Student;
 import com.sms.model.StudentDocument;
 import com.sms.model.StudentProfile;
@@ -75,23 +76,33 @@ public class DemoDataLoader implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (userRepository.count() > 0) {
-            return;
+        ensureAdminLogin();
+
+        if (studentRepository.count() == 0 && teacherRepository.count() == 0) {
+            seedInitialAcademicData();
         }
 
-        User admin = createUser("admin", "1234", Role.ADMIN);
-        User teacherUser = createUser("teacher", "1234", Role.TEACHER);
-        User studentUser = createUser("S25CSEU1006", "S25CSEU1006", Role.STUDENT);
+        ensureStudentLoginPolicy();
+        ensureTeacherLoginPolicy();
+    }
 
-        userRepository.save(java.util.Objects.requireNonNull(admin));
-        userRepository.save(java.util.Objects.requireNonNull(teacherUser));
-        userRepository.save(java.util.Objects.requireNonNull(studentUser));
+    private void seedInitialAcademicData() {
+        User teacherUser = createUser("temp-teacher", "temp-teacher", Role.TEACHER);
+        teacherUser = userRepository.save(java.util.Objects.requireNonNull(teacherUser));
 
         Teacher teacher = new Teacher();
         teacher.setName("Dr. Rahul Sharma");
         teacher.setEmail("rahul.sharma@sms.com");
         teacher.setUser(teacherUser);
         teacher = teacherRepository.save(teacher);
+
+        // Teacher login policy: username/password = teacher id (initial login)
+        teacherUser.setUsername(String.valueOf(teacher.getId()));
+        teacherUser.setPassword(passwordEncoder.encode(String.valueOf(teacher.getId())));
+        userRepository.save(teacherUser);
+
+        User studentUser = createUser("S25CSEU1006", "S25CSEU1006", Role.STUDENT);
+        studentUser = userRepository.save(java.util.Objects.requireNonNull(studentUser));
 
         Student student = new Student("S25CSEU1006", "Bhavya Jain");
         student.setUser(studentUser);
@@ -230,6 +241,84 @@ public class DemoDataLoader implements CommandLineRunner {
         session2.setStudent(student);
         session2.setCourse(dbms);
         classSessionRepository.save(session2);
+    }
+
+    private void ensureAdminLogin() {
+        User adminUser = userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.ADMIN)
+                .findFirst()
+                .orElseGet(() -> createUser("bhavya", "999", Role.ADMIN));
+
+        adminUser.setUsername("bhavya");
+        adminUser.setPassword(passwordEncoder.encode("999"));
+        adminUser.setRole(Role.ADMIN);
+        userRepository.save(adminUser);
+    }
+
+    private void ensureStudentLoginPolicy() {
+        for (Student student : studentRepository.findAll()) {
+            String studentId = student.getId();
+            if (studentId == null || studentId.isBlank()) {
+                continue;
+            }
+
+            User user = student.getUser();
+            if (user == null) {
+                user = findExistingUserByUsername(studentId).orElseGet(() -> {
+                    User created = new User();
+                    created.setRole(Role.STUDENT);
+                    created.setTenantId(1L);
+                    return created;
+                });
+            }
+
+            user.setUsername(studentId);
+            if (user.getPassword() == null || user.getPassword().isBlank()) {
+                user.setPassword(passwordEncoder.encode(studentId));
+            }
+            user.setRole(Role.STUDENT);
+            user = userRepository.save(user);
+
+            if (student.getUser() == null || !user.getId().equals(student.getUser().getId())) {
+                student.setUser(user);
+                studentRepository.save(student);
+            }
+        }
+    }
+
+    private void ensureTeacherLoginPolicy() {
+        for (Teacher teacher : teacherRepository.findAll()) {
+            if (teacher.getId() == null) {
+                continue;
+            }
+            String teacherId = String.valueOf(teacher.getId());
+
+            User user = teacher.getUser();
+            if (user == null) {
+                user = findExistingUserByUsername(teacherId).orElseGet(() -> {
+                    User created = new User();
+                    created.setRole(Role.TEACHER);
+                    created.setTenantId(1L);
+                    return created;
+                });
+            }
+
+            user.setUsername(teacherId);
+            if (user.getPassword() == null || user.getPassword().isBlank()) {
+                user.setPassword(passwordEncoder.encode(teacherId));
+            }
+            user.setRole(Role.TEACHER);
+            user = userRepository.save(user);
+
+            if (teacher.getUser() == null || !user.getId().equals(teacher.getUser().getId())) {
+                teacher.setUser(user);
+                teacherRepository.save(teacher);
+            }
+        }
+    }
+
+    private Optional<User> findExistingUserByUsername(String username) {
+        return userRepository.findByUsername(username);
     }
 
     private User createUser(String username, String password, Role role) {

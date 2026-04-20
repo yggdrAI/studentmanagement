@@ -99,11 +99,15 @@
         <div th:if="${param.error}" class="alert alert-error">
             Invalid username or password. Please try again.
         </div>
+        <div th:if="${param.roleError}" class="alert alert-error" th:text="${studentLoginMode} ? 'This portal is for students only.' : 'Student accounts must use Student Login.'">
+            This account cannot sign in from this portal.
+        </div>
         <div th:if="${param.logout}" class="alert alert-success">
             You have been logged out successfully.
         </div>
 
         <form th:action="@{/login}" method="post">
+            <input type="hidden" name="loginPortal" th:value="${studentLoginMode} ? 'student' : 'staff'">
             <div class="form-group">
                 <label for="username" class="form-label" th:text="${studentLoginMode} ? 'Enrollment Number' : 'Username'">Username</label>
                 <input type="text" id="username" name="username" class="form-input" th:placeholder="${studentLoginMode} ? 'e.g. S25CSEU1006' : 'e.g. admin'" required autofocus>
@@ -116,9 +120,9 @@
         </form>
 
         <div class="hint">
-            <strong>Demo Credentials (Username / Password)</strong><br>
-            <span th:if="${!studentLoginMode}">admin / 1234 &bull; teacher / 1234 &bull; student enrollment / enrollment password</span>
-            <span th:if="${studentLoginMode}">S25CSEU1006 / S25CSEU1006</span>
+            <strong>Login Help</strong><br>
+            <span th:if="${!studentLoginMode}">Use your assigned account credentials.</span>
+            <span th:if="${studentLoginMode}">Use your enrollment number and your current password.</span>
         </div>
 
         <div style="margin-top: 14px; text-align: center; font-size: 13px;">

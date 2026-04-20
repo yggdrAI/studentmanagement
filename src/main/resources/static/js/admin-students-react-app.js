@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "https://esm.sh/react@18.3.1";
+import React, { useEffect, useMemo, useRef, useState } from "https://esm.sh/react@18.3.1";
 import { createRoot } from "https://esm.sh/react-dom@18.3.1/client";
 import { motion, AnimatePresence } from "https://esm.sh/framer-motion@11.11.17?deps=react@18.3.1";
 import {
@@ -13,11 +13,14 @@ import {
 import { DndContext, useDraggable, useDroppable } from "https://esm.sh/@dnd-kit/core@6.1.0?deps=react@18.3.1";
 
 function api(path, options = {}) {
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   return fetch(path, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    },
+    headers: isFormData
+      ? { ...(options.headers || {}) }
+      : {
+          "Content-Type": "application/json",
+          ...(options.headers || {})
+        },
     ...options
   }).then(async (res) => {
     if (!res.ok) {
@@ -39,7 +42,7 @@ function performanceColor(band) {
   return "#fca5a5";
 }
 
-function StudentCard({ student }) {
+function StudentCard({ student, onViewProfile, onUploadFace, onEdit, onDelete }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: student.id,
     data: {
@@ -68,10 +71,30 @@ function StudentCard({ student }) {
       React.createElement("div", { className: "rh-student-name" }, student.name),
       React.createElement("div", { className: "rh-student-meta" }, `${student.enrollment} | ${student.email}`),
       React.createElement("div", { className: "rh-actions" },
-        React.createElement("button", { className: "rh-btn", type: "button" }, "View Profile"),
-        React.createElement("button", { className: "rh-btn", type: "button" }, "Upload Face"),
-        React.createElement("button", { className: "rh-btn", type: "button" }, "Edit"),
-        React.createElement("button", { className: "rh-btn rh-btn-danger", type: "button" }, "Delete")
+        React.createElement("button", {
+          className: "rh-btn",
+          type: "button",
+          onPointerDown: (event) => event.stopPropagation(),
+          onClick: () => onViewProfile(student.id)
+        }, "View Profile"),
+        React.createElement("button", {
+          className: "rh-btn",
+          type: "button",
+          onPointerDown: (event) => event.stopPropagation(),
+          onClick: () => onUploadFace(student.id)
+        }, "Upload Face"),
+        React.createElement("button", {
+          className: "rh-btn",
+          type: "button",
+          onPointerDown: (event) => event.stopPropagation(),
+          onClick: () => onEdit(student.id)
+        }, "Edit"),
+        React.createElement("button", {
+          className: "rh-btn rh-btn-danger",
+          type: "button",
+          onPointerDown: (event) => event.stopPropagation(),
+          onClick: () => onDelete(student.id)
+        }, "Delete")
       )
     ),
     React.createElement(
@@ -82,7 +105,7 @@ function StudentCard({ student }) {
   );
 }
 
-function BatchColumn({ batch, onToggle, expanded }) {
+function BatchColumn({ batch, onToggle, expanded, onViewProfile, onUploadFace, onEdit, onDelete }) {
   const droppableId = `drop-class-${batch.classNumber}-batch-${batch.number}`;
   const { setNodeRef, isOver } = useDroppable({
     id: droppableId,
@@ -120,13 +143,20 @@ function BatchColumn({ batch, onToggle, expanded }) {
           animate: { opacity: 1, height: "auto" },
           exit: { opacity: 0, height: 0 }
         },
-        batch.students.map((student) => React.createElement(StudentCard, { key: student.id, student }))
+        batch.students.map((student) => React.createElement(StudentCard, {
+          key: student.id,
+          student,
+          onViewProfile,
+          onUploadFace,
+          onEdit,
+          onDelete
+        }))
       )
     )
   );
 }
 
-function ClassCard({ cls, expanded, onToggle, expandedBatches, onToggleBatch }) {
+function ClassCard({ cls, expanded, onToggle, expandedBatches, onToggleBatch, onViewProfile, onUploadFace, onEdit, onDelete }) {
   return React.createElement(
     motion.div,
     {
@@ -187,7 +217,11 @@ function ClassCard({ cls, expanded, onToggle, expandedBatches, onToggleBatch }) 
           key: batch.id,
           batch,
           expanded: expandedBatches.has(batch.id),
-          onToggle: () => onToggleBatch(batch.id)
+          onToggle: () => onToggleBatch(batch.id),
+          onViewProfile,
+          onUploadFace,
+          onEdit,
+          onDelete
         }))
       )
     )
@@ -201,6 +235,8 @@ function App() {
   const [expandedBatches, setExpandedBatches] = useState(new Set());
   const [filters, setFilters] = useState({ classNumber: "", batchNumber: "", course: "", performance: "", semester: "" });
   const [toast, setToast] = useState("");
+  const [pendingFaceStudentId, setPendingFaceStudentId] = useState("");
+  const faceUploadInputRef = useRef(null);
 
   const params = useMemo(() => {
     const p = new URLSearchParams();
@@ -288,6 +324,61 @@ function App() {
     }).catch((err) => setToast(`Reassign failed: ${err.message}`));
   };
 
+  const openProfile = (studentId) => {
+    window.location.href = `/admin/students/${encodeURIComponent(studentId)}/profile`;
+  };
+
+  const openEditProfile = (studentId) => {
+    window.location.href = `/admin/students/${encodeURIComponent(studentId)}/profile?edit=1`;
+  };
+
+  const promptFaceUpload = (studentId) => {
+    setPendingFaceStudentId(studentId);
+    if (faceUploadInputRef.current) {
+      faceUploadInputRef.current.value = "";
+      faceUploadInputRef.current.click();
+    }
+  };
+
+  const deleteStudent = async (studentId) => {
+    const confirmed = window.confirm(`Delete student ${studentId}? This cannot be undone.`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await api(`/api/admin/students/${encodeURIComponent(studentId)}`, { method: "DELETE" });
+      setToast(`Student ${studentId} deleted`);
+      load();
+    } catch (err) {
+      setToast(`Delete failed: ${err.message}`);
+    }
+  };
+
+  const handleFaceFileChange = async (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file || !pendingFaceStudentId) {
+      return;
+    }
+
+    const studentId = pendingFaceStudentId;
+    const formData = new FormData();
+    formData.append("studentId", studentId);
+    formData.append("file", file);
+
+    try {
+      const response = await api("/api/admin/upload-face", {
+        method: "POST",
+        body: formData
+      });
+      setToast(response?.message || `Face uploaded for ${studentId}`);
+    } catch (err) {
+      setToast(`Face upload failed: ${err.message}`);
+    } finally {
+      setPendingFaceStudentId("");
+    }
+  };
+
   return React.createElement(
     DndContext,
     { onDragEnd },
@@ -355,9 +446,21 @@ function App() {
               expanded: expandedClasses.has(cls.id),
               expandedBatches,
               onToggle: () => toggleClass(cls.id),
-              onToggleBatch: toggleBatch
+              onToggleBatch: toggleBatch,
+              onViewProfile: openProfile,
+              onUploadFace: promptFaceUpload,
+              onEdit: openEditProfile,
+              onDelete: deleteStudent
             }))
           ),
+
+      React.createElement("input", {
+        ref: faceUploadInputRef,
+        type: "file",
+        accept: "image/*",
+        hidden: true,
+        onChange: handleFaceFileChange
+      }),
 
       toast ? React.createElement("div", { className: "rh-toast" }, toast) : null
     )

@@ -12,10 +12,10 @@ public class AdminProfileController {
     @GetMapping("/admin/profile")
     public String adminProfile(Model model) {
         model.addAttribute("adminName", "The Creator, Bhavya Jain");
-        model.addAttribute("adminEmail", "bhavya.jain@bennett.edu.in");
+        model.addAttribute("adminEmail", "bhavyajain15007@gmail.com");
         model.addAttribute("adminRole", "ADMIN");
         model.addAttribute("adminDob", "15-03-2007");
-        model.addAttribute("adminGender", "Female");
+        model.addAttribute("adminGender", "Male");
         model.addAttribute("adminDepartment", "School of Computer Science & Tech");
         model.addAttribute("adminDesignation", "System Creator");
         return "admin-profile";

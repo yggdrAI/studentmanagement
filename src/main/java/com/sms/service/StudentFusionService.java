@@ -11,6 +11,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -21,6 +23,12 @@ import com.sms.model.StudentImportRow;
 
 @Service
 public class StudentFusionService {
+
+    private static final int BATCH_SIZE = 30;
+    private static final int CLASS_SIZE = 120;
+    private static final Pattern ENROLLMENT_YEAR_4_PATTERN = Pattern.compile("(19\\d{2}|20\\d{2})");
+    private static final Pattern ENROLLMENT_YEAR_2_PREFIX_PATTERN = Pattern.compile("^(\\d{2})[A-Z].*");
+    private static final Pattern ENROLLMENT_DIGITS_PATTERN = Pattern.compile("(\\d+)");
 
     private final ObjectMapper objectMapper;
 
@@ -131,7 +139,7 @@ public class StudentFusionService {
         addValues(fieldValues, "bloodGroup", members.stream().map(StudentImportRow::getBloodGroup).toList());
         addValues(fieldValues, "guardianName", members.stream().map(StudentImportRow::getGuardianName).toList());
 
-        String fullName = select(fieldValues, "fullName");
+        String fullName = normalizePersonName(select(fieldValues, "fullName"));
         NameParts nameParts = splitName(fullName);
 
         String enrollment = normalizeEnrollment(select(fieldValues, "enrollmentNumber"));
@@ -146,7 +154,9 @@ public class StudentFusionService {
         String section = normalizeSection(select(fieldValues, "section", "className"));
 
         String chosenIdentity = enrollment != null ? enrollment : (rollNumber != null ? rollNumber : cluster.id);
-        double confidence = scoreConfidence(members, fieldValues, chosenIdentity);
+        double confidencePercent = Math.max(50.0, round(scoreConfidence(members, fieldValues, chosenIdentity) * 100.0));
+        String classGroup = computeClassGroup(firstText(enrollment, rollNumber));
+        String batchGroup = computeBatchGroup(firstText(enrollment, rollNumber));
 
         Map<String, Double> fieldConfidence = new LinkedHashMap<>();
         fieldConfidence.put("fullName", confidenceFor(fieldValues.get("fullName")));
@@ -190,7 +200,7 @@ public class StudentFusionService {
                 "clusterId", cluster.id,
                 "type", "missing-last-name",
                 "message", "Missing last name can be backfilled from another matching file",
-                "confidence", confidence
+                "confidence", confidencePercent
             ));
         }
         if (conflicts.stream().anyMatch(item -> "department".equals(item.get("field")))) {
@@ -198,7 +208,7 @@ public class StudentFusionService {
                 "clusterId", cluster.id,
                 "type", "department-normalization",
                 "message", "Department values differ. Prefer the most specific/complete label.",
-                "confidence", confidence
+                "confidence", confidencePercent
             ));
         }
 
@@ -217,10 +227,12 @@ public class StudentFusionService {
         preview.put("leavingYear", leavingYear);
         preview.put("className", className);
         preview.put("section", section);
+        preview.put("classGroup", classGroup);
+        preview.put("batchGroup", batchGroup);
         preview.put("house", house);
         preview.put("sources", sourceRows.stream().map(row -> row.get("sourceFileName")).filter(v -> v != null).distinct().toList());
         preview.put("sourceRows", sourceRows);
-        preview.put("confidenceScore", round(confidence * 100.0));
+        preview.put("confidenceScore", confidencePercent);
         preview.put("fieldConfidence", fieldConfidence);
         preview.put("conflicts", conflicts);
         preview.put("identityKey", chosenIdentity);
@@ -229,11 +241,11 @@ public class StudentFusionService {
         mergeLog.put("clusterId", cluster.id);
         mergeLog.put("sources", preview.get("sources"));
         mergeLog.put("memberCount", members.size());
-        mergeLog.put("confidenceScore", round(confidence * 100.0));
+        mergeLog.put("confidenceScore", confidencePercent);
         mergeLog.put("selectedFields", preview);
         mergeLog.put("conflicts", conflicts);
 
-        return new ClusterSummary(preview, mergeLog, suggestions, confidence * 100.0);
+        return new ClusterSummary(preview, mergeLog, suggestions, confidencePercent);
     }
 
     private StudentImportRow chooseRepresentative(List<StudentImportRow> members) {
@@ -443,8 +455,78 @@ public class StudentFusionService {
     }
 
     private String normalizeEnrollment(String value) {
-        String cleaned = normalizeIdentity(value);
-        return cleaned.replaceAll("\\s+", "");
+        if (!hasText(value)) {
+            return null;
+        }
+        return clean(value).replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
+    }
+
+    private String computeClassGroup(String enrollmentNumber) {
+        Integer serial = extractEnrollmentSerial(enrollmentNumber);
+        if (serial == null || serial <= 0) {
+            return null;
+        }
+        int classNumber = ((serial - 1) / CLASS_SIZE) + 1;
+        return "Class " + classNumber;
+    }
+
+    private String computeBatchGroup(String enrollmentNumber) {
+        Integer serial = extractEnrollmentSerial(enrollmentNumber);
+        if (serial == null || serial <= 0) {
+            return null;
+        }
+        int batchNumber = (((serial - 1) % CLASS_SIZE) / BATCH_SIZE) + 1;
+        return "Batch " + batchNumber;
+    }
+
+    private Integer extractEnrollmentSerial(String enrollmentNumber) {
+        if (!hasText(enrollmentNumber)) {
+            return null;
+        }
+
+        String cleaned = normalizeEnrollment(enrollmentNumber);
+        if (!hasText(cleaned)) {
+            return null;
+        }
+
+        String digitsOnly = cleaned.replaceAll("\\D+", "");
+        if (!hasText(digitsOnly)) {
+            return null;
+        }
+
+        String serialCandidate = null;
+        String year = parseEnrollmentYear(cleaned);
+        if (hasText(year) && digitsOnly.startsWith(year) && digitsOnly.length() > year.length()) {
+            serialCandidate = digitsOnly.substring(year.length());
+        }
+        if (!hasText(serialCandidate)) {
+            Matcher trailing = Pattern.compile("(\\d{2,4})$").matcher(cleaned);
+            if (trailing.find()) {
+                serialCandidate = trailing.group(1);
+            }
+        }
+        boolean blankOrZeros = !hasText(serialCandidate)
+            || (serialCandidate != null && serialCandidate.replace("0", "").isBlank());
+        if (blankOrZeros) {
+            Matcher allGroups = ENROLLMENT_DIGITS_PATTERN.matcher(cleaned);
+            while (allGroups.find()) {
+                serialCandidate = allGroups.group(1);
+            }
+        }
+        if (!hasText(serialCandidate)) {
+            return null;
+        }
+
+        serialCandidate = serialCandidate == null ? null : serialCandidate.replaceFirst("^0+(?!$)", "");
+        if (serialCandidate.length() > 4) {
+            serialCandidate = serialCandidate.substring(serialCandidate.length() - 4);
+        }
+
+        try {
+            return Integer.parseInt(serialCandidate);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private String normalizeName(String value) {
@@ -537,14 +619,66 @@ public class StudentFusionService {
     }
 
     private String extractYear(String enrollmentNumber) {
+        return parseEnrollmentYear(enrollmentNumber);
+    }
+
+    private String parseEnrollmentYear(String enrollmentNumber) {
         if (!hasText(enrollmentNumber)) {
             return null;
         }
-        String digits = enrollmentNumber.replaceAll("\\D+", "");
+
+        String cleaned = normalizeEnrollment(enrollmentNumber);
+        if (!hasText(cleaned)) {
+            return null;
+        }
+
+        Matcher year4 = ENROLLMENT_YEAR_4_PATTERN.matcher(cleaned);
+        if (year4.find()) {
+            return year4.group(1);
+        }
+
+        Matcher year2Prefix = ENROLLMENT_YEAR_2_PREFIX_PATTERN.matcher(cleaned);
+        if (year2Prefix.matches()) {
+            int yy = Integer.parseInt(year2Prefix.group(1));
+            int fullYear = yy <= 69 ? 2000 + yy : 1900 + yy;
+            return String.valueOf(fullYear);
+        }
+
+        String digits = cleaned.replaceAll("\\D+", "");
         if (digits.length() >= 4) {
-            return digits.substring(0, 4);
+            String candidate = digits.substring(0, 4);
+            try {
+                int year = Integer.parseInt(candidate);
+                if (year >= 1990 && year <= 2100) {
+                    return candidate;
+                }
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
         }
         return null;
+    }
+
+    private String normalizePersonName(String value) {
+        String cleaned = clean(value);
+        if (!hasText(cleaned)) {
+            return null;
+        }
+
+        if (cleaned.matches(".*\\d.*") || cleaned.contains("@")) {
+            return cleaned;
+        }
+
+        String[] tokens = cleaned.split("\\s+");
+        List<String> normalized = new ArrayList<>(tokens.length);
+        for (String token : tokens) {
+            if (token.isBlank()) {
+                continue;
+            }
+            String lower = token.toLowerCase(Locale.ROOT);
+            normalized.add(Character.toUpperCase(lower.charAt(0)) + lower.substring(1));
+        }
+        return normalized.isEmpty() ? cleaned : String.join(" ", normalized);
     }
 
     private NameParts splitName(String fullName) {

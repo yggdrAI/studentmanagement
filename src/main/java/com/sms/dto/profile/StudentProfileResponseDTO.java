@@ -18,6 +18,8 @@ public class StudentProfileResponseDTO {
 
     private String phone;
     private String email;
+    private String universityEmail;
+    private String personalEmail;
     private String address;
 
     private String guardianName;
@@ -28,6 +30,9 @@ public class StudentProfileResponseDTO {
     private String department;
     private String semester;
     private String section;
+    private String foundationClassroom;
+    private Integer teamNumber;
+    private Integer memberNumber;
     private Integer admissionYear;
     private Integer passingYear;
 
@@ -66,6 +71,10 @@ public class StudentProfileResponseDTO {
     public void setPhone(String phone) { this.phone = phone; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+    public String getUniversityEmail() { return universityEmail; }
+    public void setUniversityEmail(String universityEmail) { this.universityEmail = universityEmail; }
+    public String getPersonalEmail() { return personalEmail; }
+    public void setPersonalEmail(String personalEmail) { this.personalEmail = personalEmail; }
     public String getAddress() { return address; }
     public void setAddress(String address) { this.address = address; }
     public String getGuardianName() { return guardianName; }
@@ -82,6 +91,12 @@ public class StudentProfileResponseDTO {
     public void setSemester(String semester) { this.semester = semester; }
     public String getSection() { return section; }
     public void setSection(String section) { this.section = section; }
+    public String getFoundationClassroom() { return foundationClassroom; }
+    public void setFoundationClassroom(String foundationClassroom) { this.foundationClassroom = foundationClassroom; }
+    public Integer getTeamNumber() { return teamNumber; }
+    public void setTeamNumber(Integer teamNumber) { this.teamNumber = teamNumber; }
+    public Integer getMemberNumber() { return memberNumber; }
+    public void setMemberNumber(Integer memberNumber) { this.memberNumber = memberNumber; }
     public Integer getAdmissionYear() { return admissionYear; }
     public void setAdmissionYear(Integer admissionYear) { this.admissionYear = admissionYear; }
     public Integer getPassingYear() { return passingYear; }

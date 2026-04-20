@@ -932,6 +932,7 @@
                         <button class="tab-btn" data-tab="identity">Identity</button>
                         <button class="tab-btn" data-tab="contact">Contact</button>
                         <button class="tab-btn" data-tab="guardian">Guardian</button>
+                        <button class="tab-btn" data-tab="security" th:if="${profileMode != 'ADMIN'}">Security</button>
                         <button class="tab-btn" data-tab="documents">Documents</button>
                         <button class="tab-btn" data-tab="analytics">Analytics</button>
                         <button class="tab-btn" data-tab="metadata">Metadata</button>
@@ -951,6 +952,26 @@
                     </section>
                     <section class="tab-pane" data-pane="guardian">
                         <div class="field-grid" id="guardianGrid"></div>
+                    </section>
+                    <section class="tab-pane" data-pane="security" th:if="${profileMode != 'ADMIN'}">
+                        <div class="field-grid" style="grid-template-columns: 1fr;">
+                            <div class="field-card full">
+                                <label class="field-label" for="currentPassword">Current Password</label>
+                                <input class="field-input editable" id="currentPassword" type="password" placeholder="Enter current password" />
+                            </div>
+                            <div class="field-card full">
+                                <label class="field-label" for="newPassword">New Password</label>
+                                <input class="field-input editable" id="newPassword" type="password" placeholder="Enter new password" />
+                            </div>
+                            <div class="field-card full">
+                                <label class="field-label" for="confirmPassword">Confirm New Password</label>
+                                <input class="field-input editable" id="confirmPassword" type="password" placeholder="Confirm new password" />
+                            </div>
+                            <div class="field-card full" style="display:flex; gap:0.75rem; align-items:center;">
+                                <button class="btn btn-primary" type="button" id="changePasswordBtn">Change Password</button>
+                                <span id="changePasswordStatus" class="field-value">Use your current password to update credentials.</span>
+                            </div>
+                        </div>
                     </section>
                     <section class="tab-pane" data-pane="documents">
                         <table class="documents-table" id="documentsTable">
@@ -978,10 +999,11 @@
     const PROFILE_MODE = /*[[${profileMode}]]*/ 'STUDENT';
     const TARGET_STUDENT_ID = /*[[${targetStudentId}]]*/ '';
     const CAN_ADMIN_EDIT = PROFILE_MODE === 'ADMIN';
+    const PROFILE_QUERY = new URLSearchParams(window.location.search);
 
     let currentProfile = null;
     let originalProfileSnapshot = null;
-    let editEnabled = false;
+    let editEnabled = CAN_ADMIN_EDIT && (PROFILE_QUERY.get('edit') === '1' || PROFILE_QUERY.get('mode') === 'edit');
     let autoSaveTimer = null;
     const profileCharts = {};
 
@@ -1003,6 +1025,9 @@
         { key: 'semester', label: 'Semester', section: 'academic', type: 'select', required: true },
         { key: 'section', label: 'Section', section: 'academic', type: 'select', required: true,
             options: ['A', 'B', 'C', 'D'] },
+        { key: 'foundationClassroom', label: 'Foundation Classroom', section: 'academic', type: 'text' },
+        { key: 'teamNumber', label: 'Team Number', section: 'academic', type: 'number' },
+        { key: 'memberNumber', label: 'Member Number', section: 'academic', type: 'number' },
         { key: 'admissionYear', label: 'Admission Year', section: 'academic', type: 'select', required: true },
         { key: 'passingYear', label: 'Passing Year', section: 'academic', type: 'select', required: true },
 
@@ -1013,7 +1038,8 @@
         { key: 'profileImage', label: 'Profile Image URL', section: 'identity', type: 'text' },
 
         { key: 'phone', label: 'Phone', section: 'contact', type: 'text', required: true },
-        { key: 'email', label: 'Email', section: 'contact', type: 'text', required: true, readonly: true },
+    { key: 'universityEmail', label: 'University Email', section: 'contact', type: 'text', required: true },
+    { key: 'personalEmail', label: 'Personal Email', section: 'contact', type: 'text' },
         { key: 'address', label: 'Address', section: 'contact', type: 'text', required: true, full: true },
 
         { key: 'guardianName', label: 'Guardian Name', section: 'guardian', type: 'text', required: true },
@@ -1620,6 +1646,9 @@
                 department: allValues.department,
                 semester: allValues.semester,
                 section: allValues.section,
+                foundationClassroom: allValues.foundationClassroom,
+                teamNumber: allValues.teamNumber,
+                memberNumber: allValues.memberNumber,
                 admissionYear: allValues.admissionYear,
                 passingYear: allValues.passingYear
             },
@@ -1632,7 +1661,8 @@
             },
             contact: {
                 phone: allValues.phone,
-                email: allValues.email,
+                universityEmail: allValues.universityEmail,
+                personalEmail: allValues.personalEmail,
                 address: allValues.address
             },
             guardian: {
@@ -1651,7 +1681,9 @@
                 religion: allValues.religion,
                 bloodGroup: allValues.bloodGroup,
                 phone: allValues.phone,
-                email: allValues.email,
+                email: allValues.universityEmail,
+                universityEmail: allValues.universityEmail,
+                personalEmail: allValues.personalEmail,
                 address: allValues.address,
                 guardianName: allValues.guardianName,
                 guardianPhone: allValues.guardianPhone,
@@ -1660,6 +1692,9 @@
                 department: allValues.department,
                 semester: allValues.semester,
                 section: allValues.section,
+                foundationClassroom: allValues.foundationClassroom,
+                teamNumber: allValues.teamNumber ? Number(allValues.teamNumber) : null,
+                memberNumber: allValues.memberNumber ? Number(allValues.memberNumber) : null,
                 admissionYear: allValues.admissionYear ? Number(allValues.admissionYear) : null,
                 passingYear: allValues.passingYear ? Number(allValues.passingYear) : null,
                 validUpto: allValues.validUpto || null,
@@ -1918,6 +1953,35 @@
         document.getElementById('downloadBtn').addEventListener('click', () => {
             window.print();
         });
+
+        const changePasswordBtn = document.getElementById('changePasswordBtn');
+        if (changePasswordBtn) {
+            changePasswordBtn.addEventListener('click', async () => {
+                const currentPassword = document.getElementById('currentPassword').value;
+                const newPassword = document.getElementById('newPassword').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+                const statusEl = document.getElementById('changePasswordStatus');
+
+                if (!currentPassword || !newPassword || !confirmPassword) {
+                    statusEl.textContent = 'Please fill all password fields.';
+                    return;
+                }
+
+                try {
+                    await window.smsApi.put('/api/student/profile/password', {
+                        currentPassword,
+                        newPassword,
+                        confirmPassword
+                    });
+                    document.getElementById('currentPassword').value = '';
+                    document.getElementById('newPassword').value = '';
+                    document.getElementById('confirmPassword').value = '';
+                    statusEl.textContent = 'Password changed successfully.';
+                } catch (error) {
+                    statusEl.textContent = error.message || 'Unable to change password.';
+                }
+            });
+        }
     }
 
     document.addEventListener('DOMContentLoaded', async () => {

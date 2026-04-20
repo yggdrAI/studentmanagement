@@ -49,6 +49,7 @@ public class AdminController {
         model.addAttribute("databaseStatus", databaseStatusService.getSnapshot());
         model.addAttribute("databaseMigrationMessage", databaseMigrationService.getLastMigrationMessage());
         model.addAttribute("databaseMigrationSuccess", databaseMigrationService.isLastMigrationSuccess());
+        model.addAttribute("assetVersion", System.currentTimeMillis());
         return "admin-dashboard";
     }
 

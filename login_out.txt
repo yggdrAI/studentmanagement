@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Control Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/admin-dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<aside id="sidebar" class="sidebar" aria-label="Main Navigation">
+        <script>
+            (function () {
+                if (window.__SMS_THEME_BOOTSTRAPPED) {
+                    return;
+                }
+                window.__SMS_THEME_BOOTSTRAPPED = true;
+                try {
+                    var saved = localStorage.getItem('sms_theme');
+                    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    var fallback = prefersDark ? 'dim' : 'light';
+                    var theme = (saved === 'light' || saved === 'dim' || saved === 'dark' || saved === 'premium') ? saved : fallback;
+                    document.documentElement.setAttribute('data-theme', theme);
+                } catch (_err) {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                }
+
+                if (!window.__SMS_UI_SYSTEM_BOOTSTRAPPED) {
+                    window.__SMS_UI_SYSTEM_BOOTSTRAPPED = true;
+                    var styleLink = document.createElement('link');
+                    styleLink.rel = 'stylesheet';
+                    styleLink.href = '/css/smart-campus-ui.css';
+                    document.head.appendChild(styleLink);
+
+                    var uiScript = document.createElement('script');
+                    uiScript.src = '/js/smart-campus-ui.js';
+                    uiScript.defer = true;
+                    document.head.appendChild(uiScript);
+                }
+            })();
+        </script>
+        <script src="/js/api-client.js"></script>
+        <!-- Logo -->
+        <div class="logo-container">
+            <a href="/dashboard" class="logo-placeholder" aria-label="Bennett University Logo">
+                <span class="red">BENNETT</span><br>
+                UNIVERSITY<br>
+                <span class="subtitle">The Times Group</span>
+            </a>
+        </div>
+
+        <!-- Search Form -->
+        <div class="search-area">
+            <label for="navSearch" class="sr-only">Search Navigation</label>
+            <div class="search-input-wrapper">
+                <svg class="search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                <input type="search" id="navSearch" class="search-input" placeholder="Search...">
+            </div>
+        </div>
+
+        <!-- Links (Highlight Active Tab Dynamically) -->
+        <nav class="nav-links" aria-label="Sidebar Links">
+            <a href="/dashboard" class="nav-item active">Dashboard</a>
+            <a href="/admin/students" class="nav-item">Manage Students</a>
+            <a href="/admin/import/students" class="nav-item">Bulk Student Import</a>
+            <a href="/teachers" class="nav-item">Manage Teachers</a>
+            <a href="/ai-insights" class="nav-item">AI Insights</a>
+            <a href="/courses" class="nav-item">Manage Courses</a>
+            <a href="/admin/timetables" class="nav-item">Weekly Timetable</a>
+            
+            
+            
+            <a href="/attendance/reports" class="nav-item">Attendance Reports</a>
+            <a href="/cafeteria" class="nav-item">Cafeteria</a>
+            <a href="/campus-map" class="nav-item">🗺 Live Campus Map</a>
+            <a href="/exam-schedules" class="nav-item">Exam Schedules</a>
+            <a href="/reports" class="nav-item">Reports</a>
+            <a href="/holidays" class="nav-item">Holidays</a>
+            <a href="/services" class="nav-item">Services</a>
+            <a href="/enrollment" class="nav-item">Enrollment</a>
+            
+        </nav>
+
+        <nav class="bottom-nav-global sc-mobile-only" aria-label="Smart Campus mobile navigation">
+            <a href="/dashboard" class="active">Home</a>
+            <a href="/attendance/scanner">Scan</a>
+            <a href="/cafeteria">Cafeteria</a>
+            <a href="/student/profile">Profile</a>
+        </nav>
+    </aside>
+
+<main class="content-area" id="maincontent" tabindex="-1">
+    <div class="content-wrapper admin-control-shell">
+        <header class="admin-topbar">
+            <div>
+                <p class="eyebrow">Smart University Operations</p>
+                <h1 class="page-title">Admin Control Center</h1>
+                <p class="page-subtitle">Welcome <span>bhavya</span>. Monitor campus systems, attendance and operational alerts from one place.</p>
+            </div>
+            <span id="systemHealthBadge" class="status-pill healthy">Healthy</span>
+        </header>
+
+        <section class="kpi-grid" id="kpiGrid" aria-label="Top metrics"></section>
+
+        <section class="health-and-actions">
+            <article class="glass-card health-card">
+                <header class="card-head">
+                    <h2>Database Health</h2>
+                    <span id="dbStatusBadge" class="chip healthy">Healthy</span>
+                </header>
+                <div class="health-metrics" id="dbHealthMetrics"></div>
+                <div class="storage-wrap">
+                    <label for="storageBar">Storage Usage</label>
+                    <div class="storage-track">
+                        <span id="storageBar" class="storage-fill" style="width:0%;"></span>
+                    </div>
+                    <small id="storageText">0% utilized</small>
+                </div>
+                <details class="advanced-info">
+                    <summary>Advanced Info</summary>
+                    <pre id="advancedInfoDump">Loading...</pre>
+                </details>
+                <div class="row-actions">
+                    <a class="btn btn-primary" href="/api/admin/database/export">Export Backup</a>
+                    <button class="btn btn-outline" type="button" id="restoreDbBtn">Restore Backup</button>
+                    <input id="restoreDbInput" type="file" accept=".sql" hidden>
+                </div>
+            </article>
+
+            <article class="glass-card quick-actions-card">
+                <header class="card-head">
+                    <h2>Quick Actions</h2>
+                    <p>Operational shortcuts</p>
+                </header>
+                <div class="quick-action-grid">
+                    <a class="quick-action" href="/admin/students">
+                        <span class="icon">🎓</span><span>Add Student</span>
+                    </a>
+                    <a class="quick-action" href="/teachers">
+                        <span class="icon">👩‍🏫</span><span>Add Teacher</span>
+                    </a>
+                    <a class="quick-action" href="/admin/timetables">
+                        <span class="icon">🗓</span><span>Create Timetable</span>
+                    </a>
+                    <a class="quick-action" href="/attendance/teacher">
+                        <span class="icon">📱</span><span>Start QR Session</span>
+                    </a>
+                    <a class="quick-action" href="/attendance/reports">
+                        <span class="icon">📈</span><span>View Reports</span>
+                    </a>
+                    <a class="quick-action" href="/ai-insights">
+                        <span class="icon">🧠</span><span>AI Insights</span>
+                    </a>
+                </div>
+            </article>
+        </section>
+
+        <section class="glass-card analytics-card">
+            <header class="card-head">
+                <h2>System Analytics</h2>
+                <p>Lazy-loaded operational trends</p>
+            </header>
+            <div class="chart-grid">
+                <article class="chart-box">
+                    <h3>Students Growth</h3>
+                    <canvas id="studentsGrowthChart"></canvas>
+                </article>
+                <article class="chart-box">
+                    <h3>Attendance Trends</h3>
+                    <canvas id="attendanceTrendChart"></canvas>
+                </article>
+                <article class="chart-box">
+                    <h3>Classes Per Day</h3>
+                    <canvas id="classesPerDayChart"></canvas>
+                </article>
+            </div>
+        </section>
+
+        <section class="split-grid">
+            <article class="glass-card alerts-card">
+                <header class="card-head">
+                    <h2>Alerts & Warnings</h2>
+                    <p>Prioritized operational risks</p>
+                </header>
+                <div class="alert-columns">
+                    <section>
+                        <h3>Low Attendance</h3>
+                        <ul id="lowAttendanceList" class="signal-list"></ul>
+                    </section>
+                    <section>
+                        <h3>System Issues</h3>
+                        <ul id="systemIssueList" class="signal-list"></ul>
+                    </section>
+                    <section>
+                        <h3>Suspicious Activity</h3>
+                        <ul id="suspiciousList" class="signal-list"></ul>
+                    </section>
+                </div>
+            </article>
+
+            <article class="glass-card activity-card">
+                <header class="card-head">
+                    <h2>Recent Activity</h2>
+                    <p>Live admin and system actions</p>
+                </header>
+                <ul id="recentActivityList" class="activity-list"></ul>
+            </article>
+        </section>
+    </div>
+</main>
+
+<aside class="floating-tools" aria-label="Quick Tools">
+        
+        <a href="/admin/profile" class="tool-btn" aria-label="Admin Profile">🪪</a>
+        <button type="button" class="tool-btn" aria-label="Application Menu">⋮⋮</button>
+        <button type="button" id="userSettingsBtn" class="tool-btn" aria-label="User Settings" aria-expanded="false" aria-controls="userSettingsModal">⚙</button>
+        <!-- Logout Form using Spring Security -->
+        <form id="smsLogoutForm" action="/logout" method="post" style="margin-top: 24px;">
+            <button type="submit" class="tool-btn" aria-label="Logout" style="color: #dc2626; width: 48px;">🚪</button>
+        </form>
+
+        <script>
+            (function () {
+                var logoutForm = document.getElementById('smsLogoutForm');
+                if (!logoutForm) {
+                    return;
+                }
+
+                logoutForm.addEventListener('submit', function (event) {
+                    event.preventDefault();
+
+                    if (window.smsClearAuthTokens) {
+                        window.smsClearAuthTokens();
+                    }
+
+                    fetch('/logout', {
+                        method: 'POST',
+                        headers: {
+                            Accept: 'text/html'
+                        },
+                        credentials: 'same-origin'
+                    }).finally(function () {
+                        window.location.replace('/login?logout');
+                    });
+                });
+            })();
+        </script>
+
+        <div id="userSettingsModal" class="user-settings-modal" role="dialog" aria-modal="true" aria-labelledby="userSettingsTitle" hidden>
+            <section class="user-settings-window">
+                <header class="user-settings-head">
+                    <h3 id="userSettingsTitle" class="user-settings-title">User Settings</h3>
+                    <button type="button" id="userSettingsClose" class="tool-btn" aria-label="Close User Settings">✕</button>
+                </header>
+
+                <div class="user-settings-group">
+                    <label class="user-settings-label" for="sidebarThemeSelect">Theme</label>
+                    <select id="sidebarThemeSelect" class="user-settings-select" aria-label="Theme Preference">
+                        <option value="light">☀️ Light</option>
+                        <option value="dim">🌙 Dim</option>
+                        <option value="dark">🌌 Dark</option>
+                        <option value="premium">💎 Premium</option>
+                    </select>
+                </div>
+
+                <div class="user-settings-group">
+                    <label class="user-settings-label" for="sidebarDensitySelect">Interface Density</label>
+                    <select id="sidebarDensitySelect" class="user-settings-select" aria-label="Interface Density">
+                        <option value="comfortable">Comfortable</option>
+                        <option value="compact">Compact</option>
+                    </select>
+                </div>
+
+                <div class="user-settings-group">
+                    <label class="user-settings-label" for="sidebarMotionSelect">Motion</label>
+                    <select id="sidebarMotionSelect" class="user-settings-select" aria-label="Motion Preference">
+                        <option value="normal">Normal</option>
+                        <option value="reduced">Reduced</option>
+                    </select>
+                </div>
+            </section>
+        </div>
+
+        <script id="sms-theme-manager-script" src="/js/theme-manager.js"></script>
+    </aside>
+
+<script src="/js/admin-dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+ALTER TABLE student_profile
+    ADD COLUMN IF NOT EXISTS caste VARCHAR(128) NULL,
+    ADD COLUMN IF NOT EXISTS place_of_origin VARCHAR(255) NULL;

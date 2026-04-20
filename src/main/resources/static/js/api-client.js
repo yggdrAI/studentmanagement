@@ -192,6 +192,8 @@
                 remove: (id) => request('/api/admin/students/' + encodeURIComponent(id), { method: 'DELETE' }),
                 bulkDelete: (ids) => request('/api/admin/students/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) }),
                 activity: (limit) => request('/api/admin/students/activity?limit=' + encodeURIComponent(limit || 8)),
+                changePassword: (id, payload) => request('/api/admin/students/' + encodeURIComponent(id) + '/password', { method: 'PUT', body: JSON.stringify(payload) }),
+                resetPassword: (id) => request('/api/admin/students/' + encodeURIComponent(id) + '/password/reset', { method: 'POST' }),
                 uploadFace: (studentId, file, options) => {
                     var formData = new FormData();
                     formData.append('studentId', studentId);
@@ -212,6 +214,11 @@
                         body: formData
                     });
                 }
+            },
+            teachers: {
+                list: () => request('/api/admin/teachers'),
+                changePassword: (teacherId, payload) => request('/api/admin/teachers/' + encodeURIComponent(teacherId) + '/password', { method: 'PUT', body: JSON.stringify(payload) }),
+                resetPassword: (teacherId) => request('/api/admin/teachers/' + encodeURIComponent(teacherId) + '/password/reset', { method: 'POST' })
             }
         },
 

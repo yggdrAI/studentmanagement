@@ -11,6 +11,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 
 import com.sms.service.CustomUserDetailsService;
 
@@ -78,7 +79,30 @@ public class SecurityConfig {
             )
             .formLogin(login -> login
                 .loginPage("/login")
-                .defaultSuccessUrl("/dashboard", true)
+                .successHandler((request, response, authentication) -> {
+                    String loginPortal = request.getParameter("loginPortal");
+
+                    boolean isStudent = authentication.getAuthorities().stream()
+                        .anyMatch(authority -> "ROLE_STUDENT".equals(authority.getAuthority()));
+                    boolean isAdmin = authentication.getAuthorities().stream()
+                        .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+                    boolean isTeacher = authentication.getAuthorities().stream()
+                        .anyMatch(authority -> "ROLE_TEACHER".equals(authority.getAuthority()));
+
+                    if ("staff".equalsIgnoreCase(loginPortal) && isStudent && !isAdmin && !isTeacher) {
+                        new SecurityContextLogoutHandler().logout(request, response, authentication);
+                        response.sendRedirect("/login?roleError=1");
+                        return;
+                    }
+
+                    if ("student".equalsIgnoreCase(loginPortal) && !isStudent) {
+                        new SecurityContextLogoutHandler().logout(request, response, authentication);
+                        response.sendRedirect("/student-login?roleError=1");
+                        return;
+                    }
+
+                    response.sendRedirect("/dashboard");
+                })
                 .permitAll()
             )
             .logout(logout -> logout

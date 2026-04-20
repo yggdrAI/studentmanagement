@@ -6,6 +6,18 @@
         size: 20,
         search: "",
         course: "",
+        degree: "",
+        school: "",
+        house: "",
+        gender: "",
+        classGroup: "",
+        batchGroup: "",
+        religion: "",
+        caste: "",
+        placeOfOrigin: "",
+        semester: "",
+        minAge: "",
+        maxAge: "",
         tenantId: "",
         sortBy: "id",
         sortDir: "asc",
@@ -34,6 +46,19 @@
         gridBody: document.getElementById("gridBody"),
         search: document.getElementById("studentSearch"),
         courseFilter: document.getElementById("courseFilter"),
+        degreeFilter: document.getElementById("degreeFilter"),
+        schoolFilter: document.getElementById("schoolFilter"),
+        houseFilter: document.getElementById("houseFilter"),
+        genderFilter: document.getElementById("genderFilter"),
+        classGroupFilter: document.getElementById("classGroupFilter"),
+        batchGroupFilter: document.getElementById("batchGroupFilter"),
+        religionFilter: document.getElementById("religionFilter"),
+        casteFilter: document.getElementById("casteFilter"),
+        placeOfOriginFilter: document.getElementById("placeOfOriginFilter"),
+        semesterFilter: document.getElementById("semesterFilter"),
+        minAgeFilter: document.getElementById("minAgeFilter"),
+        maxAgeFilter: document.getElementById("maxAgeFilter"),
+        clearFiltersBtn: document.getElementById("clearFiltersBtn"),
         tenantSelector: document.getElementById("tenantSelector"),
         pageLabel: document.getElementById("pageLabel"),
         totalLabel: document.getElementById("totalLabel"),
@@ -96,6 +121,35 @@
         refs.courseFilter?.addEventListener("change", (event) => {
             state.course = event.target.value;
             state.page = 0;
+            fetchStudents();
+        });
+
+        bindAdvancedFilterInput(refs.degreeFilter, "degree");
+        bindAdvancedFilterInput(refs.schoolFilter, "school");
+        bindAdvancedFilterInput(refs.houseFilter, "house");
+        bindAdvancedFilterInput(refs.classGroupFilter, "classGroup");
+        bindAdvancedFilterInput(refs.batchGroupFilter, "batchGroup");
+        bindAdvancedFilterInput(refs.religionFilter, "religion");
+        bindAdvancedFilterInput(refs.casteFilter, "caste");
+        bindAdvancedFilterInput(refs.placeOfOriginFilter, "placeOfOrigin");
+
+        bindAdvancedFilterSelect(refs.genderFilter, "gender");
+        bindAdvancedFilterSelect(refs.semesterFilter, "semester");
+
+        refs.minAgeFilter?.addEventListener("change", (event) => {
+            state.minAge = event.target.value || "";
+            state.page = 0;
+            fetchStudents();
+        });
+
+        refs.maxAgeFilter?.addEventListener("change", (event) => {
+            state.maxAge = event.target.value || "";
+            state.page = 0;
+            fetchStudents();
+        });
+
+        refs.clearFiltersBtn?.addEventListener("click", () => {
+            clearAdvancedFilters();
             fetchStudents();
         });
 
@@ -227,6 +281,55 @@
         });
     }
 
+    function bindAdvancedFilterInput(node, key) {
+        node?.addEventListener("input", (event) => {
+            state[key] = event.target.value.trim();
+            state.page = 0;
+            debouncedFetch();
+        });
+    }
+
+    function bindAdvancedFilterSelect(node, key) {
+        node?.addEventListener("change", (event) => {
+            state[key] = event.target.value;
+            state.page = 0;
+            fetchStudents();
+        });
+    }
+
+    function clearAdvancedFilters() {
+        state.search = "";
+        state.course = "";
+        state.degree = "";
+        state.school = "";
+        state.house = "";
+        state.gender = "";
+        state.classGroup = "";
+        state.batchGroup = "";
+        state.religion = "";
+        state.caste = "";
+        state.placeOfOrigin = "";
+        state.semester = "";
+        state.minAge = "";
+        state.maxAge = "";
+        state.page = 0;
+
+        if (refs.search) refs.search.value = "";
+        if (refs.courseFilter) refs.courseFilter.value = "";
+        if (refs.degreeFilter) refs.degreeFilter.value = "";
+        if (refs.schoolFilter) refs.schoolFilter.value = "";
+        if (refs.houseFilter) refs.houseFilter.value = "";
+        if (refs.genderFilter) refs.genderFilter.value = "";
+        if (refs.classGroupFilter) refs.classGroupFilter.value = "";
+        if (refs.batchGroupFilter) refs.batchGroupFilter.value = "";
+        if (refs.religionFilter) refs.religionFilter.value = "";
+        if (refs.casteFilter) refs.casteFilter.value = "";
+        if (refs.placeOfOriginFilter) refs.placeOfOriginFilter.value = "";
+        if (refs.semesterFilter) refs.semesterFilter.value = "";
+        if (refs.minAgeFilter) refs.minAgeFilter.value = "";
+        if (refs.maxAgeFilter) refs.maxAgeFilter.value = "";
+    }
+
     async function fetchStudents() {
         showSkeleton();
         try {
@@ -235,6 +338,18 @@
                 size: state.size,
                 search: state.search,
                 course: state.course,
+                degree: state.degree,
+                school: state.school,
+                house: state.house,
+                gender: state.gender,
+                classGroup: state.classGroup,
+                batchGroup: state.batchGroup,
+                religion: state.religion,
+                caste: state.caste,
+                placeOfOrigin: state.placeOfOrigin,
+                semester: state.semester,
+                minAge: state.minAge,
+                maxAge: state.maxAge,
                 sortBy: state.sortBy,
                 sortDir: state.sortDir
             });
@@ -304,6 +419,16 @@
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
                                 </button>
                             </span>
+                            <span class="tooltip-wrap" data-tip="Change login password">
+                                <button class="row-icon-btn" aria-label="Change password for ${escapeHtml(item.name)}" data-change-password="${escapeHtml(item.id)}">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                </button>
+                            </span>
+                            <span class="tooltip-wrap" data-tip="Reset password to enrollment number">
+                                <button class="row-icon-btn" aria-label="Reset password for ${escapeHtml(item.name)}" data-reset-password="${escapeHtml(item.id)}">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 3 3 9 9 9"></polyline></svg>
+                                </button>
+                            </span>
                         </div>
                         <div class="face-upload-state ${statusClass(state.faceUploadStatus[item.id])}">${escapeHtml(statusLabel(state.faceUploadStatus[item.id]))}</div>
                     </td>
@@ -347,6 +472,54 @@
 
                     state.pendingFaceStudentId = studentId;
                     refs.faceUploadInput?.click();
+                });
+            });
+
+        Array.from(document.querySelectorAll("[data-change-password]"))
+            .forEach((button) => {
+                button.addEventListener("click", async () => {
+                    const studentId = button.getAttribute("data-change-password");
+                    if (!studentId) {
+                        return;
+                    }
+
+                    const newPassword = window.prompt(`Set new password for ${studentId}:`);
+                    if (!newPassword) {
+                        return;
+                    }
+                    const confirmPassword = window.prompt(`Confirm new password for ${studentId}:`);
+                    if (!confirmPassword) {
+                        return;
+                    }
+
+                    try {
+                        await window.smsApi.admin.students.changePassword(studentId, { newPassword, confirmPassword });
+                        toast(`Password updated for ${studentId}`, "success");
+                    } catch (error) {
+                        toast(error.message || "Password update failed", "error");
+                    }
+                });
+            });
+
+        Array.from(document.querySelectorAll("[data-reset-password]"))
+            .forEach((button) => {
+                button.addEventListener("click", async () => {
+                    const studentId = button.getAttribute("data-reset-password");
+                    if (!studentId) {
+                        return;
+                    }
+
+                    const confirmed = window.confirm(`Reset password for ${studentId} to enrollment number?`);
+                    if (!confirmed) {
+                        return;
+                    }
+
+                    try {
+                        await window.smsApi.admin.students.resetPassword(studentId);
+                        toast(`Password reset for ${studentId}`, "success");
+                    } catch (error) {
+                        toast(error.message || "Password reset failed", "error");
+                    }
                 });
             });
     }

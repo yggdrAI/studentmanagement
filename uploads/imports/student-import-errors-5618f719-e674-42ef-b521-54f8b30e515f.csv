@@ -1,0 +1,4 @@
+Row,Error
+could not execute statement [Communications link failure
+
+The last packet successfully received from the server was 45;128 milliseconds ago. The last packet sent successfully to the server was 45;128 milliseconds ago.] [insert into app_user (password;role;tenant_id;username) values (?;?;?;?)] | cluster=A25ARIU0001

@@ -31,6 +31,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\dto\campus\LocationDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\CourseProgressDto.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\AnalyticsRealtimeNotifier.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\DashboardDTO.java
+F:\Coding\studentmanagement\src\main\java\com\sms\dto\auth\AdminSetPasswordRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\imports\StudentImportUploadRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\AnalyticsSnapshotScheduler.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\StudentAttendanceController.java
@@ -206,6 +207,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\dto\MoveScheduleResponse.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\StudentProfileRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminCollaborationController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminController.java
+F:\Coding\studentmanagement\src\main\java\com\sms\service\CredentialService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\profile\StudentDocumentDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\AssignTeacherRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\User.java

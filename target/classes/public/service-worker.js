@@ -3,7 +3,7 @@
  * Enables offline support, caching, and fast loading
  */
 
-const CACHE_VERSION = 'v2-bennett-sms';
+const CACHE_VERSION = 'v3-bennett-sms';
 const CACHE_URLS = [
   '/',
   '/student/dashboard',
@@ -53,6 +53,18 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+
+  // Always serve admin dashboard assets fresh to avoid stale UI after deployments.
+  if (
+    request.method === 'GET' && (
+      url.pathname === '/admin/dashboard' ||
+      url.pathname === '/js/admin-dashboard.js' ||
+      url.pathname === '/css/admin-dashboard.css'
+    )
+  ) {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   // Skip API calls - always fetch fresh
   if (url.pathname.includes('/api/')) {

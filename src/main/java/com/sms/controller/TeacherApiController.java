@@ -9,16 +9,19 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.sms.dto.auth.ChangePasswordRequest;
 import com.sms.dto.dashboard.CreateSubjectRequest;
 import com.sms.dto.dashboard.CreateTaskRequest;
 import com.sms.dto.dashboard.ScheduleClassRequest;
 import com.sms.dto.dashboard.StudentProgressViewDto;
 import com.sms.model.Course;
 import com.sms.model.TaskItem;
+import com.sms.service.CredentialService;
 import com.sms.service.DashboardService;
 
 import jakarta.validation.Valid;
@@ -29,9 +32,12 @@ import jakarta.validation.Valid;
 public class TeacherApiController {
 
     private final DashboardService dashboardService;
+    private final CredentialService credentialService;
 
-    public TeacherApiController(DashboardService dashboardService) {
+    public TeacherApiController(DashboardService dashboardService,
+                                CredentialService credentialService) {
         this.dashboardService = dashboardService;
+        this.credentialService = credentialService;
     }
 
     @PostMapping("/subject")
@@ -71,5 +77,18 @@ public class TeacherApiController {
                                                               Authentication authentication) {
         int affectedStudents = dashboardService.scheduleClass(authentication.getName(), request);
         return ResponseEntity.ok(Map.of("scheduledForStudents", affectedStudents));
+    }
+
+    @PutMapping("/profile/password")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<?> changeOwnPassword(@Valid @RequestBody ChangePasswordRequest request,
+                                               Authentication authentication) {
+        credentialService.changePassword(
+                authentication.getName(),
+                request.getCurrentPassword(),
+                request.getNewPassword(),
+                request.getConfirmPassword()
+        );
+        return ResponseEntity.ok().build();
     }
 }

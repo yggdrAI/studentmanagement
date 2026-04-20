@@ -9,8 +9,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -43,6 +46,8 @@ public class StudentService {
     private static final int BATCH_SIZE = 30;
     private static final int CLASS_SIZE = 120;
     private static final Pattern TRAILING_NUMBER_PATTERN = Pattern.compile("(\\d+)$");
+    private static final Pattern ENROLLMENT_YEAR_4_PATTERN = Pattern.compile("(19\\d{2}|20\\d{2})");
+    private static final Pattern ENROLLMENT_YEAR_2_PREFIX_PATTERN = Pattern.compile("^(\\d{2})[A-Z].*");
 
     private final StudentRepository studentRepository;
     private final EnrollmentRepository enrollmentRepository;
@@ -99,6 +104,46 @@ public class StudentService {
                                          int size,
                                          String sortBy,
                                          String sortDir) {
+        return getStudentsPage(
+            search,
+            course,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            page,
+            size,
+            sortBy,
+            sortDir
+        );
+    }
+
+    public Page<Student> getStudentsPage(String search,
+                                         String course,
+                                         String degree,
+                                         String school,
+                                         String house,
+                                         String gender,
+                                         String classGroup,
+                                         String batchGroup,
+                                         String religion,
+                                         String caste,
+                                         String placeOfOrigin,
+                                         Integer minAge,
+                                         Integer maxAge,
+                                         String semester,
+                                         int page,
+                                         int size,
+                                         String sortBy,
+                                         String sortDir) {
         String normalizedSortBy = normalizeSortBy(sortBy);
         Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
 
@@ -120,7 +165,144 @@ public class StudentService {
             spec = spec.and((root, query, cb) -> cb.equal(cb.lower(root.get("course")), normalizedCourse));
         }
 
-        return studentRepository.findAll(spec, pageable);
+        if (semester != null && !semester.isBlank()) {
+            String normalizedSemester = semester.trim().toLowerCase();
+            spec = spec.and((root, query, cb) -> cb.equal(cb.lower(root.get("semester")), normalizedSemester));
+        }
+
+        if (gender != null && !gender.isBlank()) {
+            String normalizedGender = gender.trim().toLowerCase();
+            spec = spec.and((root, query, cb) -> cb.equal(cb.lower(root.get("gender")), normalizedGender));
+        }
+
+        if (classGroup != null && !classGroup.isBlank()) {
+            String normalizedClassGroup = classGroup.trim().toLowerCase();
+            spec = spec.and((root, query, cb) -> cb.equal(cb.lower(root.get("classGroup")), normalizedClassGroup));
+        }
+
+        if (batchGroup != null && !batchGroup.isBlank()) {
+            String normalizedBatchGroup = batchGroup.trim().toLowerCase();
+            spec = spec.and((root, query, cb) -> cb.equal(cb.lower(root.get("batchGroup")), normalizedBatchGroup));
+        }
+
+        boolean hasProfileFilters = hasText(degree)
+            || hasText(school)
+            || hasText(house)
+            || hasText(religion)
+            || hasText(caste)
+            || hasText(placeOfOrigin)
+            || minAge != null
+            || maxAge != null;
+
+        if (!hasProfileFilters) {
+            return studentRepository.findAll(spec, pageable);
+        }
+
+        List<Student> scopedStudents = studentRepository.findAll(spec, Sort.by(direction, normalizedSortBy));
+        if (scopedStudents.isEmpty()) {
+            return new PageImpl<>(List.of(), pageable, 0);
+        }
+
+        Map<String, StudentProfile> profileByStudentId = studentProfileRepository.findAllById(
+            scopedStudents.stream().map(Student::getId).collect(Collectors.toSet())
+        ).stream().collect(Collectors.toMap(StudentProfile::getStudentId, profile -> profile));
+
+        List<Student> filtered = scopedStudents.stream()
+            .filter(student -> matchProfileFilters(
+                student,
+                profileByStudentId.get(student.getId()),
+                degree,
+                school,
+                house,
+                religion,
+                caste,
+                placeOfOrigin,
+                minAge,
+                maxAge
+            ))
+            .toList();
+
+        int from = Math.min(pageable.getOffset() > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) pageable.getOffset(), filtered.size());
+        int to = Math.min(from + pageable.getPageSize(), filtered.size());
+        List<Student> content = from >= to ? List.of() : filtered.subList(from, to);
+        return new PageImpl<>(content, pageable, filtered.size());
+    }
+
+    private boolean matchProfileFilters(Student student,
+                                        StudentProfile profile,
+                                        String degree,
+                                        String school,
+                                        String house,
+                                        String religion,
+                                        String caste,
+                                        String placeOfOrigin,
+                                        Integer minAge,
+                                        Integer maxAge) {
+        if (hasText(degree) && !containsIgnoreCase(firstNonBlank(profile == null ? null : profile.getCourse(), student.getCourse()), degree)) {
+            return false;
+        }
+
+        if (hasText(school) && !containsIgnoreCase(profile == null ? null : profile.getCollege(), school)) {
+            return false;
+        }
+
+        if (hasText(house) && !containsIgnoreCase(profile == null ? null : profile.getFoundationClassroom(), house)) {
+            return false;
+        }
+
+        if (hasText(religion) && !containsIgnoreCase(profile == null ? null : profile.getReligion(), religion)) {
+            return false;
+        }
+
+        if (hasText(caste) && !containsIgnoreCase(profile == null ? null : profile.getCaste(), caste)) {
+            return false;
+        }
+
+        if (hasText(placeOfOrigin) && !containsIgnoreCase(profile == null ? null : profile.getPlaceOfOrigin(), placeOfOrigin)) {
+            return false;
+        }
+
+        if (minAge != null || maxAge != null) {
+            LocalDate dob = profile == null ? null : profile.getDob();
+            if (dob == null) {
+                return false;
+            }
+            int age = LocalDate.now().getYear() - dob.getYear();
+            if (dob.plusYears(age).isAfter(LocalDate.now())) {
+                age--;
+            }
+            if (minAge != null && age < minAge) {
+                return false;
+            }
+            if (maxAge != null && age > maxAge) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private boolean containsIgnoreCase(String value, String token) {
+        if (!hasText(token)) {
+            return true;
+        }
+        if (!hasText(value)) {
+            return false;
+        }
+        return value.toLowerCase().contains(token.trim().toLowerCase());
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isBlank();
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (hasText(value)) {
+                return value;
+            }
+        }
+        return null;
     }
 
     public List<Student> getAllStudentsSortedByName() {
@@ -174,7 +356,13 @@ public class StudentService {
             user.setUsername(studentId);
             user.setPassword(passwordEncoder.encode(studentId));
             user.setRole(Role.STUDENT);
-            studentToSave.setUser(userRepository.save(user));
+            try {
+                studentToSave.setUser(userRepository.save(user));
+            } catch (DataIntegrityViolationException ex) {
+                User existingUser = userRepository.findByUsername(studentId)
+                        .orElseThrow(() -> ex);
+                studentToSave.setUser(existingUser);
+            }
         } else {
             User user = studentToSave.getUser();
             if (user.getUsername() == null || !studentId.equals(user.getUsername())) {
@@ -327,9 +515,14 @@ public class StudentService {
         profile.setDob(student.getDob());
         profile.setGender(student.getGender());
         profile.setPhone(student.getPhone());
-        profile.setEmail(student.getEmail() == null || student.getEmail().isBlank()
+        String universityEmail = student.getEmail() == null || student.getEmail().isBlank()
             ? deriveStudentEmail(student.getId())
-            : student.getEmail());
+            : student.getEmail();
+        profile.setUniversityEmail(universityEmail);
+        profile.setEmail(universityEmail);
+        if (profile.getPersonalEmail() == null || profile.getPersonalEmail().isBlank()) {
+            profile.setPersonalEmail(null);
+        }
         profile.setAddress(student.getAddress());
         profile.setCourse(student.getCourse());
         profile.setDepartment(student.getDepartment());
@@ -389,15 +582,78 @@ public class StudentService {
             return null;
         }
 
-        Matcher matcher = TRAILING_NUMBER_PATTERN.matcher(studentId.trim().toLowerCase());
-        if (!matcher.find()) {
+        String normalized = studentId.trim().toUpperCase();
+        String digitsOnly = normalized.replaceAll("\\D+", "");
+        if (digitsOnly.isBlank()) {
             return null;
         }
 
+        String serialCandidate = null;
+        String year = parseEnrollmentYear(normalized);
+        if (year != null && digitsOnly.startsWith(year) && digitsOnly.length() > year.length()) {
+            serialCandidate = digitsOnly.substring(year.length());
+        }
+
+        if (serialCandidate == null || serialCandidate.isBlank()) {
+            Matcher matcher = Pattern.compile("(\\d{2,4})$").matcher(normalized);
+            if (matcher.find()) {
+                serialCandidate = matcher.group(1);
+            }
+        }
+
+        if (serialCandidate == null || serialCandidate.isBlank() || serialCandidate.replace("0", "").isBlank()) {
+            Matcher matcher = TRAILING_NUMBER_PATTERN.matcher(normalized);
+            if (matcher.find()) {
+                serialCandidate = matcher.group(1);
+            }
+        }
+
+        if (serialCandidate == null || serialCandidate.isBlank()) {
+            return null;
+        }
+
+        serialCandidate = serialCandidate.replaceFirst("^0+(?!$)", "");
+        if (serialCandidate.length() > 4) {
+            serialCandidate = serialCandidate.substring(serialCandidate.length() - 4);
+        }
+
         try {
-            return Integer.parseInt(matcher.group(1));
+            return Integer.parseInt(serialCandidate);
         } catch (NumberFormatException ignored) {
             return null;
         }
+    }
+
+    private String parseEnrollmentYear(String enrollment) {
+        if (enrollment == null || enrollment.isBlank()) {
+            return null;
+        }
+
+        String normalized = enrollment.trim().toUpperCase();
+        Matcher year4 = ENROLLMENT_YEAR_4_PATTERN.matcher(normalized);
+        if (year4.find()) {
+            return year4.group(1);
+        }
+
+        Matcher year2Prefix = ENROLLMENT_YEAR_2_PREFIX_PATTERN.matcher(normalized);
+        if (year2Prefix.matches()) {
+            int yy = Integer.parseInt(year2Prefix.group(1));
+            int fullYear = yy <= 69 ? 2000 + yy : 1900 + yy;
+            return String.valueOf(fullYear);
+        }
+
+        String digits = normalized.replaceAll("\\D+", "");
+        if (digits.length() >= 4) {
+            String candidate = digits.substring(0, 4);
+            try {
+                int year = Integer.parseInt(candidate);
+                if (year >= 1990 && year <= 2100) {
+                    return candidate;
+                }
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 }
