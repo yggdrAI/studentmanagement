@@ -1,9 +1,15 @@
 package com.sms.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sms.model.AnalyticsSnapshot;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -17,15 +23,11 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sms.model.AnalyticsSnapshot;
+
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 
 @Service
 public class AnalyticsReportService {
@@ -51,11 +53,11 @@ public class AnalyticsReportService {
 
     public AnalyticsReportService(AnalyticsSnapshotService analyticsSnapshotService,
                                   AiAnalyticsService aiAnalyticsService,
-                                  JavaMailSender mailSender,
+                                  Optional<JavaMailSender> mailSender,
                                   ObjectMapper objectMapper) {
         this.analyticsSnapshotService = analyticsSnapshotService;
         this.aiAnalyticsService = aiAnalyticsService;
-        this.mailSender = mailSender;
+        this.mailSender = mailSender.orElse(null);
         this.objectMapper = objectMapper;
     }
 
@@ -120,6 +122,11 @@ public class AnalyticsReportService {
     public void sendLeadershipDigest() {
         if (!reportsEnabled || recipients == null || recipients.isBlank()) {
             log.info("Analytics report digest skipped because reporting is disabled or recipients are not configured");
+            return;
+        }
+
+        if (mailSender == null) {
+            log.info("Analytics report digest skipped because JavaMailSender is not configured");
             return;
         }
 

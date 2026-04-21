@@ -137,6 +137,28 @@
                 <h2 class="panel-title">Students Data Grid</h2>
                 <p class="panel-subtitle">Sticky headers, server pagination, debounced search, filtering, bulk operations, and icon-based actions.</p>
 
+                <section class="smart-filter-shell" aria-label="Smart student filtering">
+                    <div class="smart-filter-row">
+                        <input id="smartFilterInput" class="input smart-filter-input" type="search" placeholder="Try: class 3 with low attendance and high marks" aria-label="Smart natural language student filtering">
+                        <button id="runSmartFilterBtn" class="btn btn-primary" type="button">Smart Filter</button>
+                    </div>
+                    <div id="quickFilterChips" class="quick-filter-chips" role="group" aria-label="Quick student filters">
+                        <button class="chip-btn" type="button" data-quick-filter="atRisk">At-Risk Students</button>
+                        <button class="chip-btn" type="button" data-quick-filter="topPerformer">Top Performers</button>
+                        <button class="chip-btn" type="button" data-quick-filter="needsIntervention">Needs Intervention</button>
+                        <button class="chip-btn" type="button" data-quick-filter="irregularAttendance">Irregular Attendance</button>
+                    </div>
+                    <div class="smart-filter-row compact">
+                        <input id="savedFilterName" class="input" type="text" placeholder="Save current filter set as..." aria-label="Saved filter name">
+                        <button id="saveFilterBtn" class="btn btn-outline" type="button">Save Filter</button>
+                        <select id="savedFilterSelect" class="select" aria-label="Load saved filter">
+                            <option value="">Load saved filter</option>
+                        </select>
+                    </div>
+                    <div id="appliedFiltersPreview" class="applied-filters-preview" aria-live="polite"></div>
+                    <div id="smartSuggestionList" class="smart-suggestion-list" aria-live="polite"></div>
+                </section>
+
                 <div class="student-toolbar">
                     <input id="studentSearch" class="input" type="search" placeholder="Search ID, name, email" aria-label="Search students">
                     <select id="courseFilter" class="select" aria-label="Filter by course">
@@ -179,6 +201,10 @@
                         <option value="2">Tenant 2</option>
                         <option value="3">Tenant 3</option>
                     </select>
+                    <label class="sensitive-toggle" for="includeSensitiveFilters">
+                        <input id="includeSensitiveFilters" type="checkbox" aria-label="Enable sensitive demographic filters">
+                        Enable sensitive filters
+                    </label>
                     <button id="clearFiltersBtn" class="btn btn-outline" type="button">Clear Filters</button>
                     <button id="bulkDeleteBtn" class="btn btn-danger" disabled>Bulk Delete</button>
                     <button id="exportBtn" class="btn btn-outline">Export CSV</button>

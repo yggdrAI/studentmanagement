@@ -67,7 +67,7 @@ public class AdminHierarchyController {
             @RequestParam(required = false) Integer batchNumber,
             @RequestParam(required = false) String performance) {
 
-        List<Student> students = studentRepository.findAll();
+        List<Student> students = studentRepository.findAllWithHierarchy();
         Map<String, StudentProfile> profileByStudentId = loadProfilesByStudentId(students);
         Map<String, Double> marksMap = studentService.getAverageMarksMap(students);
         Map<String, Double> attendanceMap = loadAttendanceRateMap();
@@ -117,7 +117,7 @@ public class AdminHierarchyController {
 
     @GetMapping("/class/{classNumber}/analytics")
     public ResponseEntity<Map<String, Object>> getClassAnalytics(@PathVariable Integer classNumber) {
-        List<Student> allStudents = studentRepository.findAll();
+        List<Student> allStudents = studentRepository.findAllWithHierarchy();
         Map<String, StudentProfile> profileByStudentId = loadProfilesByStudentId(allStudents);
         List<Student> classStudents = allStudents.stream()
                 .filter(student -> extractClassNumber(student, profileByStudentId.get(student.getId())) == classNumber)
@@ -176,7 +176,7 @@ public class AdminHierarchyController {
         int requestedClusterCount = requestedClusters == null ? DEFAULT_CLUSTER_COUNT : requestedClusters;
         int clusters = Math.max(2, Math.min(4, requestedClusterCount));
 
-        List<Student> students = studentRepository.findAll().stream()
+        List<Student> students = studentRepository.findAllWithHierarchy().stream()
                 .filter(student -> req.getCourse() == null || req.getCourse().isBlank() || matchesIgnoreCase(student.getCourse(), req.getCourse()))
                 .filter(student -> req.getSemester() == null || req.getSemester().isBlank() || matchesIgnoreCase(student.getSemester(), req.getSemester()))
                 .filter(student -> req.getClassNumber() == null || extractClassNumber(student) == req.getClassNumber())

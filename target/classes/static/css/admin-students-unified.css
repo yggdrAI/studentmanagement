@@ -227,6 +227,101 @@ body {
     margin: 12px 0 16px;
 }
 
+.smart-filter-shell {
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 14px;
+    display: grid;
+    gap: 10px;
+}
+
+.smart-filter-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+}
+
+.smart-filter-row.compact {
+    grid-template-columns: minmax(220px, 1fr) auto minmax(200px, 260px);
+}
+
+.smart-filter-input {
+    font-size: 0.95rem;
+}
+
+.quick-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.chip-btn {
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--accent) 10%, var(--bg-secondary));
+    color: var(--text-primary);
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 180ms ease;
+}
+
+.chip-btn.active,
+.chip-btn:hover {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+    background: color-mix(in srgb, var(--accent) 20%, var(--bg-secondary));
+    color: var(--text-primary);
+}
+
+.applied-filters-preview,
+.smart-suggestion-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.applied-chip,
+.suggestion-chip {
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-secondary) 85%, transparent);
+    color: var(--text-secondary);
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+}
+
+.suggestion-chip {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    color: var(--text-primary);
+}
+
+.sensitive-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+    color: var(--text-secondary);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.sensitive-toggle input {
+    accent-color: var(--accent);
+}
+
+@media (max-width: 760px) {
+    .smart-filter-row,
+    .smart-filter-row.compact {
+        grid-template-columns: 1fr;
+    }
+}
+
 .student-toolbar .input,
 .student-toolbar .select {
     min-width: 150px;

@@ -4,6 +4,7 @@ com\sms\controller\AdminHierarchyController$AiGroupingRequest.class
 com\sms\model\TimetableConflict$Severity.class
 com\sms\dto\attendance\FraudAlertDTO.class
 com\sms\dto\diet\DietLogBatchRequest.class
+com\sms\service\StudentAdvancedFilterService.class
 com\sms\config\WebMvcConfig.class
 com\sms\model\Timetable$TimetableStatus.class
 com\sms\controller\TeacherAttendanceController.class
@@ -74,6 +75,7 @@ com\sms\dto\attendance\GenerateAttendanceQRRequest.class
 com\sms\controller\AdminImportController.class
 com\sms\dto\profile\AdminUpdateStudentProfileRequest.class
 com\sms\service\AnalyticsSnapshotScheduler.class
+com\sms\dto\student\filter\StudentAdvancedFilterResponse.class
 com\sms\model\StudentImportRow.class
 com\sms\service\EmbeddingCryptoService$1.class
 com\sms\util\StudentComparators.class
@@ -98,6 +100,7 @@ com\sms\model\Course.class
 com\sms\repository\TimetableRepository.class
 com\sms\controller\AdminImportController$1.class
 com\sms\model\TimetableConflict.class
+com\sms\dto\student\filter\StudentFilterNode.class
 com\sms\service\RefreshTokenService$RotationStatus.class
 com\sms\service\AttendanceQRTokenService$AttendanceTokenClaims.class
 com\sms\dto\auth\VerifyOtpRequest.class
@@ -123,12 +126,15 @@ com\sms\dto\dashboard\DashboardResponse.class
 com\sms\model\FaceData.class
 com\sms\service\StudentFusionService$ClusterSummary.class
 com\sms\controller\AdminStudentProfilePageController.class
+com\sms\dto\student\filter\StudentAdvancedFilterRequest.class
 com\sms\service\AntiCheatingService$LocationTimestamp.class
 com\sms\service\NotificationService.class
+com\sms\service\StudentAdvancedFilterService$StudentSnapshot.class
 com\sms\model\TaskItem.class
 com\sms\service\DashboardService.class
 com\sms\service\CampusTrackingService.class
 com\sms\service\DatabaseStatusService$DatabaseStatusSnapshot.class
+com\sms\service\StudentAdvancedFilterService$AttendanceStats.class
 com\sms\controller\TimetableController.class
 com\sms\model\Admin.class
 com\sms\controller\CampusTrackingController.class

@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,6 +31,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.sms.dto.auth.AdminSetPasswordRequest;
 import com.sms.dto.dashboard.AssignTeacherRequest;
 import com.sms.dto.dashboard.EnrollStudentRequest;
+import com.sms.dto.student.filter.StudentAdvancedFilterRequest;
+import com.sms.dto.student.filter.StudentAdvancedFilterResponse;
 import com.sms.model.Course;
 import com.sms.model.Enrollment;
 import com.sms.model.SecurityAudit;
@@ -43,6 +46,7 @@ import com.sms.service.CredentialService;
 import com.sms.service.DashboardService;
 import com.sms.service.DatabaseMigrationService;
 import com.sms.service.FaceVerificationService;
+import com.sms.service.StudentAdvancedFilterService;
 import com.sms.service.StudentFieldDerivationUtils;
 import com.sms.service.StudentService;
 
@@ -61,6 +65,7 @@ public class AdminApiController {
     private final DatabaseMigrationService databaseMigrationService;
     private final CredentialService credentialService;
     private final TeacherRepository teacherRepository;
+    private final StudentAdvancedFilterService studentAdvancedFilterService;
 
     public AdminApiController(DashboardService dashboardService,
                               StudentService studentService,
@@ -69,7 +74,8 @@ public class AdminApiController {
                               FaceVerificationService faceVerificationService,
                               DatabaseMigrationService databaseMigrationService,
                               CredentialService credentialService,
-                              TeacherRepository teacherRepository) {
+                              TeacherRepository teacherRepository,
+                              StudentAdvancedFilterService studentAdvancedFilterService) {
         this.dashboardService = dashboardService;
         this.studentService = studentService;
         this.studentProfileRepository = studentProfileRepository;
@@ -78,6 +84,14 @@ public class AdminApiController {
         this.databaseMigrationService = databaseMigrationService;
         this.credentialService = credentialService;
         this.teacherRepository = teacherRepository;
+        this.studentAdvancedFilterService = studentAdvancedFilterService;
+    }
+
+    @PostMapping("/students/search")
+    public ResponseEntity<StudentAdvancedFilterResponse> advancedStudentSearch(@RequestBody(required = false) StudentAdvancedFilterRequest request,
+                                                                               Authentication authentication) {
+        StudentAdvancedFilterResponse response = studentAdvancedFilterService.search(request, authentication);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping(value = "/upload-face", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

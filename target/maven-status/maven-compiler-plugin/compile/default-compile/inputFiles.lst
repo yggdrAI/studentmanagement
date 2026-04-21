@@ -25,6 +25,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\model\RefreshToken.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\StudentDocumentRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\config\FirstLoginEnforcementFilter.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\profile\StudentProfileResponseDTO.java
+F:\Coding\studentmanagement\src\main\java\com\sms\dto\student\filter\StudentAdvancedFilterRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\imports\StudentImportConfirmRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\ImportArtifactService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\TimetableUpdateRequest.java
@@ -59,6 +60,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\repository\StudentImportJobRep
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\CampusTrackingController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\CampusLocation.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\Student.java
+F:\Coding\studentmanagement\src\main\java\com\sms\dto\student\filter\StudentAdvancedFilterResponse.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\StudentTaskRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\ApiExceptionHandler.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\FraudAlertDTO.java
@@ -160,6 +162,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\service\DatabaseStatusService.
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminApiController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\AutoScheduleResponse.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\Teacher.java
+F:\Coding\studentmanagement\src\main\java\com\sms\service\StudentAdvancedFilterService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminHierarchyController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\config\TenantContext.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\FraudLogRepository.java
@@ -197,6 +200,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\repository\EnrollmentRepositor
 F:\Coding\studentmanagement\src\main\java\com\sms\model\TimetableConflict.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\auth\VerifyOtpRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\config\AdminActionAuditFilter.java
+F:\Coding\studentmanagement\src\main\java\com\sms\dto\student\filter\StudentFilterNode.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\CollaborationRealtimeService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\PasswordPolicyService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\config\RedisAnalyticsConfig.java

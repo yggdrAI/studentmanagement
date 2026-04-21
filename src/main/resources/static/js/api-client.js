@@ -197,6 +197,7 @@
             },
             students: {
                 list: (queryParams) => request(withQuery('/api/admin/students', queryParams)),
+                advancedSearch: (payload) => request('/api/admin/students/search', { method: 'POST', body: JSON.stringify(payload || {}) }),
                 create: (payload) => request('/api/admin/students', { method: 'POST', body: JSON.stringify(payload) }),
                 remove: (id) => request('/api/admin/students/' + encodeURIComponent(id), { method: 'DELETE' }),
                 bulkDelete: (ids) => request('/api/admin/students/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) }),

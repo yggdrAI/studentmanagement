@@ -1,6 +1,24 @@
 .import-shell {
     display: grid;
     gap: 18px;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+}
+
+body > main.content-area {
+    overflow-x: auto;
+}
+
+.content-wrapper.import-shell {
+    width: 100%;
+    max-width: none;
+}
+
+.import-shell .page-header {
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-start;
 }
 
 .eyebrow {
@@ -235,6 +253,7 @@
     overflow: auto;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
+    width: 100%;
 }
 
 .data-grid {

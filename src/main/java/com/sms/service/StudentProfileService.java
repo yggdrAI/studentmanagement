@@ -8,8 +8,10 @@ import java.util.List;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.sms.dto.profile.AcademicRecordDTO;
 import com.sms.dto.profile.AdminUpdateStudentProfileRequest;
@@ -85,7 +87,8 @@ public class StudentProfileService {
             try {
                 profileImage = imageUploadService.uploadBase64Image(profileImage, normalizedStudentId);
             } catch (Exception e) {
-                throw new RuntimeException("Failed to upload profile image: " + e.getMessage(), e);
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Profile image upload failed: " + safeMessage(e, "Invalid image format or image size exceeds the limit."), e);
             }
         }
         
@@ -119,7 +122,7 @@ public class StudentProfileService {
         }
         profile.setFullName(fullName);
         profile.setProfileImage(profileImage);
-        profile.setProfilePhotoUrl(profileImage);
+        profile.setProfilePhotoUrl(normalizePhotoUrl(profileImage, profile.getProfilePhotoUrl()));
         profile.setDob(dob);
         profile.setGender(gender);
         profile.setReligion(religion);
@@ -187,7 +190,8 @@ public class StudentProfileService {
             try {
                 profileImage = imageUploadService.uploadBase64Image(profileImage, student.getId());
             } catch (Exception e) {
-                throw new RuntimeException("Failed to upload profile image: " + e.getMessage(), e);
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Profile image upload failed: " + safeMessage(e, "Invalid image format or image size exceeds the limit."), e);
             }
         }
 
@@ -197,7 +201,7 @@ public class StudentProfileService {
         profile.setEmail(universityEmail);
         profile.setAddress(request.getAddress());
         profile.setProfileImage(profileImage);
-        profile.setProfilePhotoUrl(profileImage);
+        profile.setProfilePhotoUrl(normalizePhotoUrl(profileImage, profile.getProfilePhotoUrl()));
         if (student.getUser() != null) {
             profile.setUserId(student.getUser().getId());
         }
@@ -324,7 +328,7 @@ public class StudentProfileService {
         profile.setFullName(student.getName());
         profile.setEnrollmentNumber(student.getId());
         profile.setProfileImage(student.getProfileImageUrl());
-        profile.setProfilePhotoUrl(student.getProfileImageUrl());
+        profile.setProfilePhotoUrl(normalizePhotoUrl(student.getProfileImageUrl(), null));
         profile.setDob(student.getDob());
         profile.setGender(StudentFieldDerivationUtils.inferGender(student.getName(), student.getGender()));
         profile.setReligion(null);
@@ -457,5 +461,22 @@ public class StudentProfileService {
 
     private String deriveStudentEmail(String studentId) {
         return studentId + "@bennett.edu.in";
+    }
+
+    private String normalizePhotoUrl(String profileImage, String existingPhotoUrl) {
+        if (profileImage == null || profileImage.isBlank()) {
+            return existingPhotoUrl;
+        }
+        if (profileImage.startsWith("data:image")) {
+            return existingPhotoUrl;
+        }
+        return profileImage;
+    }
+
+    private String safeMessage(Exception ex, String fallback) {
+        if (ex == null || ex.getMessage() == null || ex.getMessage().isBlank()) {
+            return fallback;
+        }
+        return ex.getMessage();
     }
 }

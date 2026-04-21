@@ -1,10 +1,14 @@
 (function () {
     "use strict";
 
+    const SAVED_FILTERS_KEY = "sms:students:savedFilters";
+    const FILTER_HISTORY_KEY = "sms:students:filterHistory";
+
     const state = {
         page: 0,
         size: 20,
         search: "",
+        smartQuery: "",
         course: "",
         degree: "",
         school: "",
@@ -18,6 +22,12 @@
         semester: "",
         minAge: "",
         maxAge: "",
+        includeSensitive: false,
+        quickFilters: new Set(),
+        appliedFilters: [],
+        smartSuggestions: [],
+        savedFilters: [],
+        filterHistory: [],
         tenantId: "",
         sortBy: "id",
         sortDir: "asc",
@@ -45,6 +55,14 @@
     const refs = {
         gridBody: document.getElementById("gridBody"),
         search: document.getElementById("studentSearch"),
+        smartFilterInput: document.getElementById("smartFilterInput"),
+        runSmartFilterBtn: document.getElementById("runSmartFilterBtn"),
+        quickFilterChips: document.getElementById("quickFilterChips"),
+        appliedFiltersPreview: document.getElementById("appliedFiltersPreview"),
+        smartSuggestionList: document.getElementById("smartSuggestionList"),
+        savedFilterName: document.getElementById("savedFilterName"),
+        saveFilterBtn: document.getElementById("saveFilterBtn"),
+        savedFilterSelect: document.getElementById("savedFilterSelect"),
         courseFilter: document.getElementById("courseFilter"),
         degreeFilter: document.getElementById("degreeFilter"),
         schoolFilter: document.getElementById("schoolFilter"),
@@ -58,6 +76,7 @@
         semesterFilter: document.getElementById("semesterFilter"),
         minAgeFilter: document.getElementById("minAgeFilter"),
         maxAgeFilter: document.getElementById("maxAgeFilter"),
+        includeSensitiveFilters: document.getElementById("includeSensitiveFilters"),
         clearFiltersBtn: document.getElementById("clearFiltersBtn"),
         tenantSelector: document.getElementById("tenantSelector"),
         pageLabel: document.getElementById("pageLabel"),
@@ -103,10 +122,15 @@
     ];
 
     function init() {
+        loadSavedFilters();
+        loadFilterHistory();
         bindEvents();
         setupTheme();
         renderSteps();
         renderCommands(commands);
+        renderSavedFilters();
+        renderQuickFilterChips();
+        renderAppliedFilters();
         fetchStudents();
         fetchActivity();
     }
@@ -116,6 +140,56 @@
             state.search = event.target.value.trim();
             state.page = 0;
             debouncedFetch();
+        });
+
+        refs.smartFilterInput?.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                state.smartQuery = refs.smartFilterInput.value.trim();
+                state.page = 0;
+                fetchStudents();
+            }
+        });
+
+        refs.runSmartFilterBtn?.addEventListener("click", () => {
+            state.smartQuery = refs.smartFilterInput ? refs.smartFilterInput.value.trim() : "";
+            state.page = 0;
+            fetchStudents();
+        });
+
+        refs.quickFilterChips?.addEventListener("click", (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLElement)) {
+                return;
+            }
+            const quickFilter = target.getAttribute("data-quick-filter");
+            if (!quickFilter) {
+                return;
+            }
+            if (state.quickFilters.has(quickFilter)) {
+                state.quickFilters.delete(quickFilter);
+            } else {
+                state.quickFilters.add(quickFilter);
+            }
+            renderQuickFilterChips();
+            state.page = 0;
+            fetchStudents();
+        });
+
+        refs.includeSensitiveFilters?.addEventListener("change", (event) => {
+            state.includeSensitive = Boolean(event.target.checked);
+            state.page = 0;
+            fetchStudents();
+        });
+
+        refs.saveFilterBtn?.addEventListener("click", onSaveCurrentFilter);
+
+        refs.savedFilterSelect?.addEventListener("change", () => {
+            const value = refs.savedFilterSelect.value;
+            if (!value) {
+                return;
+            }
+            applySavedFilter(value);
         });
 
         refs.courseFilter?.addEventListener("change", (event) => {
@@ -299,6 +373,7 @@
 
     function clearAdvancedFilters() {
         state.search = "";
+        state.smartQuery = "";
         state.course = "";
         state.degree = "";
         state.school = "";
@@ -312,9 +387,14 @@
         state.semester = "";
         state.minAge = "";
         state.maxAge = "";
+        state.includeSensitive = false;
+        state.quickFilters.clear();
+        state.appliedFilters = [];
+        state.smartSuggestions = [];
         state.page = 0;
 
         if (refs.search) refs.search.value = "";
+        if (refs.smartFilterInput) refs.smartFilterInput.value = "";
         if (refs.courseFilter) refs.courseFilter.value = "";
         if (refs.degreeFilter) refs.degreeFilter.value = "";
         if (refs.schoolFilter) refs.schoolFilter.value = "";
@@ -328,39 +408,299 @@
         if (refs.semesterFilter) refs.semesterFilter.value = "";
         if (refs.minAgeFilter) refs.minAgeFilter.value = "";
         if (refs.maxAgeFilter) refs.maxAgeFilter.value = "";
+        if (refs.includeSensitiveFilters) refs.includeSensitiveFilters.checked = false;
+        renderQuickFilterChips();
+        renderAppliedFilters();
+    }
+
+    function buildAdvancedFilterRequest() {
+        const filters = buildManualFilters();
+
+        if (state.quickFilters.has("atRisk")) {
+            filters.push({ field: "atRisk", operator: "equals", value: true });
+        }
+        if (state.quickFilters.has("topPerformer")) {
+            filters.push({ field: "topPerformer", operator: "equals", value: true });
+        }
+        if (state.quickFilters.has("needsIntervention")) {
+            filters.push({ field: "needsIntervention", operator: "equals", value: true });
+        }
+        if (state.quickFilters.has("irregularAttendance")) {
+            filters.push({ field: "irregularAttendancePattern", operator: "equals", value: true });
+        }
+
+        const filterGroup = filters.length
+            ? { logic: "AND", filters }
+            : null;
+
+        return {
+            page: state.page,
+            size: state.size,
+            sortBy: state.sortBy,
+            sortDir: state.sortDir,
+            includeSensitive: state.includeSensitive,
+            smartQuery: state.smartQuery,
+            filterGroup
+        };
+    }
+
+    function buildManualFilters() {
+        const filters = [];
+        addFilter(filters, "name", "contains", state.search);
+        addFilter(filters, "course", "equals", state.course);
+        addFilter(filters, "degree", "contains", state.degree);
+        addFilter(filters, "school", "contains", state.school);
+        addFilter(filters, "house", "contains", state.house);
+        addFilter(filters, "gender", "equals", state.gender);
+        addFilter(filters, "class", "contains", state.classGroup);
+        addFilter(filters, "batch", "contains", state.batchGroup);
+        addFilter(filters, "religion", "contains", state.religion);
+        addFilter(filters, "caste", "contains", state.caste);
+        addFilter(filters, "placeOfOrigin", "contains", state.placeOfOrigin);
+        addFilter(filters, "semester", "equals", state.semester);
+
+        if (state.minAge || state.maxAge) {
+            const rangeValue = {};
+            if (state.minAge) {
+                rangeValue.min = Number(state.minAge);
+            }
+            if (state.maxAge) {
+                rangeValue.max = Number(state.maxAge);
+            }
+            filters.push({ field: "age", operator: "range", value: rangeValue });
+        }
+
+        return filters;
+    }
+
+    function addFilter(filters, field, operator, value) {
+        if (!value && value !== 0) {
+            return;
+        }
+        const token = String(value).trim();
+        if (!token) {
+            return;
+        }
+        filters.push({ field, operator, value: token });
+    }
+
+    function renderAppliedFilters() {
+        if (refs.appliedFiltersPreview) {
+            if (!state.appliedFilters.length) {
+                refs.appliedFiltersPreview.innerHTML = "";
+            } else {
+                refs.appliedFiltersPreview.innerHTML = state.appliedFilters
+                    .map((item) => `<span class=\"applied-chip\">${escapeHtml(item)}</span>`)
+                    .join("");
+            }
+        }
+
+        if (refs.smartSuggestionList) {
+            if (!state.smartSuggestions.length) {
+                refs.smartSuggestionList.innerHTML = "";
+            } else {
+                refs.smartSuggestionList.innerHTML = state.smartSuggestions
+                    .map((item) => `<span class=\"suggestion-chip\">${escapeHtml(item)}</span>`)
+                    .join("");
+            }
+        }
+    }
+
+    function renderQuickFilterChips() {
+        if (!refs.quickFilterChips) {
+            return;
+        }
+        Array.from(refs.quickFilterChips.querySelectorAll("[data-quick-filter]"))
+            .forEach((node) => {
+                const filter = node.getAttribute("data-quick-filter");
+                node.classList.toggle("active", state.quickFilters.has(filter));
+            });
+    }
+
+    function onSaveCurrentFilter() {
+        const filterName = refs.savedFilterName ? refs.savedFilterName.value.trim() : "";
+        if (!filterName) {
+            toast("Enter a name before saving filters", "error");
+            return;
+        }
+
+        const payload = buildAdvancedFilterRequest();
+        const existingIndex = state.savedFilters.findIndex((item) => item.name === filterName);
+        const record = { name: filterName, payload };
+
+        if (existingIndex >= 0) {
+            state.savedFilters[existingIndex] = record;
+        } else {
+            state.savedFilters.push(record);
+        }
+
+        persistSavedFilters();
+        renderSavedFilters();
+        refs.savedFilterName.value = "";
+        toast("Filter saved", "success");
+    }
+
+    function applySavedFilter(filterName) {
+        const selected = state.savedFilters.find((item) => item.name === filterName);
+        if (!selected || !selected.payload) {
+            return;
+        }
+
+        const payload = selected.payload;
+        state.page = 0;
+        state.size = Number(payload.size || state.size || 20);
+        state.sortBy = payload.sortBy || state.sortBy;
+        state.sortDir = payload.sortDir || state.sortDir;
+
+        hydrateBasicStateFromFilterGroup(payload.filterGroup);
+        state.includeSensitive = Boolean(payload.includeSensitive);
+        state.smartQuery = payload.smartQuery || "";
+
+        if (refs.smartFilterInput) {
+            refs.smartFilterInput.value = state.smartQuery;
+        }
+        if (refs.includeSensitiveFilters) {
+            refs.includeSensitiveFilters.checked = state.includeSensitive;
+        }
+
+        renderQuickFilterChips();
+        fetchStudents();
+    }
+
+    function hydrateBasicStateFromFilterGroup(filterGroup) {
+        clearAdvancedFilters();
+        if (!filterGroup || !Array.isArray(filterGroup.filters)) {
+            return;
+        }
+
+        filterGroup.filters.forEach((filter) => {
+            if (!filter || filter.filters) {
+                return;
+            }
+
+            const field = String(filter.field || "").toLowerCase();
+            const value = filter.value;
+            if (field === "name") state.search = String(value || "");
+            if (field === "course") state.course = String(value || "");
+            if (field === "degree") state.degree = String(value || "");
+            if (field === "school") state.school = String(value || "");
+            if (field === "house") state.house = String(value || "");
+            if (field === "gender") state.gender = String(value || "");
+            if (field === "class") state.classGroup = String(value || "");
+            if (field === "batch") state.batchGroup = String(value || "");
+            if (field === "religion") state.religion = String(value || "");
+            if (field === "caste") state.caste = String(value || "");
+            if (field === "placeoforigin") state.placeOfOrigin = String(value || "");
+            if (field === "semester") state.semester = String(value || "");
+            if (field === "agerange" || (field === "age" && filter.operator === "range" && value && typeof value === "object")) {
+                if (value.min !== undefined) state.minAge = String(value.min);
+                if (value.max !== undefined) state.maxAge = String(value.max);
+            }
+            if (field === "atrisk" && value === true) state.quickFilters.add("atRisk");
+            if (field === "topperformer" && value === true) state.quickFilters.add("topPerformer");
+            if (field === "needsintervention" && value === true) state.quickFilters.add("needsIntervention");
+            if (field === "irregularattendancepattern" && value === true) state.quickFilters.add("irregularAttendance");
+        });
+
+        if (refs.search) refs.search.value = state.search;
+        if (refs.courseFilter) refs.courseFilter.value = state.course;
+        if (refs.degreeFilter) refs.degreeFilter.value = state.degree;
+        if (refs.schoolFilter) refs.schoolFilter.value = state.school;
+        if (refs.houseFilter) refs.houseFilter.value = state.house;
+        if (refs.genderFilter) refs.genderFilter.value = state.gender;
+        if (refs.classGroupFilter) refs.classGroupFilter.value = state.classGroup;
+        if (refs.batchGroupFilter) refs.batchGroupFilter.value = state.batchGroup;
+        if (refs.religionFilter) refs.religionFilter.value = state.religion;
+        if (refs.casteFilter) refs.casteFilter.value = state.caste;
+        if (refs.placeOfOriginFilter) refs.placeOfOriginFilter.value = state.placeOfOrigin;
+        if (refs.semesterFilter) refs.semesterFilter.value = state.semester;
+        if (refs.minAgeFilter) refs.minAgeFilter.value = state.minAge;
+        if (refs.maxAgeFilter) refs.maxAgeFilter.value = state.maxAge;
+    }
+
+    function loadSavedFilters() {
+        try {
+            const raw = localStorage.getItem(SAVED_FILTERS_KEY);
+            state.savedFilters = raw ? JSON.parse(raw) : [];
+        } catch (_error) {
+            state.savedFilters = [];
+        }
+    }
+
+    function persistSavedFilters() {
+        localStorage.setItem(SAVED_FILTERS_KEY, JSON.stringify(state.savedFilters.slice(-25)));
+    }
+
+    function renderSavedFilters() {
+        if (!refs.savedFilterSelect) {
+            return;
+        }
+        refs.savedFilterSelect.innerHTML = '<option value="">Load saved filter</option>' +
+            state.savedFilters.map((item) => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>`).join("");
+    }
+
+    function loadFilterHistory() {
+        try {
+            const raw = localStorage.getItem(FILTER_HISTORY_KEY);
+            state.filterHistory = raw ? JSON.parse(raw) : [];
+        } catch (_error) {
+            state.filterHistory = [];
+        }
+    }
+
+    function pushFilterHistory(payload) {
+        const compact = {
+            at: new Date().toISOString(),
+            smartQuery: payload.smartQuery || "",
+            includeSensitive: Boolean(payload.includeSensitive),
+            filterCount: payload.filterGroup && Array.isArray(payload.filterGroup.filters) ? payload.filterGroup.filters.length : 0
+        };
+
+        state.filterHistory.push(compact);
+        if (state.filterHistory.length > 50) {
+            state.filterHistory = state.filterHistory.slice(state.filterHistory.length - 50);
+        }
+        localStorage.setItem(FILTER_HISTORY_KEY, JSON.stringify(state.filterHistory));
     }
 
     async function fetchStudents() {
         showSkeleton();
         try {
-            const payload = await window.smsApi.admin.students.list({
-                page: state.page,
-                size: state.size,
-                search: state.search,
-                course: state.course,
-                degree: state.degree,
-                school: state.school,
-                house: state.house,
-                gender: state.gender,
-                classGroup: state.classGroup,
-                batchGroup: state.batchGroup,
-                religion: state.religion,
-                caste: state.caste,
-                placeOfOrigin: state.placeOfOrigin,
-                semester: state.semester,
-                minAge: state.minAge,
-                maxAge: state.maxAge,
-                sortBy: state.sortBy,
-                sortDir: state.sortDir
-            });
+            const requestPayload = buildAdvancedFilterRequest();
+            const payload = window.smsApi.admin.students.advancedSearch
+                ? await window.smsApi.admin.students.advancedSearch(requestPayload)
+                : await window.smsApi.admin.students.list({
+                    page: state.page,
+                    size: state.size,
+                    search: state.search,
+                    course: state.course,
+                    degree: state.degree,
+                    school: state.school,
+                    house: state.house,
+                    gender: state.gender,
+                    classGroup: state.classGroup,
+                    batchGroup: state.batchGroup,
+                    religion: state.religion,
+                    caste: state.caste,
+                    placeOfOrigin: state.placeOfOrigin,
+                    semester: state.semester,
+                    minAge: state.minAge,
+                    maxAge: state.maxAge,
+                    sortBy: state.sortBy,
+                    sortDir: state.sortDir
+                });
             state.items = payload.items || [];
             state.totalPages = payload.totalPages || 0;
             state.totalElements = payload.totalElements || 0;
+            state.appliedFilters = payload.appliedFilters || [];
+            state.smartSuggestions = payload.smartSuggestions || [];
             state.selected.clear();
             renderGrid();
             renderPagination();
             renderInsights();
+            renderAppliedFilters();
             syncBulkActions();
+            pushFilterHistory(requestPayload);
         } catch (error) {
             refs.gridBody.innerHTML = `<tr><td colspan="11" class="empty-state">Unable to load students. ${escapeHtml(error.message)}</td></tr>`;
             toast("Unable to fetch students", "error");
@@ -384,6 +724,8 @@
             const checked = state.selected.has(item.id) ? "checked" : "";
             const marks = Number(item.averageMarks || 0);
             const marksPct = Math.max(0, Math.min(100, marks));
+            const attendance = Number(item.attendancePercent || 0);
+            const tagText = Array.isArray(item.aiTags) && item.aiTags.length ? item.aiTags.join(", ") : "";
             const progressClass = marks >= 75 ? "" : marks >= 50 ? "warn" : "error";
             return `
                 <tr>
@@ -401,6 +743,8 @@
                             <div class="progress ${progressClass}"><span style="width:${marksPct}%;"></span></div>
                             <span>${marks.toFixed(1)}</span>
                         </div>
+                        <small style="color:var(--text-secondary);">Attendance ${attendance.toFixed(1)}%</small>
+                        ${tagText ? `<div><small style="color:var(--text-secondary);">${escapeHtml(tagText)}</small></div>` : ""}
                     </td>
                     <td>
                         <div class="row-actions">

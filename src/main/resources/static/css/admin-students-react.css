@@ -18,11 +18,43 @@
     min-height: calc(100vh - 96px);
     padding: 24px;
     color: var(--rh-text);
+    border: 1px solid rgba(148, 163, 184, 0.16);
     background:
         radial-gradient(circle at 12% 18%, rgba(34, 211, 238, 0.14), transparent 30%),
         radial-gradient(circle at 88% 0%, rgba(245, 158, 11, 0.12), transparent 26%),
         linear-gradient(140deg, #07101d 0%, #0b1220 48%, #111827 100%);
     border-radius: 24px;
+    overflow: hidden;
+}
+
+.rh-loading,
+.rh-error,
+.rh-empty-state,
+.rh-metric,
+.rh-section,
+.rh-class-card,
+.rh-batch-card,
+.rh-student-row,
+.rh-class-hero,
+.rh-chart-shell {
+    border: 1px solid rgba(56, 189, 248, 0.22);
+    background-clip: padding-box;
+}
+
+.rh-metric,
+.rh-section,
+.rh-class-card,
+.rh-batch-card,
+.rh-student-row,
+.rh-class-hero,
+.rh-chart-shell,
+.rh-loading,
+.rh-empty-state {
+    box-shadow: 0 14px 30px rgba(2, 6, 23, 0.32);
+}
+
+.rh-error {
+    border-color: rgba(248, 113, 113, 0.38);
 }
 
 .rh-topbar {
