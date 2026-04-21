@@ -21,6 +21,7 @@ com\sms\dto\dashboard\CreateTaskRequest.class
 com\sms\service\RefreshTokenService$RotationResult.class
 com\sms\service\StudentFusionService$FusionResult.class
 com\sms\controller\AdminHierarchyController.class
+com\sms\model\TeacherAssignment.class
 com\sms\service\QRService$IDTokenClaims.class
 com\sms\model\AcademicClass.class
 com\sms\config\AdminActionAuditFilter.class
@@ -42,6 +43,7 @@ com\sms\dto\WeeklyScheduleUpdateRequest.class
 com\sms\service\ImportArtifactService.class
 com\sms\dto\auth\VerifyOtpResponse.class
 com\sms\repository\StudentProfileRepository.class
+com\sms\controller\AdminTeacherController.class
 com\sms\service\DietMLService.class
 com\sms\model\SecurityAudit.class
 com\sms\controller\TeacherFraudController.class
@@ -61,20 +63,26 @@ com\sms\controller\DietPlannerController.class
 com\sms\repository\TaskItemRepository.class
 com\sms\service\AnalyticsCacheService.class
 com\sms\controller\AdminController.class
+com\sms\model\TeacherCredentials.class
 com\sms\repository\StudentImportJobRepository.class
 com\sms\dto\attendance\MarkAttendanceRequest.class
 com\sms\model\StudentDocument.class
+com\sms\repository\AcademicProgramRepository.class
 com\sms\model\DietLog.class
 com\sms\controller\CampusLocationWebSocketController.class
 com\sms\model\AnalyticsSnapshot.class
 com\sms\repository\TeacherRepository.class
 com\sms\service\StudentFusionService.class
+com\sms\model\AcademicProgram.class
 com\sms\util\TimetableDataLoader.class
 com\sms\service\AttendanceService$WeightedAttendanceMetrics.class
+com\sms\dto\teacher\CreateTeacherRequest$TeacherDTO.class
 com\sms\dto\attendance\GenerateAttendanceQRRequest.class
 com\sms\controller\AdminImportController.class
 com\sms\dto\profile\AdminUpdateStudentProfileRequest.class
 com\sms\service\AnalyticsSnapshotScheduler.class
+com\sms\dto\teacher\CreateTeacherRequest$TeacherCredentialsDTO.class
+com\sms\service\StudentGroupingService$EnrollmentInfo.class
 com\sms\dto\student\filter\StudentAdvancedFilterResponse.class
 com\sms\model\StudentImportRow.class
 com\sms\service\EmbeddingCryptoService$1.class
@@ -89,6 +97,8 @@ com\sms\model\UserRole.class
 com\sms\service\StudentImportService$HeaderResolution.class
 com\sms\repository\AcademicBatchRepository.class
 com\sms\service\TeacherService.class
+com\sms\repository\TeacherAssignmentRepository.class
+com\sms\repository\TeacherProfileRepository.class
 com\sms\service\DietMealOptimizerService.class
 com\sms\repository\ClassSessionRepository.class
 com\sms\service\FaceEmbeddingClientService$1.class
@@ -106,6 +116,7 @@ com\sms\service\AttendanceQRTokenService$AttendanceTokenClaims.class
 com\sms\dto\auth\VerifyOtpRequest.class
 com\sms\model\ScheduleEntry.class
 com\sms\config\FirstLoginEnforcementFilter.class
+com\sms\controller\CampusLocationController.class
 com\sms\repository\SecurityAuditRepository.class
 com\sms\dto\MoveScheduleRequest.class
 com\sms\dto\MoveScheduleResponse.class
@@ -140,6 +151,7 @@ com\sms\model\Admin.class
 com\sms\controller\CampusTrackingController.class
 com\sms\repository\AcademicRecordRepository.class
 com\sms\config\RedisAnalyticsConfig.class
+com\sms\config\PasswordEncoderConfig.class
 com\sms\service\DietLogService.class
 com\sms\dto\dashboard\TaskDto.class
 com\sms\dto\attendance\ManualAttendanceRequest.class
@@ -160,6 +172,7 @@ com\sms\model\TimetableVersion.class
 com\sms\dto\AutoScheduleResponse.class
 com\sms\controller\AuthController.class
 com\sms\service\AttendanceService$ManualAttendanceRecord.class
+com\sms\service\StudentGroupingService.class
 com\sms\controller\DashboardController.class
 com\sms\service\TimetableService.class
 com\sms\config\JwtAuthenticationFilter.class
@@ -168,6 +181,7 @@ com\sms\repository\AttendanceRepository.class
 com\sms\dto\diet\DietSuggestionResponse.class
 com\sms\service\TimetableService$Slot.class
 com\sms\dto\WorkloadBalanceResponse.class
+com\sms\dto\teacher\CreateTeacherRequest.class
 com\sms\repository\StudentImportRowRepository.class
 com\sms\util\LoggerUtil.class
 com\sms\repository\RefreshTokenRepository.class
@@ -177,6 +191,7 @@ com\sms\dto\auth\LoginResponse.class
 com\sms\model\AcademicBatch.class
 com\sms\dto\profile\StudentProfileResponseDTO.class
 com\sms\service\UserService.class
+com\sms\service\StudentGroupingService$ParsedStudent.class
 com\sms\gui\MainFrame.class
 com\sms\StudentManagementApplication.class
 com\sms\dto\dashboard\ClassDTO.class
@@ -212,6 +227,7 @@ com\sms\model\TaskStatus.class
 com\sms\controller\AdminCollaborationController.class
 com\sms\service\AntiCheatingService.class
 com\sms\service\PasswordPolicyService.class
+com\sms\model\TeacherProfile.class
 com\sms\service\AiAnalyticsService$StudentStats.class
 com\sms\dto\dashboard\ScheduleClassRequest.class
 com\sms\model\StudentImportJob$Status.class
@@ -246,6 +262,7 @@ com\sms\model\CampusLocation.class
 com\sms\service\AttendanceQRTokenService.class
 com\sms\dto\dashboard\StudentProgressViewDto.class
 com\sms\service\AuthenticationService.class
+com\sms\repository\TeacherCredentialsRepository.class
 com\sms\dto\TimetableDTO.class
 com\sms\repository\StudentDocumentRepository.class
 com\sms\service\FaceVerificationService.class
@@ -259,6 +276,7 @@ com\sms\service\AnalyticsSnapshotService.class
 com\sms\dto\student\StudentProfileDTO.class
 com\sms\service\PasswordResetService.class
 com\sms\model\ScheduleEntry$ClassType.class
+com\sms\dto\teacher\CreateTeacherRequest$TeacherAssignmentDTO.class
 com\sms\service\FaceEmbeddingClientService.class
 com\sms\dto\auth\ForgotPasswordRequest.class
 com\sms\dto\identity\VerificationResponseDTO.class

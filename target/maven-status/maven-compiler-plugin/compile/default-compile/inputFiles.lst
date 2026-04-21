@@ -35,6 +35,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\MarkAttendanceR
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\profile\AcademicRecordDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\campus\LocationDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\CourseProgressDto.java
+F:\Coding\studentmanagement\src\main\java\com\sms\repository\AcademicProgramRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\AnalyticsRealtimeNotifier.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\DashboardDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\auth\AdminSetPasswordRequest.java
@@ -156,6 +157,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminStudentProfile
 F:\Coding\studentmanagement\src\main\java\com\sms\model\TaskItem.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\AcademicBatch.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\StudentViewController.java
+F:\Coding\studentmanagement\src\main\java\com\sms\model\AcademicProgram.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\FaceDataRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\DietLog.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\imports\StudentImportRowUpdateRequest.java
@@ -229,6 +231,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminStudentProfile
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\TaskDto.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\DietMLService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\diet\DailyCaloriePoint.java
+F:\Coding\studentmanagement\src\main\java\com\sms\service\StudentGroupingService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\student\StudentProfileDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\FraudDetectionService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\config\AnalyticsRedisBridge.java

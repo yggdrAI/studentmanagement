@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Hierarchy - Class & Batch Management</title>
+    <title>Student Hierarchy - Program &rarr; Class &rarr; Batch Management</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
     <link rel="stylesheet" th:href="@{/css/hierarchy-students.css}">
@@ -16,8 +16,8 @@
         <header class="unified-topbar hierarchy-topbar app-enter">
             <div class="hero-copy">
                 <span class="eyebrow">Student Identity Workspace</span>
-                <h1 class="page-title">Class &rarr; Batch &rarr; Student</h1>
-                <p class="dashboard-subtitle">Fullscreen hierarchy management with drag-and-drop, analytics, and a single-scroll layout.</p>
+                <h1 class="page-title">Program &rarr; Class &rarr; Batch &rarr; Student</h1>
+                <p class="dashboard-subtitle">Automated enrollment-driven grouping engine with program cards, tree navigation, and drag-and-drop.</p>
             </div>
             <div class="hero-actions">
                 <input id="globalSearch" class="global-search" type="search" placeholder="Search students, class, or batch..." aria-label="Search">
@@ -25,6 +25,23 @@
             </div>
         </header>
 
+        <!-- ═══════════════ Program Cards ═══════════════ -->
+        <section class="programs-section" id="programsSection">
+            <div class="programs-header">
+                <h2 class="section-title">Programs</h2>
+                <div class="programs-actions">
+                    <button id="regenerateBtn" class="btn-regenerate" type="button" aria-label="Regenerate academic structure">
+                        <span class="regen-icon">&#9881;</span>
+                        <span class="regen-text">Regenerate Structure</span>
+                    </button>
+                </div>
+            </div>
+            <div id="programsGrid" class="programs-grid">
+                <div class="program-card-skeleton"></div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ Controls / Filters ═══════════════ -->
         <section class="workspace-controls">
             <div class="controls-row">
                 <div class="create-section glass-panel">
@@ -110,9 +127,16 @@
             <div class="filter-group">
                 <label for="groupingMode">Grouping</label>
                 <select id="groupingMode">
-                    <option value="performance">Performance</option>
-                    <option value="attendance">Attendance</option>
+                    <option value="number" selected>By Class Number</option>
+                    <option value="performance">By Performance</option>
+                    <option value="attendance">By Attendance</option>
                     <option value="ai">AI Smart Grouping</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="programFilter">Program</label>
+                <select id="programFilter">
+                    <option value="">All Programs</option>
                 </select>
             </div>
             <div class="filter-group">
@@ -157,6 +181,10 @@
 
         <section class="structure-overview dashboard-grid">
             <article class="stat-card glass-panel">
+                <div class="stat-label">Total Programs</div>
+                <div class="stat-value" id="totalPrograms">0</div>
+            </article>
+            <article class="stat-card glass-panel">
                 <div class="stat-label">Total Classes</div>
                 <div class="stat-value" id="totalClasses">0</div>
             </article>
@@ -183,7 +211,7 @@
 
         <div id="noDataState" class="no-data-state" hidden>
             <div class="no-data-icon">&#128228;</div>
-            <p>No students found. Try adjusting your filters.</p>
+            <p>No students found. Try adjusting your filters or click <strong>Regenerate Structure</strong>.</p>
         </div>
 
         <!-- Class Drawer Panel -->

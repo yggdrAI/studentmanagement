@@ -1,6 +1,6 @@
 /**
- * Fullscreen hierarchy dashboard
- * Class -> Batch -> Student with drag and drop, search, filters, and live updates.
+ * Fullscreen hierarchy dashboard — Program → Class → Batch → Student
+ * With enrollment-driven grouping, program cards, drag-drop, search, filters, and live updates.
  */
 
 (function () {
@@ -8,16 +8,19 @@
 
     const state = {
         hierarchy: { summary: { totalClasses: 0, totalBatches: 0, totalStudents: 0 }, classes: [] },
+        programs: [],
+        selectedProgramId: null,
         filters: {
             course: "",
             semester: "",
             performance: "",
             searchQuery: "",
-            groupingMode: "performance"
+            groupingMode: "number"
         },
         expandedClasses: new Set(),
         expandedBatches: new Set(),
         loading: false,
+        regenerating: false,
         allExpanded: false,
         toastTimer: null,
         draggingStudent: null,
@@ -31,19 +34,22 @@
         courseFilter: document.getElementById("courseFilter"),
         semesterFilter: document.getElementById("semesterFilter"),
         performanceFilter: document.getElementById("performanceFilter"),
+        programFilter: document.getElementById("programFilter"),
         groupingMode: document.getElementById("groupingMode"),
         globalSearch: document.getElementById("globalSearch"),
         refreshBtn: document.getElementById("refreshBtn"),
         expandAllBtn: document.getElementById("expandAllBtn"),
         collapseAllBtn: document.getElementById("collapseAllBtn"),
         aiGroupBtn: document.getElementById("aiGroupBtn"),
+        regenerateBtn: document.getElementById("regenerateBtn"),
+        totalPrograms: document.getElementById("totalPrograms"),
         totalClasses: document.getElementById("totalClasses"),
         totalBatches: document.getElementById("totalBatches"),
         totalStudents: document.getElementById("totalStudents"),
         avgAttendance: document.getElementById("avgAttendance"),
         sidebarToggle: document.getElementById("sidebarToggle"),
+        programsGrid: document.getElementById("programsGrid"),
         faceUploadInput: createHiddenFaceUploadInput(),
-        // Create student form refs
         createStudentForm: document.getElementById("createStudentForm"),
         stepPrevBtn: document.getElementById("stepPrevBtn"),
         stepNextBtn: document.getElementById("stepNextBtn"),
@@ -55,7 +61,6 @@
         studentCourseInput: document.getElementById("studentCourseInput"),
         studentSemesterInput: document.getElementById("studentSemesterInput"),
         studentPhoneInput: document.getElementById("studentPhoneInput"),
-        // Insights refs
         totalLabel: document.getElementById("totalLabel"),
         avgMarksLabel: document.getElementById("avgMarksLabel"),
         topPerformers: document.getElementById("topPerformers")
@@ -65,6 +70,18 @@
         step: 1,
         formData: { id: "", name: "", course: "", semester: "", phone: "" }
     };
+
+    /* ─── Color palette for program cards ─── */
+    const PROGRAM_COLORS = [
+        { bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", text: "#fff" },
+        { bg: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", text: "#fff" },
+        { bg: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", text: "#fff" },
+        { bg: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)", text: "#1a1a2e" },
+        { bg: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)", text: "#1a1a2e" },
+        { bg: "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)", text: "#1a1a2e" },
+        { bg: "linear-gradient(135deg, #fccb90 0%, #d57eeb 100%)", text: "#fff" },
+        { bg: "linear-gradient(135deg, #30cfd0 0%, #330867 100%)", text: "#fff" },
+    ];
 
     function createHiddenFaceUploadInput() {
         const input = document.createElement("input");
@@ -78,6 +95,7 @@
 
     function init() {
         bindEvents();
+        loadPrograms();
         loadHierarchy();
         loadTopPerformers();
     }
@@ -86,15 +104,16 @@
         refs.courseFilter?.addEventListener("change", onServerFilterChange);
         refs.semesterFilter?.addEventListener("change", onServerFilterChange);
         refs.performanceFilter?.addEventListener("change", onServerFilterChange);
+        refs.programFilter?.addEventListener("change", onProgramFilterChange);
         refs.groupingMode?.addEventListener("change", onGroupingModeChange);
         refs.globalSearch?.addEventListener("input", debounce(onSearchChange, 180));
-        refs.refreshBtn?.addEventListener("click", () => loadHierarchy());
+        refs.refreshBtn?.addEventListener("click", () => { loadPrograms(); loadHierarchy(); });
         refs.expandAllBtn?.addEventListener("click", expandAll);
         refs.collapseAllBtn?.addEventListener("click", collapseAll);
         refs.aiGroupBtn?.addEventListener("click", runAiGrouping);
+        refs.regenerateBtn?.addEventListener("click", regenerateStructure);
         refs.sidebarToggle?.addEventListener("click", toggleSidebar);
         
-        // Create Student form events
         refs.createStudentForm?.addEventListener("input", (event) => {
             const field = event.target.name;
             if (field) createFormState.formData[field] = event.target.value;
@@ -105,10 +124,245 @@
         refs.createStudentForm?.addEventListener("submit", (e) => { e.preventDefault(); submitCreateStudent(); });
     }
 
-    function loadHierarchy(options = {}) {
-        if (state.loading) {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PROGRAMS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function loadPrograms() {
+        fetch("/api/admin/grouping/programs/summaries")
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
+            .then(programs => {
+                state.programs = Array.isArray(programs) ? programs : [];
+                renderProgramCards();
+                populateProgramFilter();
+                updateProgramCount();
+            })
+            .catch(error => {
+                console.warn("Failed to load programs:", error);
+                state.programs = [];
+                renderProgramCards();
+            });
+    }
+
+    function renderProgramCards() {
+        if (!refs.programsGrid) return;
+
+        if (!state.programs.length) {
+            refs.programsGrid.innerHTML = `
+                <div class="program-empty-state">
+                    <div class="program-empty-icon">📦</div>
+                    <p>No programs found. Click <strong>Regenerate Structure</strong> to auto-detect programs from enrollment numbers.</p>
+                </div>`;
             return;
         }
+
+        refs.programsGrid.innerHTML = state.programs.map((program, index) => {
+            const color = PROGRAM_COLORS[index % PROGRAM_COLORS.length];
+            const isActive = state.selectedProgramId === program.id;
+            const totalStudents = program.totalStudents || 0;
+            const totalClasses = program.totalClasses || 0;
+            const totalBatches = program.totalBatches || 0;
+
+            return `
+                <article class="program-card ${isActive ? 'program-card-active' : ''}" 
+                         data-program-id="${program.id}" 
+                         style="background:${color.bg}; color:${color.text}"
+                         tabindex="0" role="button"
+                         aria-label="${escapeHtml(program.name)} — ${totalStudents} students">
+                    <div class="program-card-header">
+                        <span class="program-card-code">${escapeHtml(program.code || '')}</span>
+                        <span class="program-card-type">${escapeHtml(program.programType || '')}</span>
+                    </div>
+                    <h3 class="program-card-name">${escapeHtml(program.name || 'Unknown')}</h3>
+                    <div class="program-card-stats">
+                        <div class="program-stat">
+                            <span class="program-stat-value">${totalStudents}</span>
+                            <span class="program-stat-label">Students</span>
+                        </div>
+                        <div class="program-stat">
+                            <span class="program-stat-value">${totalClasses}</span>
+                            <span class="program-stat-label">Classes</span>
+                        </div>
+                        <div class="program-stat">
+                            <span class="program-stat-value">${totalBatches}</span>
+                            <span class="program-stat-label">Batches</span>
+                        </div>
+                    </div>
+                    ${program.admissionYear ? `<div class="program-card-year">Year: ${escapeHtml(program.admissionYear)}</div>` : ''}
+                </article>`;
+        }).join("");
+
+        // Bind click events
+        document.querySelectorAll(".program-card").forEach(card => {
+            card.addEventListener("click", () => {
+                const programId = Number(card.dataset.programId);
+                if (state.selectedProgramId === programId) {
+                    state.selectedProgramId = null; // deselect
+                } else {
+                    state.selectedProgramId = programId;
+                }
+                renderProgramCards();
+                loadProgramHierarchy();
+            });
+            card.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); card.click(); }
+            });
+        });
+    }
+
+    function populateProgramFilter() {
+        if (!refs.programFilter) return;
+        const currentValue = refs.programFilter.value;
+        refs.programFilter.innerHTML = '<option value="">All Programs</option>';
+        state.programs.forEach(program => {
+            const opt = document.createElement("option");
+            opt.value = program.id;
+            opt.textContent = `${program.code} — ${program.name}`;
+            refs.programFilter.appendChild(opt);
+        });
+        refs.programFilter.value = currentValue;
+    }
+
+    function updateProgramCount() {
+        if (refs.totalPrograms) refs.totalPrograms.textContent = state.programs.length;
+    }
+
+    function onProgramFilterChange() {
+        const val = refs.programFilter?.value;
+        if (val) {
+            state.selectedProgramId = Number(val);
+        } else {
+            state.selectedProgramId = null;
+        }
+        renderProgramCards();
+        loadProgramHierarchy();
+    }
+
+    function loadProgramHierarchy() {
+        if (state.selectedProgramId) {
+            // Load the specific program tree
+            fetch(`/api/admin/grouping/programs`)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
+                .then(programTree => {
+                    const programs = Array.isArray(programTree) ? programTree : [];
+                    const selected = programs.find(p => p.id === state.selectedProgramId);
+                    if (selected && selected.classes) {
+                        // Convert program tree to hierarchy format
+                        const classes = selected.classes.map(clazz => ({
+                            id: clazz.id,
+                            number: clazz.localClassNumber,
+                            classNumber: clazz.localClassNumber,
+                            label: clazz.label || `Class ${clazz.localClassNumber}`,
+                            totalStudents: clazz.totalStudents || 0,
+                            analytics: { avgMarks: 0, attendance: 0, riskStudents: 0 },
+                            batches: (clazz.batches || []).map(batch => ({
+                                id: batch.id,
+                                number: batch.localBatchNumber,
+                                batchNumber: batch.localBatchNumber,
+                                label: batch.label || `Batch ${batch.localBatchNumber}`,
+                                studentsCount: batch.totalStudents || 0,
+                                totalStudents: batch.totalStudents || 0,
+                                analytics: { avgMarks: 0, attendance: 0, riskStudents: 0 },
+                                students: (batch.students || []).map(s => ({
+                                    id: s.id,
+                                    name: s.name,
+                                    enrollment: s.enrollmentNumber || s.id,
+                                    enrollmentNumber: s.enrollmentNumber || s.id,
+                                    email: s.email || "",
+                                    marks: 0,
+                                    attendance: 0,
+                                    performanceBand: "average"
+                                }))
+                            }))
+                        }));
+
+                        state.hierarchy = {
+                            summary: {
+                                totalClasses: classes.length,
+                                totalBatches: classes.reduce((sum, c) => sum + (c.batches?.length || 0), 0),
+                                totalStudents: selected.totalStudents || 0
+                            },
+                            classes
+                        };
+                        state.expandedClasses.clear();
+                        state.expandedBatches.clear();
+                        updateStatistics();
+                        renderHierarchy();
+                    }
+                })
+                .catch(error => {
+                    showToast(`Failed to load program hierarchy: ${error.message}`);
+                });
+        } else {
+            loadHierarchy();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // REGENERATE
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function regenerateStructure() {
+        if (state.regenerating) return;
+
+        if (!window.confirm("This will regenerate the entire Program → Class → Batch structure from enrollment numbers.\n\nAll existing groupings will be recalculated. Continue?")) {
+            return;
+        }
+
+        state.regenerating = true;
+        const btn = refs.regenerateBtn;
+        if (btn) {
+            btn.classList.add("regenerating");
+            btn.querySelector(".regen-text").textContent = "Regenerating...";
+        }
+
+        fetch("/api/admin/grouping/regenerate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+        })
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
+            .then(result => {
+                state.regenerating = false;
+                if (btn) {
+                    btn.classList.remove("regenerating");
+                    btn.querySelector(".regen-text").textContent = "Regenerate Structure";
+                }
+
+                const assigned = result.totalAssigned || 0;
+                const skipped = result.totalSkipped || 0;
+                const courses = result.totalCourses || 0;
+                showToast(`✅ Regeneration complete: ${assigned} students assigned across ${courses} programs (${skipped} skipped)`);
+
+                // Reload everything
+                state.selectedProgramId = null;
+                loadPrograms();
+                loadHierarchy();
+            })
+            .catch(error => {
+                state.regenerating = false;
+                if (btn) {
+                    btn.classList.remove("regenerating");
+                    btn.querySelector(".regen-text").textContent = "Regenerate Structure";
+                }
+                showToast(`❌ Regeneration failed: ${error.message}`);
+            });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // HIERARCHY
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function loadHierarchy(options = {}) {
+        if (state.loading) return;
 
         state.loading = true;
         showLoadingState();
@@ -119,13 +373,11 @@
         if (state.filters.performance) params.append("performance", state.filters.performance);
 
         fetch(`/api/admin/students-hierarchy?${params.toString()}`)
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 return response.json();
             })
-            .then((payload) => {
+            .then(payload => {
                 state.hierarchy = normalizeHierarchy(payload);
                 state.loading = false;
                 if (!options.preserveState) {
@@ -137,7 +389,7 @@
                 if (refs.loadingSpinner) refs.loadingSpinner.hidden = true;
                 renderHierarchy();
             })
-            .catch((error) => {
+            .catch(error => {
                 state.loading = false;
                 showToast(`Failed to load hierarchy: ${error.message}`);
                 showEmptyState();
@@ -150,7 +402,6 @@
             totalBatches: 0,
             totalStudents: 0
         };
-
         const classes = Array.isArray(payload?.classes) ? payload.classes : [];
         return { summary, classes };
     }
@@ -159,6 +410,7 @@
         const summary = state.hierarchy?.summary || {};
         const classes = Array.isArray(state.hierarchy?.classes) ? state.hierarchy.classes : [];
 
+        if (refs.totalPrograms) refs.totalPrograms.textContent = summary.totalPrograms ?? state.programs?.length ?? 0;
         if (refs.totalClasses) refs.totalClasses.textContent = summary.totalClasses ?? classes.length ?? 0;
         if (refs.totalBatches) refs.totalBatches.textContent = summary.totalBatches ?? countBatches(classes);
         if (refs.totalStudents) refs.totalStudents.textContent = summary.totalStudents ?? countStudents(classes);
@@ -188,76 +440,60 @@
         const mode = state.filters.groupingMode;
 
         return sortClasses(classes, mode)
-            .map((classItem) => {
+            .map(classItem => {
                 const batches = sortBatches(classItem.batches || [], mode)
-                    .map((batch) => {
-                        const students = (batch.students || []).filter((student) => studentMatches(student, query));
-                        const batchMatches = !query || batchMatchesQuery(batch, query) || students.length > 0;
-                        return batchMatches
-                            ? {
-                                  ...batch,
-                                  students: query ? students : batch.students || []
-                              }
-                            : null;
+                    .map(batch => {
+                        const students = (batch.students || []).filter(student => studentMatches(student, query));
+                        const batchMatch = !query || batchMatchesQuery(batch, query) || students.length > 0;
+                        return batchMatch ? { ...batch, students: query ? students : batch.students || [] } : null;
                     })
                     .filter(Boolean);
 
-                const classMatches = !query || classMatchesQuery(classItem, query) || batches.length > 0;
-                return classMatches ? { ...classItem, batches } : null;
+                const classMatch = !query || classMatchesQuery(classItem, query) || batches.length > 0;
+                return classMatch ? { ...classItem, batches } : null;
             })
             .filter(Boolean);
     }
 
     function sortClasses(classes, mode) {
         const pinnedClasses = JSON.parse(localStorage.getItem("pinnedClasses") || "[]");
-
         return [...classes].sort((left, right) => {
-            const leftAnalytics = left.analytics || left.classAnalytics || {};
-            const rightAnalytics = right.analytics || right.classAnalytics || {};
-            const leftId = String(left.id ?? left.classId ?? `class-${left.number}`);
-            const rightId = String(right.id ?? right.classId ?? `class-${right.number}`);
-            const leftPinned = pinnedClasses.includes(leftId);
-            const rightPinned = pinnedClasses.includes(rightId);
-
-            if (leftPinned && !rightPinned) return -1;
-            if (!leftPinned && rightPinned) return 1;
-
-            if (mode === "attendance") {
-                return (rightAnalytics.attendance || 0) - (leftAnalytics.attendance || 0) || (left.number || 0) - (right.number || 0);
-            }
-
-            if (mode === "ai") {
-                return (rightAnalytics.riskStudents || 0) - (leftAnalytics.riskStudents || 0) || (rightAnalytics.avgMarks || rightAnalytics.averageMarks || 0) - (leftAnalytics.avgMarks || leftAnalytics.averageMarks || 0);
-            }
-
-            return (rightAnalytics.avgMarks || rightAnalytics.averageMarks || 0) - (leftAnalytics.avgMarks || leftAnalytics.averageMarks || 0) || (left.number || 0) - (right.number || 0);
+            const la = left.analytics || left.classAnalytics || {};
+            const ra = right.analytics || right.classAnalytics || {};
+            const lid = String(left.id ?? left.classId ?? `class-${left.number}`);
+            const rid = String(right.id ?? right.classId ?? `class-${right.number}`);
+            const lp = pinnedClasses.includes(lid);
+            const rp = pinnedClasses.includes(rid);
+            if (lp && !rp) return -1;
+            if (!lp && rp) return 1;
+            if (mode === "performance") return (ra.avgMarks || ra.averageMarks || 0) - (la.avgMarks || la.averageMarks || 0) || (left.number || 0) - (right.number || 0);
+            if (mode === "attendance") return (ra.attendance || 0) - (la.attendance || 0) || (left.number || 0) - (right.number || 0);
+            if (mode === "ai") return (ra.riskStudents || 0) - (la.riskStudents || 0) || (ra.avgMarks || 0) - (la.avgMarks || 0);
+            // Default ("number" or any other value): sort ascending by class number.
+            return (left.number || left.classNumber || 0) - (right.number || right.classNumber || 0);
         });
     }
 
     function sortBatches(batches, mode) {
         return [...batches].sort((left, right) => {
-            const leftAnalytics = left.analytics || {};
-            const rightAnalytics = right.analytics || {};
-
-            if (mode === "attendance") {
-                return (rightAnalytics.attendance || rightAnalytics.averageAttendance || 0) - (leftAnalytics.attendance || leftAnalytics.averageAttendance || 0) || (left.number || 0) - (right.number || 0);
-            }
-
-            if (mode === "ai") {
-                return (rightAnalytics.riskStudents || 0) - (leftAnalytics.riskStudents || 0) || (rightAnalytics.avgMarks || rightAnalytics.averageMarks || 0) - (leftAnalytics.avgMarks || leftAnalytics.averageMarks || 0);
-            }
-
-            return (rightAnalytics.avgMarks || rightAnalytics.averageMarks || 0) - (leftAnalytics.avgMarks || leftAnalytics.averageMarks || 0) || (left.number || 0) - (right.number || 0);
+            const la = left.analytics || {};
+            const ra = right.analytics || {};
+            if (mode === "performance") return (ra.avgMarks || ra.averageMarks || 0) - (la.avgMarks || la.averageMarks || 0) || (left.number || 0) - (right.number || 0);
+            if (mode === "attendance") return (ra.attendance || 0) - (la.attendance || 0) || (left.number || 0) - (right.number || 0);
+            if (mode === "ai") return (ra.riskStudents || 0) - (la.riskStudents || 0) || (ra.avgMarks || 0) - (la.avgMarks || 0);
+            // Default ("number" or any other value): sort ascending by batch number.
+            return (left.number || left.batchNumber || 0) - (right.number || right.batchNumber || 0);
         });
     }
 
     function renderClassCard(classItem, index) {
         const classId = classItem.id ?? classItem.classId ?? `class-${classItem.number}`;
         const classNumber = classItem.number ?? classItem.classNumber ?? index + 1;
+        const classLabel = classItem.label || `Class ${classNumber}`;
         const analytics = classItem.analytics || classItem.classAnalytics || {};
         const batches = Array.isArray(classItem.batches) ? classItem.batches : [];
         const query = state.filters.searchQuery.trim().toLowerCase();
-        const matchesSearch = query ? (classMatchesQuery(classItem, query) || batches.some((batch) => batchMatchesQuery(batch, query) || (batch.students || []).some((student) => studentMatches(student, query)))) : false;
+        const matchesSearch = query ? (classMatchesQuery(classItem, query) || batches.some(b => batchMatchesQuery(b, query) || (b.students || []).some(s => studentMatches(s, query)))) : false;
         const expanded = state.allExpanded || state.expandedClasses.has(String(classId)) || matchesSearch;
 
         const totalStudents = countStudentsInClass(classItem);
@@ -269,24 +505,26 @@
 
         let status = "healthy";
         let statusText = "Healthy";
-        if (riskStudents > totalStudents * 0.3) {
-            status = "critical";
-            statusText = "Critical";
-        } else if (riskStudents > totalStudents * 0.15) {
-            status = "moderate";
-            statusText = "Moderate";
-        }
+        if (riskStudents > totalStudents * 0.3) { status = "critical"; statusText = "Critical"; }
+        else if (riskStudents > totalStudents * 0.15) { status = "moderate"; statusText = "Moderate"; }
 
         const heatmapColor = healthScore < 40 ? "heatmap-critical" : healthScore < 60 ? "heatmap-poor" : healthScore < 75 ? "heatmap-average" : healthScore < 85 ? "heatmap-good" : "heatmap-excellent";
         const radius = 25;
         const circumference = 2 * Math.PI * radius;
         const offset = circumference - (healthScore / 100) * circumference;
 
+        const batchPills = batches.map(b => {
+            const bid = b.id ?? b.number;
+            const blabel = b.label || `Batch ${b.number}`;
+            const bStudents = Array.isArray(b.students) ? b.students.length : (b.totalStudents || b.studentsCount || 0);
+            return `<button class="batch-pill-btn" data-batch-pill-class="${escapeHtml(String(classId))}" data-batch-pill-id="${escapeHtml(String(bid))}">${escapeHtml(blabel)} <span class="pill-count">${bStudents}</span></button>`;
+        }).join("");
+
         return `
             <article class="class-card card-container glass-panel ${heatmapColor}" data-class-id="${escapeHtml(String(classId))}" data-class-number="${escapeHtml(String(classNumber))}">
-                <header class="header">
+                <header class="header" data-open-class="${escapeHtml(String(classId))}">
                     <div class="header-left">
-                        <h3 class="class-title">Class ${escapeHtml(String(classNumber))}</h3>
+                        <h3 class="class-title">${escapeHtml(classLabel)}</h3>
                         <span class="status-badge ${status}">${status === "healthy" ? "🟢" : status === "moderate" ? "🟡" : "🔴"} ${statusText}</span>
                     </div>
                     <div class="progress-container" title="Health score ${formatNumber(healthScore)}%">
@@ -309,17 +547,12 @@
                             <div class="metric-value">${formatNumber(avgMarks)}</div>
                         </div>
                         <div class="metric">
-                            <div class="metric-label">Health Score</div>
-                            <div class="metric-value">${formatNumber(healthScore)}%</div>
+                            <div class="metric-label">Attendance</div>
+                            <div class="metric-value">${formatNumber(attendance)}%</div>
                         </div>
                     </div>
-
-                    <div class="class-subtext">${batches.length} batches • ${formatNumber(attendance)}% attendance</div>
+                    ${batches.length ? `<div class="batch-pills-row">${batchPills}</div>` : ""}
                 </section>
-
-                <div class="class-body collapsed" aria-hidden="true">
-                    ${batches.map((batch, batchIndex) => renderBatchCard(batch, batchIndex, classNumber)).join("")}
-                </div>
             </article>
         `;
     }
@@ -330,7 +563,7 @@
         const analytics = batch.analytics || {};
         const students = Array.isArray(batch.students) ? batch.students : [];
         const query = state.filters.searchQuery.trim().toLowerCase();
-        const matchesSearch = query ? (batchMatchesQuery(batch, query) || students.some((student) => studentMatches(student, query))) : false;
+        const matchesSearch = query ? (batchMatchesQuery(batch, query) || students.some(s => studentMatches(s, query))) : false;
         const expanded = state.allExpanded || state.expandedBatches.has(String(batchId)) || students.length <= 8 || matchesSearch;
         const topPerformer = analytics.topPerformer?.name || "N/A";
 
@@ -357,7 +590,7 @@
                 </div>
 
                 <div class="students-list ${expanded ? "visible" : ""}">
-                    ${students.map((student) => renderStudentRow(student, classNumber, batchNumber)).join("")}
+                    ${students.map(student => renderStudentRow(student, classNumber, batchNumber)).join("")}
                 </div>
             </section>
         `;
@@ -377,7 +610,7 @@
                     <div class="student-avatar">${escapeHtml(initials)}</div>
                     <div class="student-details">
                         <div class="student-name">${escapeHtml(student.name || "Unnamed Student")}</div>
-                        <div class="student-meta">${escapeHtml(student.enrollment || student.rollNumber || "")}${student.email ? ` • ${escapeHtml(student.email)}` : ""}</div>
+                        <div class="student-meta">${escapeHtml(student.enrollment || student.enrollmentNumber || student.rollNumber || "")}${student.email ? ` • ${escapeHtml(student.email)}` : ""}</div>
                     </div>
                 </div>
                 <div class="student-performance">
@@ -392,132 +625,430 @@
         `;
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // INTERACTIONS
+    // ═══════════════════════════════════════════════════════════════════════════
+
     function bindRenderedInteractions() {
-        document.querySelectorAll("[data-toggle-class]").forEach((trigger) => {
-            trigger.addEventListener("click", handleClassToggle);
-            trigger.addEventListener("keydown", handleClassKeydown);
-        });
-
-        document.querySelectorAll("[data-toggle-class-action]").forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.stopPropagation();
-                const classId = button.dataset.toggleClassAction;
-                toggleClassById(classId);
+        // Batch pill clicks → open batch modal directly
+        document.querySelectorAll(".batch-pill-btn").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const classId = btn.dataset.batchPillClass;
+                const batchId = btn.dataset.batchPillId;
+                openBatchModal(classId, batchId);
             });
         });
 
-        document.querySelectorAll("[data-pin-class]").forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.stopPropagation();
-                togglePinnedClass(button.dataset.pinClass);
+        // Class card clicks → open class modal
+        document.querySelectorAll(".class-card").forEach(card => {
+            card.addEventListener("click", (e) => {
+                if (e.target.closest(".batch-pill-btn")) return;
+                const classId = card.dataset.classId;
+                if (classId) openClassModal(classId);
+            });
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // FULL-SCREEN CLASS MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function openClassModal(classId) {
+        const classes = state.hierarchy?.classes || [];
+        const classItem = classes.find(c => String(c.id ?? c.classId ?? `class-${c.number}`) === String(classId));
+        if (!classItem) return;
+
+        closeAllModals();
+
+        const classLabel = classItem.label || `Class ${classItem.number}`;
+        const analytics = classItem.analytics || {};
+        const batches = Array.isArray(classItem.batches) ? classItem.batches : [];
+        const totalStudents = countStudentsInClass(classItem);
+        const avgMarks = analytics.avgMarks ?? analytics.averageMarks ?? 0;
+        const attendance = analytics.attendance ?? 0;
+        const riskStudents = analytics.riskStudents ?? 0;
+        const healthScore = analytics.healthScore ?? Math.max(0, Math.min(100, avgMarks + attendance - (totalStudents > 0 ? (riskStudents * 100) / totalStudents : 0)));
+
+        // Performance distribution
+        let excellent = 0, good = 0, average = 0, poor = 0;
+        batches.forEach(b => {
+            (b.students || []).forEach(s => {
+                const m = s.marks ?? 0;
+                if (m >= 75) excellent++; else if (m >= 60) good++; else if (m >= 50) average++; else poor++;
             });
         });
 
-        document.querySelectorAll("[data-expand-all-batches]").forEach((button) => {
-            button.addEventListener("click", (event) => {
-                event.stopPropagation();
-                const classId = button.dataset.expandAllBatches;
-                state.expandedClasses.add(String(classId));
-                document.querySelectorAll(`.class-card[data-class-id="${cssEscape(classId)}"] .batch-card`).forEach((batchCard) => {
-                    const list = batchCard.querySelector(".students-list");
-                    if (list) list.classList.add("visible");
-                    const batchId = batchCard.dataset.batchId;
-                    if (batchId) state.expandedBatches.add(String(batchId));
-                    const toggle = batchCard.querySelector("[data-toggle-batch]");
-                    if (toggle) toggle.textContent = "▼";
+        const batchCards = batches.map(batch => {
+            const ba = batch.analytics || {};
+            const students = Array.isArray(batch.students) ? batch.students : [];
+            const bLabel = batch.label || `Batch ${batch.number}`;
+            const bAvg = ba.avgMarks ?? 0;
+            const bAtt = ba.attendance ?? 0;
+            const bRisk = ba.riskStudents ?? 0;
+            const bid = batch.id ?? batch.number;
+            const perf = bAvg >= 75 ? "excellent" : bAvg >= 60 ? "good" : bAvg >= 50 ? "average" : "poor";
+            return `
+                <div class="fm-batch-card" data-fm-class="${escapeHtml(String(classId))}" data-fm-batch="${escapeHtml(String(bid))}">
+                    <div class="fm-batch-top">
+                        <span class="fm-batch-name">${escapeHtml(bLabel)}</span>
+                        <span class="fm-perf-dot ${perf}"></span>
+                    </div>
+                    <div class="fm-batch-stats">
+                        <div class="fm-bs"><div class="fm-bs-val">${students.length}</div><div class="fm-bs-lbl">Students</div></div>
+                        <div class="fm-bs"><div class="fm-bs-val">${formatNumber(bAvg)}</div><div class="fm-bs-lbl">Avg Marks</div></div>
+                        <div class="fm-bs"><div class="fm-bs-val">${formatNumber(bAtt)}%</div><div class="fm-bs-lbl">Attendance</div></div>
+                        <div class="fm-bs"><div class="fm-bs-val fm-risk">${bRisk}</div><div class="fm-bs-lbl">At Risk</div></div>
+                    </div>
+                </div>`;
+        }).join("");
+
+        const overlay = document.createElement("div");
+        overlay.className = "fm-overlay";
+        overlay.id = "fmClassModal";
+        overlay.innerHTML = `
+            <div class="fm-modal">
+                <div class="fm-header">
+                    <div>
+                        <h2 class="fm-title">${escapeHtml(classLabel)}</h2>
+                        <p class="fm-subtitle">${batches.length} Batches · ${totalStudents} Students</p>
+                    </div>
+                    <button class="fm-close" aria-label="Close">✕</button>
+                </div>
+                <div class="fm-body">
+                    <div class="fm-stats-row">
+                        <div class="fm-stat"><div class="fm-stat-val">${totalStudents}</div><div class="fm-stat-lbl">Total Students</div></div>
+                        <div class="fm-stat"><div class="fm-stat-val">${formatNumber(avgMarks)}</div><div class="fm-stat-lbl">Avg Marks</div></div>
+                        <div class="fm-stat"><div class="fm-stat-val">${formatNumber(attendance)}%</div><div class="fm-stat-lbl">Attendance</div></div>
+                        <div class="fm-stat"><div class="fm-stat-val">${batches.length}</div><div class="fm-stat-lbl">Batches</div></div>
+                        <div class="fm-stat"><div class="fm-stat-val fm-risk">${riskStudents}</div><div class="fm-stat-lbl">At Risk</div></div>
+                        <div class="fm-stat"><div class="fm-stat-val">${formatNumber(healthScore)}%</div><div class="fm-stat-lbl">Health Score</div></div>
+                    </div>
+
+                    <div class="fm-section-row">
+                        <div class="fm-section fm-health-section">
+                            <h3 class="fm-section-title">Health Score</h3>
+                            <div class="fm-health-bar-wrap">
+                                <div class="fm-health-bar" style="width:${healthScore}%;background:${healthScore >= 75 ? '#22c55e' : healthScore >= 50 ? '#f59e0b' : '#ef4444'}"></div>
+                            </div>
+                            <span class="fm-health-val">${formatNumber(healthScore)}%</span>
+                        </div>
+                        <div class="fm-section fm-dist-section">
+                            <h3 class="fm-section-title">Performance Distribution</h3>
+                            <div class="fm-dist-grid">
+                                <div class="fm-dist-item"><span class="fm-dist-dot" style="background:#22c55e"></span>Excellent <strong>${excellent}</strong></div>
+                                <div class="fm-dist-item"><span class="fm-dist-dot" style="background:#60a5fa"></span>Good <strong>${good}</strong></div>
+                                <div class="fm-dist-item"><span class="fm-dist-dot" style="background:#f59e0b"></span>Average <strong>${average}</strong></div>
+                                <div class="fm-dist-item"><span class="fm-dist-dot" style="background:#ef4444"></span>Poor <strong>${poor}</strong></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 class="fm-section-title" style="margin-top:20px;">Batches</h3>
+                    <div class="fm-batches-grid">${batchCards || '<p style="color:#94a3b8">No batches</p>'}</div>
+                </div>
+            </div>`;
+
+        document.body.appendChild(overlay);
+        requestAnimationFrame(() => overlay.classList.add("fm-visible"));
+
+        overlay.querySelector(".fm-close").onclick = () => closeAllModals();
+        overlay.addEventListener("click", (e) => { if (e.target === overlay) closeAllModals(); });
+
+        overlay.querySelectorAll(".fm-batch-card").forEach(card => {
+            card.addEventListener("click", () => {
+                openBatchModal(card.dataset.fmClass, card.dataset.fmBatch);
+            });
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // FULL-SCREEN BATCH MODAL
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function openBatchModal(classId, batchId) {
+        const classes = state.hierarchy?.classes || [];
+        const classItem = classes.find(c => String(c.id ?? c.classId ?? `class-${c.number}`) === String(classId));
+        if (!classItem) return;
+        const batches = Array.isArray(classItem.batches) ? classItem.batches : [];
+        const batch = batches.find(b => String(b.id ?? b.number) === String(batchId));
+        if (!batch) return;
+
+        closeAllModals();
+
+        const ba = batch.analytics || {};
+        const students = Array.isArray(batch.students) ? batch.students : [];
+        const batchLabel = batch.label || `Batch ${batch.number}`;
+        const classLabel = classItem.label || `Class ${classItem.number}`;
+        const bAvg = ba.avgMarks ?? 0;
+        const bAtt = ba.attendance ?? 0;
+        const bRisk = ba.riskStudents ?? 0;
+
+        let excellent = 0, good = 0, average = 0, poor = 0;
+        students.forEach(s => { const m = s.marks ?? 0; if (m >= 75) excellent++; else if (m >= 60) good++; else if (m >= 50) average++; else poor++; });
+
+        // Build class/batch options for transfer dropdown
+        const allClasses = state.hierarchy?.classes || [];
+        const transferOptions = allClasses.flatMap(c => {
+            const cLabel = c.label || `Class ${c.number}`;
+            return (c.batches || []).map(b => {
+                const bLabel = b.label || `Batch ${b.number}`;
+                const cNum = c.number ?? c.classNumber;
+                const bNum = b.number ?? b.batchNumber;
+                return `<option value="${cNum}:${bNum}">${escapeHtml(cLabel)} → ${escapeHtml(bLabel)}</option>`;
+            });
+        }).join("");
+
+        const studentRows = students.length === 0
+            ? '<div style="text-align:center;padding:40px 20px;color:#94a3b8;grid-column:1/-1"><div style="font-size:48px;margin-bottom:12px">📭</div><p>No students in this batch.</p></div>'
+            : students.map(s => {
+                const sid = s.id ?? s.studentId ?? s.enrollment;
+                const initials = getInitials(s.name || "Student");
+                const marks = s.marks ?? 0;
+                const att = s.attendance ?? 0;
+                const band = s.performanceBand || performanceBandFromMarks(marks);
+                const photoUrl = s.profilePhotoUrl || s.photoUrl || "";
+                const avatarHtml = photoUrl
+                    ? `<img src="${escapeHtml(photoUrl)}" class="fm-student-avatar fm-avatar-img" alt="${escapeHtml(initials)}">`
+                    : `<div class="fm-student-avatar">${escapeHtml(initials)}</div>`;
+
+                return `
+                    <div class="fm-student-card-wrap" data-student-id="${escapeHtml(String(sid))}">
+                        <div class="fm-student-card">
+                            <div class="fm-avatar-wrap">
+                                ${avatarHtml}
+                                <button class="fm-photo-btn" title="Upload photo">📷</button>
+                                <input type="file" class="fm-photo-input" accept="image/*" hidden>
+                            </div>
+                            <div class="fm-student-info">
+                                <div class="fm-student-name">${escapeHtml(s.name || "Unnamed")}</div>
+                                <div class="fm-student-meta">${escapeHtml(s.enrollment || s.enrollmentNumber || sid || "")}${s.email ? ` · ${escapeHtml(s.email)}` : ""}</div>
+                            </div>
+                            <div class="fm-student-badges">
+                                <span class="fm-perf-badge ${band}">${formatNumber(marks)} marks</span>
+                                <span class="fm-att-badge">${formatNumber(att)}%</span>
+                            </div>
+                            <div class="fm-student-actions">
+                                <button class="fm-action-btn fm-edit-btn" title="Edit details">✏️</button>
+                                <button class="fm-action-btn fm-transfer-btn" title="Transfer">🔀</button>
+                                <button class="fm-action-btn fm-profile-btn" title="View profile">👤</button>
+                            </div>
+                        </div>
+                        <div class="fm-transfer-panel" hidden>
+                            <select class="fm-transfer-select"><option value="">Select target...</option>${transferOptions}</select>
+                            <button class="fm-transfer-confirm">Transfer</button>
+                            <button class="fm-transfer-cancel">Cancel</button>
+                        </div>
+                        <div class="fm-edit-panel" hidden>
+                            <div class="fm-edit-grid">
+                                <div class="fm-edit-field"><label>Name</label><input class="fm-edit-input" data-field="fullName" value="${escapeHtml(s.name || "")}"></div>
+                                <div class="fm-edit-field"><label>Email</label><input class="fm-edit-input" data-field="email" value="${escapeHtml(s.email || "")}"></div>
+                                <div class="fm-edit-field"><label>Phone</label><input class="fm-edit-input" data-field="phone" value="${escapeHtml(s.phone || "")}"></div>
+                                <div class="fm-edit-field"><label>Course</label><input class="fm-edit-input" data-field="course" value="${escapeHtml(s.course || "")}"></div>
+                                <div class="fm-edit-field"><label>Semester</label><input class="fm-edit-input" data-field="semester" value="${escapeHtml(s.semester || "")}"></div>
+                                <div class="fm-edit-field"><label>Department</label><input class="fm-edit-input" data-field="department" value="${escapeHtml(s.department || "")}"></div>
+                            </div>
+                            <div class="fm-edit-actions">
+                                <button class="fm-edit-save">💾 Save</button>
+                                <button class="fm-edit-cancel">Cancel</button>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join("");
+
+        const overlay = document.createElement("div");
+        overlay.className = "fm-overlay";
+        overlay.id = "fmBatchModal";
+        overlay.innerHTML = `
+            <div class="fm-modal fm-modal-wide">
+                <div class="fm-header">
+                    <div>
+                        <button class="fm-back" aria-label="Back to class">← Back</button>
+                        <h2 class="fm-title">${escapeHtml(batchLabel)}</h2>
+                        <p class="fm-subtitle">${escapeHtml(classLabel)} · ${students.length} Students</p>
+                    </div>
+                    <button class="fm-close" aria-label="Close">✕</button>
+                </div>
+                <div class="fm-body">
+                    <div class="fm-stats-row">
+                        <div class="fm-stat"><div class="fm-stat-val">${students.length}</div><div class="fm-stat-lbl">Students</div></div>
+                        <div class="fm-stat"><div class="fm-stat-val">${formatNumber(bAvg)}</div><div class="fm-stat-lbl">Avg Marks</div></div>
+                        <div class="fm-stat"><div class="fm-stat-val">${formatNumber(bAtt)}%</div><div class="fm-stat-lbl">Attendance</div></div>
+                        <div class="fm-stat"><div class="fm-stat-val fm-risk">${bRisk}</div><div class="fm-stat-lbl">At Risk</div></div>
+                    </div>
+                    <div class="fm-section fm-dist-section" style="margin-bottom:16px">
+                        <h3 class="fm-section-title">Performance Distribution</h3>
+                        <div class="fm-dist-grid">
+                            <div class="fm-dist-item"><span class="fm-dist-dot" style="background:#22c55e"></span>Excellent <strong>${excellent}</strong></div>
+                            <div class="fm-dist-item"><span class="fm-dist-dot" style="background:#60a5fa"></span>Good <strong>${good}</strong></div>
+                            <div class="fm-dist-item"><span class="fm-dist-dot" style="background:#f59e0b"></span>Average <strong>${average}</strong></div>
+                            <div class="fm-dist-item"><span class="fm-dist-dot" style="background:#ef4444"></span>Poor <strong>${poor}</strong></div>
+                        </div>
+                    </div>
+                    <h3 class="fm-section-title">Students</h3>
+                    <div class="fm-students-grid">${studentRows}</div>
+                </div>
+            </div>`;
+
+        document.body.appendChild(overlay);
+        requestAnimationFrame(() => overlay.classList.add("fm-visible"));
+
+        overlay.querySelector(".fm-close").onclick = () => closeAllModals();
+        overlay.querySelector(".fm-back").onclick = () => { closeAllModals(); openClassModal(classId); };
+        overlay.addEventListener("click", (e) => { if (e.target === overlay) closeAllModals(); });
+
+        // Bind student actions
+        overlay.querySelectorAll(".fm-student-card-wrap").forEach(wrap => {
+            const sid = wrap.dataset.studentId;
+
+            // Profile button
+            wrap.querySelector(".fm-profile-btn")?.addEventListener("click", (e) => { e.stopPropagation(); openProfile(sid); });
+
+            // Photo upload
+            const photoBtn = wrap.querySelector(".fm-photo-btn");
+            const photoInput = wrap.querySelector(".fm-photo-input");
+            photoBtn?.addEventListener("click", (e) => { e.stopPropagation(); photoInput?.click(); });
+            photoInput?.addEventListener("change", (e) => {
+                e.stopPropagation();
+                const file = photoInput.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const base64 = reader.result;
+                    photoBtn.textContent = "⏳";
+                    fetch(`/api/admin/student/${encodeURIComponent(sid)}/profile`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ profileImage: base64 })
+                    })
+                    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+                    .then(res => {
+                        photoBtn.textContent = "✅";
+                        const avatarWrap = wrap.querySelector(".fm-avatar-wrap");
+                        const existingAvatar = avatarWrap.querySelector(".fm-student-avatar");
+                        if (existingAvatar) {
+                            const img = document.createElement("img");
+                            img.src = res.profilePhotoUrl || base64;
+                            img.className = "fm-student-avatar fm-avatar-img";
+                            existingAvatar.replaceWith(img);
+                        }
+                        showToast("✅ Photo uploaded successfully");
+                        setTimeout(() => { photoBtn.textContent = "📷"; }, 2000);
+                    })
+                    .catch(err => { photoBtn.textContent = "📷"; showToast(`❌ Photo upload failed: ${err.message}`); });
+                };
+                reader.readAsDataURL(file);
+            });
+
+            // Transfer
+            const transferBtn = wrap.querySelector(".fm-transfer-btn");
+            const transferPanel = wrap.querySelector(".fm-transfer-panel");
+            transferBtn?.addEventListener("click", (e) => { e.stopPropagation(); transferPanel.hidden = !transferPanel.hidden; wrap.querySelector(".fm-edit-panel").hidden = true; });
+            wrap.querySelector(".fm-transfer-cancel")?.addEventListener("click", (e) => { e.stopPropagation(); transferPanel.hidden = true; });
+            wrap.querySelector(".fm-transfer-confirm")?.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const select = wrap.querySelector(".fm-transfer-select");
+                const val = select?.value;
+                if (!val) { showToast("⚠️ Select a target class/batch"); return; }
+                const [classNum, batchNum] = val.split(":").map(Number);
+                const confirmBtn = wrap.querySelector(".fm-transfer-confirm");
+                confirmBtn.textContent = "Transferring...";
+                confirmBtn.disabled = true;
+                fetch("/api/admin/students-hierarchy/reassign", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ studentId: sid, classNumber: classNum, batchNumber: batchNum })
+                })
+                .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+                .then(() => {
+                    showToast(`✅ Student transferred successfully`);
+                    transferPanel.hidden = true;
+                    loadHierarchy({ preserveState: true });
+                    setTimeout(() => openBatchModal(classId, batchId), 800);
+                })
+                .catch(err => { showToast(`❌ Transfer failed: ${err.message}`); confirmBtn.textContent = "Transfer"; confirmBtn.disabled = false; });
+            });
+
+            // Edit
+            const editBtn = wrap.querySelector(".fm-edit-btn");
+            const editPanel = wrap.querySelector(".fm-edit-panel");
+            editBtn?.addEventListener("click", (e) => { e.stopPropagation(); editPanel.hidden = !editPanel.hidden; wrap.querySelector(".fm-transfer-panel").hidden = true; });
+            wrap.querySelector(".fm-edit-cancel")?.addEventListener("click", (e) => { e.stopPropagation(); editPanel.hidden = true; });
+            wrap.querySelector(".fm-edit-save")?.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const payload = {};
+                editPanel.querySelectorAll(".fm-edit-input").forEach(input => {
+                    const field = input.dataset.field;
+                    const val = input.value.trim();
+                    if (field && val) payload[field] = val;
                 });
-                const classBody = document.querySelector(`.class-card[data-class-id="${cssEscape(classId)}"] .class-body`);
-                if (classBody) classBody.classList.remove("collapsed");
-                const classHeader = document.querySelector(`.class-card[data-class-id="${cssEscape(classId)}"] .class-header`);
-                if (classHeader) classHeader.classList.add("expanded");
+                const saveBtn = wrap.querySelector(".fm-edit-save");
+                saveBtn.textContent = "Saving...";
+                saveBtn.disabled = true;
+                fetch(`/api/admin/student/${encodeURIComponent(sid)}/profile`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                })
+                .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+                .then(() => {
+                    showToast("✅ Student details updated");
+                    editPanel.hidden = true;
+                    saveBtn.textContent = "💾 Save";
+                    saveBtn.disabled = false;
+                    // Update name in the card
+                    if (payload.fullName) {
+                        const nameEl = wrap.querySelector(".fm-student-name");
+                        if (nameEl) nameEl.textContent = payload.fullName;
+                    }
+                })
+                .catch(err => { showToast(`❌ Update failed: ${err.message}`); saveBtn.textContent = "💾 Save"; saveBtn.disabled = false; });
             });
         });
+    }
 
-        document.querySelectorAll("[data-toggle-batch]").forEach((trigger) => {
-            trigger.addEventListener("click", handleBatchToggle);
-            trigger.addEventListener("keydown", handleBatchKeydown);
-        });
-
-        document.querySelectorAll(".student-row").forEach((row) => {
-            row.addEventListener("dragstart", handleStudentDragStart);
-            row.addEventListener("dragend", handleStudentDragEnd);
-        });
-
-        document.querySelectorAll(".batch-card").forEach((card) => {
-            card.addEventListener("dragover", handleBatchDragOver);
-            card.addEventListener("dragleave", handleBatchDragLeave);
-            card.addEventListener("drop", handleBatchDrop);
-        });
-
-        document.querySelectorAll("[data-view-profile]").forEach((button) => {
-            button.addEventListener("click", () => openProfile(button.dataset.viewProfile));
-        });
-
-        document.querySelectorAll("[data-upload-face]").forEach((button) => {
-            button.addEventListener("click", () => openFaceUpload(button.dataset.uploadFace));
-        });
-
-        document.querySelectorAll("[data-delete-student]").forEach((button) => {
-            button.addEventListener("click", () => deleteStudent(button.dataset.deleteStudent));
-        });
+    function closeAllModals() {
+        document.querySelectorAll(".fm-overlay").forEach(el => el.remove());
     }
 
     function handleClassToggle(event) {
         const classCard = event.currentTarget.closest(".class-card");
         const classId = classCard?.dataset.classId;
         const classBody = classCard?.querySelector(".class-body");
-        const classHeader = classCard?.querySelector(".class-header");
-        if (!classId || !classBody || !classHeader) return;
-
+        if (!classId || !classBody) return;
         const expanded = classBody.classList.contains("collapsed");
         if (expanded) {
             classBody.classList.remove("collapsed");
             state.expandedClasses.add(String(classId));
-            classHeader.classList.add("expanded");
         } else {
             classBody.classList.add("collapsed");
             state.expandedClasses.delete(String(classId));
-            classHeader.classList.remove("expanded");
         }
     }
 
     function handleClassKeydown(event) {
-        if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            handleClassToggle(event);
-        }
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handleClassToggle(event); }
     }
 
     function toggleClassById(classId) {
         const classCard = document.querySelector(`.class-card[data-class-id="${cssEscape(classId)}"]`);
         const classBody = classCard?.querySelector(".class-body");
-        const classHeader = classCard?.querySelector(".class-header");
-        if (!classBody || !classHeader) return;
-
+        if (!classBody) return;
         const isCollapsed = classBody.classList.contains("collapsed");
         if (isCollapsed) {
             classBody.classList.remove("collapsed");
             state.expandedClasses.add(String(classId));
-            classHeader.classList.add("expanded");
         } else {
             classBody.classList.add("collapsed");
             state.expandedClasses.delete(String(classId));
-            classHeader.classList.remove("expanded");
         }
-
-        const actionBtn = classCard.querySelector("[data-toggle-class-action]");
-        if (actionBtn) actionBtn.textContent = isCollapsed ? "Collapse" : "Expand";
     }
 
     function togglePinnedClass(classId) {
         const pinnedClasses = JSON.parse(localStorage.getItem("pinnedClasses") || "[]");
         const id = String(classId);
         const idx = pinnedClasses.indexOf(id);
-        if (idx >= 0) {
-            pinnedClasses.splice(idx, 1);
-        } else {
-            pinnedClasses.push(id);
-        }
+        if (idx >= 0) { pinnedClasses.splice(idx, 1); } else { pinnedClasses.push(id); }
         localStorage.setItem("pinnedClasses", JSON.stringify(pinnedClasses));
         renderHierarchy();
     }
@@ -528,7 +1059,6 @@
         const batchCard = document.querySelector(`[data-batch-id="${cssEscape(batchId)}"]`);
         const studentsList = batchCard?.querySelector(".students-list");
         if (!batchCard || !studentsList) return;
-
         const visible = studentsList.classList.contains("visible");
         if (visible) {
             studentsList.classList.remove("visible");
@@ -542,19 +1072,14 @@
     }
 
     function handleBatchKeydown(event) {
-        if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            handleBatchToggle(event);
-        }
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); handleBatchToggle(event); }
     }
+
+    // ─── Drag and Drop ─────────────────────────────────────────────────────
 
     function handleStudentDragStart(event) {
         const row = event.currentTarget;
-        const payload = {
-            studentId: row.dataset.studentId,
-            classNumber: row.dataset.classNumber,
-            batchNumber: row.dataset.batchNumber
-        };
+        const payload = { studentId: row.dataset.studentId, classNumber: row.dataset.classNumber, batchNumber: row.dataset.batchNumber };
         state.draggingStudent = payload;
         row.classList.add("dragging");
         event.dataTransfer.effectAllowed = "move";
@@ -564,7 +1089,7 @@
     function handleStudentDragEnd(event) {
         event.currentTarget.classList.remove("dragging");
         state.draggingStudent = null;
-        document.querySelectorAll(".batch-drop-target").forEach((card) => card.classList.remove("batch-drop-target"));
+        document.querySelectorAll(".batch-drop-target").forEach(card => card.classList.remove("batch-drop-target"));
     }
 
     function handleBatchDragOver(event) {
@@ -581,10 +1106,8 @@
         event.preventDefault();
         const target = event.currentTarget;
         target.classList.remove("batch-drop-target");
-
         const payload = state.draggingStudent || safeParse(event.dataTransfer.getData("text/plain"));
         if (!payload?.studentId) return;
-
         const targetClassNumber = Number(target.dataset.classNumber);
         const targetBatchNumber = Number(target.dataset.batchNumber);
         reassignStudent(payload.studentId, targetClassNumber, targetBatchNumber);
@@ -600,13 +1123,11 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ studentId, classNumber, batchNumber })
         })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 showToast(`Moved student to Class ${classNumber}, Batch ${batchNumber}`);
             })
-            .catch((error) => {
+            .catch(error => {
                 state.hierarchy = snapshot;
                 showToast(`Reassign failed: ${error.message}`);
                 renderHierarchy();
@@ -616,43 +1137,34 @@
     function moveStudentLocally(studentId, targetClassNumber, targetBatchNumber) {
         const classes = state.hierarchy.classes || [];
         let movingStudent = null;
-
         for (const classItem of classes) {
             for (const batch of classItem.batches || []) {
-                const index = (batch.students || []).findIndex((student) => String(student.id ?? student.studentId ?? student.enrollment) === String(studentId));
-                if (index >= 0) {
-                    movingStudent = batch.students.splice(index, 1)[0];
-                    break;
-                }
+                const index = (batch.students || []).findIndex(s => String(s.id ?? s.studentId ?? s.enrollment) === String(studentId));
+                if (index >= 0) { movingStudent = batch.students.splice(index, 1)[0]; break; }
             }
             if (movingStudent) break;
         }
-
         if (!movingStudent) return;
-
         movingStudent.classNumber = targetClassNumber;
         movingStudent.batchNumber = targetBatchNumber;
-
-        const targetClass = classes.find((classItem) => Number(classItem.number ?? classItem.classNumber) === Number(targetClassNumber));
+        const targetClass = classes.find(c => Number(c.number ?? c.classNumber) === Number(targetClassNumber));
         if (!targetClass) {
             classes.push({
-                id: `class-${targetClassNumber}`,
-                number: targetClassNumber,
-                label: `Class ${targetClassNumber}`,
+                id: `class-${targetClassNumber}`, number: targetClassNumber, label: `Class ${targetClassNumber}`,
                 analytics: { avgMarks: 0, attendance: 0, riskStudents: 0, presentToday: 0 },
                 batches: [{ id: `batch-${targetClassNumber}-${targetBatchNumber}`, number: targetBatchNumber, label: `Batch ${targetBatchNumber}`, analytics: {}, students: [movingStudent] }]
             });
             return;
         }
-
-        let targetBatch = (targetClass.batches || []).find((batch) => Number(batch.number ?? batch.batchNumber) === Number(targetBatchNumber));
+        let targetBatch = (targetClass.batches || []).find(b => Number(b.number ?? b.batchNumber) === Number(targetBatchNumber));
         if (!targetBatch) {
             targetBatch = { id: `batch-${targetClassNumber}-${targetBatchNumber}`, number: targetBatchNumber, label: `Batch ${targetBatchNumber}`, analytics: {}, students: [] };
             targetClass.batches = [...(targetClass.batches || []), targetBatch];
         }
-
         targetBatch.students = [...(targetBatch.students || []), movingStudent];
     }
+
+    // ─── Filters ────────────────────────────────────────────────────────────
 
     function onServerFilterChange() {
         state.filters.course = refs.courseFilter?.value || "";
@@ -677,10 +1189,10 @@
         state.allExpanded = true;
         state.expandedClasses.clear();
         state.expandedBatches.clear();
-        (state.hierarchy.classes || []).forEach((classItem) => {
+        (state.hierarchy.classes || []).forEach(classItem => {
             const classId = classItem.id ?? classItem.classId ?? `class-${classItem.number}`;
             state.expandedClasses.add(String(classId));
-            (classItem.batches || []).forEach((batch) => {
+            (classItem.batches || []).forEach(batch => {
                 const batchId = batch.id ?? batch.batchId ?? `batch-${classItem.number}-${batch.number}`;
                 state.expandedBatches.add(String(batchId));
             });
@@ -698,311 +1210,155 @@
     function runAiGrouping() {
         state.filters.groupingMode = "ai";
         if (refs.groupingMode) refs.groupingMode.value = "ai";
-
         fetch("/api/admin/students-hierarchy/ai-grouping", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                classNumber: state.filters.course ? null : null,
-                course: state.filters.course || null,
-                semester: state.filters.semester || null,
-                clusters: 4
-            })
+            body: JSON.stringify({ classNumber: null, course: state.filters.course || null, semester: state.filters.semester || null, clusters: 4 })
         })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                return response.json();
-            })
-            .then((payload) => {
+            .then(response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); })
+            .then(payload => {
                 const suggestions = Array.isArray(payload?.suggestions) ? payload.suggestions : [];
-                const changedCount = suggestions.filter((item) => item.changed).length;
+                const changedCount = suggestions.filter(item => item.changed).length;
                 showToast(`AI grouping ready: ${changedCount} students suggested for reassignment`);
                 renderHierarchy();
             })
-            .catch((error) => showToast(`AI grouping failed: ${error.message}`));
+            .catch(error => showToast(`AI grouping failed: ${error.message}`));
     }
 
     function toggleSidebar() {
         const sidebar = document.querySelector(".sidebar");
         if (!sidebar) return;
-        const isOpen = sidebar.dataset.open === "true";
-        sidebar.dataset.open = String(!isOpen);
+        sidebar.dataset.open = String(sidebar.dataset.open !== "true");
     }
 
-    function openProfile(studentId) {
-        window.location.href = `/admin/students/${encodeURIComponent(studentId)}/profile`;
-    }
+    // ─── Actions ────────────────────────────────────────────────────────────
 
-    function openFaceUpload(studentId) {
-        state.pendingFaceStudentId = studentId;
-        refs.faceUploadInput?.click();
-    }
+    function openProfile(studentId) { window.location.href = `/admin/students/${encodeURIComponent(studentId)}/profile`; }
+
+    function openFaceUpload(studentId) { state.pendingFaceStudentId = studentId; refs.faceUploadInput?.click(); }
 
     function handleFaceUploadChange(event) {
         const file = event.target.files?.[0];
         const studentId = state.pendingFaceStudentId;
         if (!file || !studentId) return;
-
         const formData = new FormData();
         formData.append("studentId", studentId);
         formData.append("file", file);
-
-        fetch("/api/admin/upload-face", {
-            method: "POST",
-            body: formData
-        })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                return response.json();
-            })
-            .then((payload) => showToast(payload?.message || `Face uploaded for ${studentId}`))
-            .catch((error) => showToast(`Face upload failed: ${error.message}`))
-            .finally(() => {
-                state.pendingFaceStudentId = null;
-                event.target.value = "";
-            });
+        fetch("/api/admin/upload-face", { method: "POST", body: formData })
+            .then(response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); })
+            .then(payload => showToast(payload?.message || `Face uploaded for ${studentId}`))
+            .catch(error => showToast(`Face upload failed: ${error.message}`))
+            .finally(() => { state.pendingFaceStudentId = null; event.target.value = ""; });
     }
 
     function deleteStudent(studentId) {
         if (!window.confirm(`Delete student ${studentId}? This cannot be undone.`)) return;
-
         fetch(`/api/admin/students/${encodeURIComponent(studentId)}`, { method: "DELETE" })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                showToast(`Student ${studentId} deleted`);
-                loadHierarchy({ preserveState: true });
-            })
-            .catch((error) => showToast(`Delete failed: ${error.message}`));
+            .then(response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); showToast(`Student ${studentId} deleted`); loadHierarchy({ preserveState: true }); })
+            .catch(error => showToast(`Delete failed: ${error.message}`));
     }
+
+    // ─── UI States ──────────────────────────────────────────────────────────
 
     function showLoadingState() {
         if (refs.loadingSpinner) refs.loadingSpinner.hidden = false;
         if (refs.noDataState) refs.noDataState.hidden = true;
-        if (refs.classesContainer) {
-            refs.classesContainer.hidden = true;
-            refs.classesContainer.innerHTML = skeletonMarkup();
-        }
+        if (refs.classesContainer) { refs.classesContainer.hidden = true; refs.classesContainer.innerHTML = skeletonMarkup(); }
     }
 
     function showEmptyState() {
         if (refs.loadingSpinner) refs.loadingSpinner.hidden = true;
         if (refs.noDataState) refs.noDataState.hidden = false;
-        if (refs.classesContainer) {
-            refs.classesContainer.hidden = true;
-            refs.classesContainer.innerHTML = "";
-        }
+        if (refs.classesContainer) { refs.classesContainer.hidden = true; refs.classesContainer.innerHTML = ""; }
     }
 
     function skeletonMarkup() {
-        return new Array(3).fill(0).map((_, index) => `
+        return new Array(3).fill(0).map((_, i) => `
             <section class="class-card glass-panel">
-                <div class="class-header">
-                    <div class="class-info">
-                        <div class="class-title">Loading class ${index + 1}...</div>
-                        <div class="class-stats"><span class="stat-pill">Fetching analytics</span></div>
-                    </div>
-                    <div class="class-toggle">⌄</div>
-                </div>
-                <div class="class-body">
-                    <div class="batch-card batch-1"><div class="loading-spinner"><div class="spinner"></div><p>Loading batches...</p></div></div>
-                </div>
+                <div class="class-header"><div class="class-info"><div class="class-title">Loading class ${i + 1}...</div></div><div class="class-toggle">⌄</div></div>
+                <div class="class-body"><div class="batch-card batch-1"><div class="loading-spinner"><div class="spinner"></div><p>Loading batches...</p></div></div></div>
             </section>
         `).join("");
     }
 
-    function countBatches(classes) {
-        return classes.reduce((total, classItem) => total + (classItem.batches?.length || 0), 0);
-    }
+    // ─── Utilities ──────────────────────────────────────────────────────────
 
-    function countStudents(classes) {
-        return classes.reduce((total, classItem) => total + countStudentsInClass(classItem), 0);
-    }
-
-    function countStudentsInClass(classItem) {
-        return (classItem.batches || []).reduce((total, batch) => total + (batch.students?.length || 0), 0);
-    }
+    function countBatches(classes) { return classes.reduce((sum, c) => sum + (c.batches?.length || 0), 0); }
+    function countStudents(classes) { return classes.reduce((sum, c) => sum + countStudentsInClass(c), 0); }
+    function countStudentsInClass(c) { return (c.batches || []).reduce((sum, b) => sum + (b.students?.length || 0), 0); }
 
     function averageAttendance(classes) {
         const values = [];
-        classes.forEach((classItem) => {
-            (classItem.batches || []).forEach((batch) => {
-                const analytics = batch.analytics || {};
-                const value = analytics.attendance ?? analytics.averageAttendance;
-                if (typeof value === "number") values.push(value);
-            });
-        });
-        if (!values.length) return 0;
-        return values.reduce((sum, value) => sum + value, 0) / values.length;
+        classes.forEach(c => (c.batches || []).forEach(b => {
+            const v = (b.analytics || {}).attendance ?? (b.analytics || {}).averageAttendance;
+            if (typeof v === "number") values.push(v);
+        }));
+        return values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
     }
 
     function studentMatches(student, query) {
         if (!query) return true;
-        const haystack = [student.name, student.enrollment, student.email, student.phone, student.classNumber, student.batchNumber]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
-        return haystack.includes(query);
+        return [student.name, student.enrollment, student.enrollmentNumber, student.email, student.phone, student.classNumber, student.batchNumber].filter(Boolean).join(" ").toLowerCase().includes(query);
     }
-
     function batchMatchesQuery(batch, query) {
         if (!query) return true;
-        const haystack = [batch.label, batch.batchLabel, batch.number, batch.id, batch.batchId].filter(Boolean).join(" ").toLowerCase();
-        return haystack.includes(query);
+        return [batch.label, batch.batchLabel, batch.number, batch.id, batch.batchId].filter(Boolean).join(" ").toLowerCase().includes(query);
     }
-
     function classMatchesQuery(classItem, query) {
         if (!query) return true;
-        const haystack = [classItem.label, classItem.classLabel, classItem.number, classItem.id, classItem.classId].filter(Boolean).join(" ").toLowerCase();
-        return haystack.includes(query);
+        return [classItem.label, classItem.classLabel, classItem.number, classItem.id, classItem.classId].filter(Boolean).join(" ").toLowerCase().includes(query);
     }
 
     function performanceBandFromMarks(marks) {
-        const value = Number(marks) || 0;
-        if (value >= 75) return "excellent";
-        if (value >= 60) return "good";
-        if (value >= 50) return "average";
+        const v = Number(marks) || 0;
+        if (v >= 75) return "excellent";
+        if (v >= 60) return "good";
+        if (v >= 50) return "average";
         return "poor";
     }
 
-    function formatNumber(value) {
-        const numeric = Number(value) || 0;
-        return numeric.toFixed(1).replace(/\.0$/, "");
-    }
-
-    function truncate(text, maxLength) {
-        const value = String(text || "");
-        return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
-    }
-
-    function getInitials(name) {
-        const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
-        if (!parts.length) return "ST";
-        return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join("");
-    }
-
-    function escapeHtml(value) {
-        const div = document.createElement("div");
-        div.textContent = String(value ?? "");
-        return div.innerHTML;
-    }
-
-    function cssEscape(value) {
-        if (window.CSS && typeof window.CSS.escape === "function") {
-            return window.CSS.escape(String(value));
-        }
-        return String(value).replace(/"/g, '\\"');
-    }
-
-    function safeParse(value) {
-        try {
-            return JSON.parse(value);
-        } catch {
-            return null;
-        }
-    }
-
-    function cloneHierarchy(value) {
-        return JSON.parse(JSON.stringify(value || { summary: {}, classes: [] }));
-    }
-
-    function debounce(callback, delay) {
-        let timer = null;
-        return function debounced(...args) {
-            clearTimeout(timer);
-            timer = setTimeout(() => callback.apply(this, args), delay);
-        };
-    }
+    function formatNumber(value) { const n = Number(value) || 0; return n.toFixed(1).replace(/\.0$/, ""); }
+    function truncate(text, max) { const v = String(text || ""); return v.length > max ? `${v.slice(0, max)}…` : v; }
+    function getInitials(name) { const parts = String(name || "").trim().split(/\s+/).filter(Boolean); return parts.length ? parts.slice(0, 2).map(p => p.charAt(0).toUpperCase()).join("") : "ST"; }
+    function escapeHtml(value) { const div = document.createElement("div"); div.textContent = String(value ?? ""); return div.innerHTML; }
+    function cssEscape(value) { return window.CSS?.escape ? window.CSS.escape(String(value)) : String(value).replace(/"/g, '\\"'); }
+    function safeParse(value) { try { return JSON.parse(value); } catch { return null; } }
+    function cloneHierarchy(value) { return JSON.parse(JSON.stringify(value || { summary: {}, classes: [] })); }
+    function debounce(callback, delay) { let timer = null; return function (...args) { clearTimeout(timer); timer = setTimeout(() => callback.apply(this, args), delay); }; }
 
     function showToast(message) {
         if (!message) return;
         let container = document.querySelector(".toast-stack");
-        if (!container) {
-            container = document.createElement("div");
-            container.className = "toast-stack";
-            document.body.appendChild(container);
-        }
-
+        if (!container) { container = document.createElement("div"); container.className = "toast-stack"; document.body.appendChild(container); }
         const toast = document.createElement("div");
         toast.className = "toast";
         toast.textContent = message;
         container.appendChild(toast);
-
         clearTimeout(state.toastTimer);
-        state.toastTimer = setTimeout(() => {
-            toast.remove();
-            if (!container.children.length) {
-                container.remove();
-            }
-        }, 2600);
+        state.toastTimer = setTimeout(() => { toast.remove(); if (!container.children.length) container.remove(); }, 2600);
     }
 
-    // ─── CREATE STUDENT FORM HANDLERS ─── //
-    function prevStep() {
-        if (createFormState.step > 1) {
-            createFormState.step -= 1;
-            renderSteps();
-        }
-    }
+    // ─── Create Student Form ────────────────────────────────────────────────
 
+    function prevStep() { if (createFormState.step > 1) { createFormState.step -= 1; renderSteps(); } }
     function nextStep() {
-        if (createFormState.step === 1 && (!refs.studentIdInput?.value.trim() || !refs.studentNameInput?.value.trim())) {
-            showToast("Student ID and Name are required");
-            return;
-        }
-        if (createFormState.step < 3) {
-            createFormState.step += 1;
-            renderSteps();
-        }
+        if (createFormState.step === 1 && (!refs.studentIdInput?.value.trim() || !refs.studentNameInput?.value.trim())) { showToast("Student ID and Name are required"); return; }
+        if (createFormState.step < 3) { createFormState.step += 1; renderSteps(); }
     }
-
     function renderSteps() {
-        const totalSteps = 3;
-        refs.steps?.forEach((step, i) => {
-            step.classList.toggle("active", i < createFormState.step);
-        });
-        if (refs.stepLabel) refs.stepLabel.textContent = `Step ${createFormState.step} of ${totalSteps}`;
-        document.querySelectorAll("[data-step-panel]").forEach((panel) => {
-            const panelStep = parseInt(panel.dataset.stepPanel);
-            panel.hidden = panelStep !== createFormState.step;
-        });
-        if (refs.stepNextBtn) refs.stepNextBtn.hidden = createFormState.step === totalSteps;
-        if (refs.createSubmitBtn) refs.createSubmitBtn.hidden = createFormState.step !== totalSteps;
+        refs.steps?.forEach((step, i) => step.classList.toggle("active", i < createFormState.step));
+        if (refs.stepLabel) refs.stepLabel.textContent = `Step ${createFormState.step} of 3`;
+        document.querySelectorAll("[data-step-panel]").forEach(panel => panel.hidden = parseInt(panel.dataset.stepPanel) !== createFormState.step);
+        if (refs.stepNextBtn) refs.stepNextBtn.hidden = createFormState.step === 3;
+        if (refs.createSubmitBtn) refs.createSubmitBtn.hidden = createFormState.step !== 3;
     }
 
     function submitCreateStudent() {
-        if (!refs.studentIdInput?.value.trim() || !refs.studentNameInput?.value.trim()) {
-            showToast("Student ID and Name are required");
-            return;
-        }
-        
-        const payload = {
-            id: refs.studentIdInput.value,
-            name: refs.studentNameInput.value,
-            course: refs.studentCourseInput?.value || "",
-            semester: refs.studentSemesterInput?.value || "",
-            phone: refs.studentPhoneInput?.value || ""
-        };
-
-        fetch("/api/students", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        })
+        if (!refs.studentIdInput?.value.trim() || !refs.studentNameInput?.value.trim()) { showToast("Student ID and Name are required"); return; }
+        const payload = { id: refs.studentIdInput.value, name: refs.studentNameInput.value, course: refs.studentCourseInput?.value || "", semester: refs.studentSemesterInput?.value || "", phone: refs.studentPhoneInput?.value || "" };
+        fetch("/api/students", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
             .then(response => response.ok ? response.json() : Promise.reject(`HTTP ${response.status}`))
-            .then(() => {
-                showToast("Student created successfully");
-                refs.createStudentForm?.reset();
-                createFormState.step = 1;
-                renderSteps();
-                loadHierarchy({ preserveState: true });
-                loadTopPerformers();
-            })
+            .then(() => { showToast("Student created successfully"); refs.createStudentForm?.reset(); createFormState.step = 1; renderSteps(); loadHierarchy({ preserveState: true }); loadTopPerformers(); })
             .catch(error => showToast(`Create failed: ${error}`));
     }
 
@@ -1012,18 +1368,14 @@
             .then(data => {
                 const items = Array.isArray(data.content) ? data.content : [];
                 if (refs.topPerformers) {
-                    refs.topPerformers.innerHTML = items.map((student, i) => `
-                        <li class="audit-item">#${i + 1} ${escapeHtml(student.name || "Unknown")} - ${(student.marks || 0).toFixed(1)}</li>
-                    `).join("") || "<li class=\"audit-item\">No data available</li>";
+                    refs.topPerformers.innerHTML = items.map((student, i) => `<li class="audit-item">#${i + 1} ${escapeHtml(student.name || "Unknown")} - ${(student.marks || 0).toFixed(1)}</li>`).join("") || '<li class="audit-item">No data available</li>';
                 }
                 if (refs.avgMarksLabel && items.length > 0) {
                     const avgMarks = items.reduce((sum, s) => sum + (s.marks || 0), 0) / items.length;
                     refs.avgMarksLabel.textContent = avgMarks.toFixed(1);
                 }
             })
-            .catch(() => {
-                if (refs.topPerformers) refs.topPerformers.innerHTML = "<li class=\"audit-item\">Unable to load data</li>";
-            });
+            .catch(() => { if (refs.topPerformers) refs.topPerformers.innerHTML = '<li class="audit-item">Unable to load data</li>'; });
     }
 
     window.viewStudentProfile = openProfile;
@@ -1034,9 +1386,6 @@
         if (confirmed) deleteStudent(studentId);
     };
 
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", init);
-    } else {
-        init();
-    }
+    if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", init); }
+    else { init(); }
 })();

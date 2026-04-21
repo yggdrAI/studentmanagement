@@ -45,6 +45,10 @@ public class Student extends Person implements Comparable<Student> {
     @JoinColumn(name = "batch_id")
     private AcademicBatch academicBatch;
 
+    @ManyToOne
+    @JoinColumn(name = "program_id")
+    private AcademicProgram academicProgram;
+
     private String rollNumber;
     private String enrollmentYear;
 
@@ -180,6 +184,14 @@ public class Student extends Person implements Comparable<Student> {
 
     public void setAcademicBatch(AcademicBatch academicBatch) {
         this.academicBatch = academicBatch;
+    }
+
+    public AcademicProgram getAcademicProgram() {
+        return academicProgram;
+    }
+
+    public void setAcademicProgram(AcademicProgram academicProgram) {
+        this.academicProgram = academicProgram;
     }
 
     public String getRollNumber() {

@@ -1,213 +1,213 @@
 package com.sms.service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.sms.model.AcademicBatch;
 import com.sms.model.AcademicClass;
+import com.sms.model.AcademicProgram;
 import com.sms.model.Student;
-import com.sms.model.StudentProfile;
 import com.sms.repository.AcademicBatchRepository;
 import com.sms.repository.AcademicClassRepository;
-import com.sms.repository.StudentProfileRepository;
+import com.sms.repository.AcademicProgramRepository;
 import com.sms.repository.StudentRepository;
 
+/**
+ * Provides catalogue queries and manual-reassignment operations
+ * for the Program → Class → Batch hierarchy.
+ */
 @Service
 public class HierarchyCatalogService {
 
-    private static final int CLASS_BATCH_COUNT = 4;
-    private static final int BATCH_SIZE = 30;
-    private static final Pattern TRAILING_NUMBER_PATTERN = Pattern.compile("(\\d+)$");
+    private static final int BATCHES_PER_CLASS = 4;
 
-    private final AcademicClassRepository academicClassRepository;
-    private final AcademicBatchRepository academicBatchRepository;
+    private final AcademicProgramRepository programRepository;
+    private final AcademicClassRepository classRepository;
+    private final AcademicBatchRepository batchRepository;
     private final StudentRepository studentRepository;
-    private final StudentProfileRepository studentProfileRepository;
 
-    @Value("${app.hierarchy.sync-on-startup:true}")
-    private boolean syncOnStartup;
-
-    public HierarchyCatalogService(AcademicClassRepository academicClassRepository,
-                                   AcademicBatchRepository academicBatchRepository,
-                                   StudentRepository studentRepository,
-                                   StudentProfileRepository studentProfileRepository) {
-        this.academicClassRepository = academicClassRepository;
-        this.academicBatchRepository = academicBatchRepository;
+    public HierarchyCatalogService(AcademicProgramRepository programRepository,
+                                   AcademicClassRepository classRepository,
+                                   AcademicBatchRepository batchRepository,
+                                   StudentRepository studentRepository) {
+        this.programRepository = programRepository;
+        this.classRepository = classRepository;
+        this.batchRepository = batchRepository;
         this.studentRepository = studentRepository;
-        this.studentProfileRepository = studentProfileRepository;
     }
 
-    @EventListener(ApplicationReadyEvent.class)
+    // ──────────────────────────── Manual Reassignment ────────────────────────────
+
+    /**
+     * Manually reassign a student to a specific class and batch (used by drag-drop in UI).
+     */
     @Transactional
-    public void synchronizeHierarchyCatalog() {
-        if (!syncOnStartup) {
-            return;
-        }
+    public void assignStudent(Student student, int classNumber, int batchNumber) {
+        AcademicClass targetClass = classRepository.findByClassNumber(classNumber).orElse(null);
+        AcademicBatch targetBatch = batchRepository.findByBatchNumber(batchNumber).orElse(null);
 
-        List<Student> students = studentRepository.findAll();
-        if (students.isEmpty()) {
-            return;
-        }
-
-        Map<String, StudentProfile> profiles = loadProfiles(students);
-        int maxClassNumber = 0;
-        List<Student> dirtyStudents = new ArrayList<>();
-
-        for (Student student : students) {
-            StudentProfile profile = profiles.get(student.getId());
-            int classNumber = deriveClassNumber(student, profile);
-            int batchNumber = deriveBatchNumber(student, profile);
-            AcademicClass academicClass = resolveClass(classNumber);
-            AcademicBatch academicBatch = resolveBatch(batchNumber, academicClass);
-
-            student.setAcademicClass(academicClass);
-            student.setAcademicBatch(academicBatch);
+        if (targetClass != null) {
+            student.setAcademicClass(targetClass);
             student.setClassGroup("Class " + classNumber);
-            student.setBatchGroup("Batch " + batchNumber);
-            dirtyStudents.add(student);
-            maxClassNumber = Math.max(maxClassNumber, classNumber);
         }
-
-        for (int classNumber = 1; classNumber <= maxClassNumber; classNumber++) {
-            AcademicClass academicClass = resolveClass(classNumber);
-            for (int localBatch = 1; localBatch <= CLASS_BATCH_COUNT; localBatch++) {
-                int batchNumber = ((classNumber - 1) * CLASS_BATCH_COUNT) + localBatch;
-                resolveBatch(batchNumber, academicClass);
+        if (targetBatch != null) {
+            student.setAcademicBatch(targetBatch);
+            student.setBatchGroup("Batch " + batchNumber);
+            if (targetBatch.getAcademicProgram() != null) {
+                student.setAcademicProgram(targetBatch.getAcademicProgram());
             }
         }
 
-        studentRepository.saveAll(dirtyStudents);
-    }
-
-    @Transactional
-    public void assignStudent(Student student, int classNumber, int batchNumber) {
-        AcademicClass academicClass = resolveClass(classNumber);
-        AcademicBatch academicBatch = resolveBatch(batchNumber, academicClass);
-        student.setAcademicClass(academicClass);
-        student.setAcademicBatch(academicBatch);
-        student.setClassGroup("Class " + classNumber);
-        student.setBatchGroup("Batch " + batchNumber);
         studentRepository.save(student);
     }
 
-    public AcademicClass resolveClass(int classNumber) {
-        return academicClassRepository.findByClassNumber(classNumber)
-                .orElseGet(() -> {
-                    AcademicClass academicClass = new AcademicClass();
-                    academicClass.setClassNumber(classNumber);
-                    return academicClassRepository.save(academicClass);
-                });
-    }
+    // ──────────────────────────── Program Tree Queries ────────────────────────────
 
-    public AcademicBatch resolveBatch(int batchNumber, AcademicClass academicClass) {
-        return academicBatchRepository.findByBatchNumber(batchNumber)
-                .orElseGet(() -> {
-                    AcademicBatch academicBatch = new AcademicBatch();
-                    academicBatch.setBatchNumber(batchNumber);
-                    academicBatch.setAcademicClass(academicClass);
-                    return academicBatchRepository.save(academicBatch);
-                });
-    }
+    /**
+     * Returns the full Program → Class → Batch tree with student counts.
+     */
+    public List<Map<String, Object>> getProgramTree() {
+        List<AcademicProgram> programs = programRepository.findAll();
+        programs.sort(Comparator.comparing(AcademicProgram::getName, String.CASE_INSENSITIVE_ORDER));
 
-    public int deriveClassNumber(Student student, StudentProfile profile) {
-        if (student != null && student.getAcademicClass() != null && student.getAcademicClass().getClassNumber() != null) {
-            return student.getAcademicClass().getClassNumber();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (AcademicProgram program : programs) {
+            result.add(buildProgramNode(program));
         }
-
-        Integer profileClassNumber = extractTrailingInteger(profile == null ? null : profile.getFoundationClassroom());
-        if (profileClassNumber != null && profileClassNumber > 0) {
-            return profileClassNumber;
-        }
-
-        Integer classGroupNumber = extractTrailingInteger(student == null ? null : student.getClassGroup());
-        if (classGroupNumber != null && classGroupNumber > 0) {
-            return classGroupNumber;
-        }
-
-        int batchNumber = deriveBatchNumber(student, profile);
-        return Math.max(1, ((batchNumber - 1) / CLASS_BATCH_COUNT) + 1);
-    }
-
-    public int deriveBatchNumber(Student student, StudentProfile profile) {
-        if (student != null && student.getAcademicBatch() != null && student.getAcademicBatch().getBatchNumber() != null) {
-            return student.getAcademicBatch().getBatchNumber();
-        }
-
-        Integer batchGroupNumber = extractTrailingInteger(student == null ? null : student.getBatchGroup());
-        if (batchGroupNumber != null && batchGroupNumber > 0) {
-            return batchGroupNumber;
-        }
-
-        int serial = extractSerialNumber(student, profile);
-        if (serial > 0) {
-            return ((serial - 1) / BATCH_SIZE) + 1;
-        }
-
-        Integer teamNumber = profile == null ? null : profile.getTeamNumber();
-        Integer classNumber = extractTrailingInteger(profile == null ? null : profile.getFoundationClassroom());
-        if (teamNumber != null && teamNumber > 0 && classNumber != null && classNumber > 0) {
-            return ((classNumber - 1) * CLASS_BATCH_COUNT) + teamNumber;
-        }
-
-        return 1;
-    }
-
-    public int deriveSerialNumber(Student student, StudentProfile profile) {
-        return extractSerialNumber(student, profile);
-    }
-
-    private Map<String, StudentProfile> loadProfiles(List<Student> students) {
-        List<String> studentIds = students.stream().map(Student::getId).toList();
-        Map<String, StudentProfile> result = new HashMap<>();
-        studentProfileRepository.findAllById(studentIds).forEach(profile -> result.put(profile.getStudentId(), profile));
         return result;
     }
 
-    private int extractSerialNumber(Student student, StudentProfile profile) {
-        String enrollment = profile != null && profile.getEnrollmentNumber() != null && !profile.getEnrollmentNumber().isBlank()
-                ? profile.getEnrollmentNumber().trim()
-                : student == null ? null : student.getId();
+    /**
+     * Returns lightweight program summaries for dashboard cards.
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getProgramSummaries() {
+        List<AcademicProgram> programs = programRepository.findAll();
+        programs.sort(Comparator.comparing(AcademicProgram::getName, String.CASE_INSENSITIVE_ORDER));
 
-        if (enrollment == null || enrollment.isBlank()) {
-            return 0;
-        }
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (AcademicProgram program : programs) {
+            Map<String, Object> summary = new HashMap<>();
+            summary.put("id", program.getId());
+            summary.put("name", program.getName());
+            summary.put("code", program.getCode());
+            summary.put("programType", program.getProgramType());
+            summary.put("admissionYear", program.getAdmissionYear());
+            summary.put("totalStudents", program.getTotalStudents() != null ? program.getTotalStudents() : 0);
+            summary.put("totalClasses", program.getClasses() != null ? program.getClasses().size() : 0);
 
-        Matcher matcher = TRAILING_NUMBER_PATTERN.matcher(enrollment);
-        if (!matcher.find()) {
-            return 0;
+            int batchCount = 0;
+            if (program.getClasses() != null) {
+                for (AcademicClass clazz : program.getClasses()) {
+                    batchCount += clazz.getBatches() != null ? clazz.getBatches().size() : 0;
+                }
+            }
+            summary.put("totalBatches", batchCount);
+            result.add(summary);
         }
-
-        try {
-            return Integer.valueOf(matcher.group(1));
-        } catch (NumberFormatException ignored) {
-            return 0;
-        }
+        return result;
     }
 
-    private Integer extractTrailingInteger(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
+    /**
+     * Returns students belonging to a specific program.
+     */
+    public List<Map<String, Object>> getStudentsForProgram(Long programId) {
+        List<Student> students = studentRepository.findAllWithHierarchy().stream()
+                .filter(s -> s.getAcademicProgram() != null && programId.equals(s.getAcademicProgram().getId()))
+                .sorted(Comparator.comparing(Student::getId))
+                .collect(Collectors.toList());
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Student student : students) {
+            Map<String, Object> node = new HashMap<>();
+            node.put("id", student.getId());
+            node.put("name", student.getName());
+            node.put("enrollmentNumber", student.getId());
+            node.put("email", student.getEmail() == null ? "" : student.getEmail());
+            node.put("course", student.getCourse());
+            node.put("classNumber", student.getAcademicClass() != null ? student.getAcademicClass().getLocalClassNumber() : null);
+            node.put("batchNumber", student.getAcademicBatch() != null ? student.getAcademicBatch().getLocalBatchNumber() : null);
+            node.put("className", student.getClassGroup());
+            node.put("batchName", student.getBatchGroup());
+            result.add(node);
+        }
+        return result;
+    }
+
+    // ──────────────────────────── Private Helpers ────────────────────────────
+
+    private Map<String, Object> buildProgramNode(AcademicProgram program) {
+        Map<String, Object> node = new HashMap<>();
+        node.put("id", program.getId());
+        node.put("name", program.getName());
+        node.put("code", program.getCode());
+        node.put("programType", program.getProgramType());
+        node.put("admissionYear", program.getAdmissionYear());
+        node.put("totalStudents", program.getTotalStudents() != null ? program.getTotalStudents() : 0);
+
+        List<AcademicClass> classes = classRepository.findByAcademicProgram_IdOrderByLocalClassNumberAsc(program.getId());
+        List<Map<String, Object>> classNodes = new ArrayList<>();
+
+        for (AcademicClass clazz : classes) {
+            classNodes.add(buildClassNode(clazz));
         }
 
-        Matcher matcher = TRAILING_NUMBER_PATTERN.matcher(value.trim());
-        if (!matcher.find()) {
-            return null;
+        node.put("totalClasses", classNodes.size());
+        node.put("classes", classNodes);
+        return node;
+    }
+
+    private Map<String, Object> buildClassNode(AcademicClass clazz) {
+        Map<String, Object> node = new HashMap<>();
+        node.put("id", clazz.getId());
+        node.put("classNumber", clazz.getClassNumber());
+        node.put("localClassNumber", clazz.getLocalClassNumber());
+        node.put("label", "Class " + clazz.getLocalClassNumber());
+        node.put("totalStudents", clazz.getTotalStudents() != null ? clazz.getTotalStudents() : 0);
+
+        List<AcademicBatch> batches = batchRepository.findByAcademicClass_IdOrderByLocalBatchNumberAsc(clazz.getId());
+        List<Map<String, Object>> batchNodes = new ArrayList<>();
+
+        for (AcademicBatch batch : batches) {
+            batchNodes.add(buildBatchNode(batch));
         }
 
-        try {
-            return Integer.valueOf(matcher.group(1));
-        } catch (NumberFormatException ignored) {
-            return null;
+        node.put("totalBatches", batchNodes.size());
+        node.put("batches", batchNodes);
+        return node;
+    }
+
+    private Map<String, Object> buildBatchNode(AcademicBatch batch) {
+        Map<String, Object> node = new HashMap<>();
+        node.put("id", batch.getId());
+        node.put("batchNumber", batch.getBatchNumber());
+        node.put("localBatchNumber", batch.getLocalBatchNumber());
+        node.put("label", "Batch " + batch.getLocalBatchNumber());
+        node.put("totalStudents", batch.getTotalStudents() != null ? batch.getTotalStudents() : 0);
+        node.put("classId", batch.getAcademicClass() != null ? batch.getAcademicClass().getId() : null);
+
+        // Include students in batch
+        List<Map<String, Object>> studentNodes = new ArrayList<>();
+        if (batch.getStudents() != null) {
+            for (Student student : batch.getStudents()) {
+                Map<String, Object> sNode = new HashMap<>();
+                sNode.put("id", student.getId());
+                sNode.put("name", student.getName());
+                sNode.put("enrollmentNumber", student.getId());
+                sNode.put("email", student.getEmail() == null ? "" : student.getEmail());
+                sNode.put("course", student.getCourse());
+                studentNodes.add(sNode);
+            }
+            studentNodes.sort(Comparator.comparing(s -> String.valueOf(s.get("id"))));
         }
+        node.put("students", studentNodes);
+        return node;
     }
 }

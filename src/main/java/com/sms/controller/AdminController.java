@@ -41,7 +41,7 @@ public class AdminController {
 
     @GetMapping("/admin/students")
     public String listStudents() {
-        return "admin-students-react";
+        return "admin-students-hierarchy";
     }
 
     @GetMapping("/admin/students/manage")
@@ -66,17 +66,17 @@ public class AdminController {
 
     @GetMapping("/admin/students/hierarchy")
     public String studentsHierarchy() {
-        return "admin-students-react";
+        return "admin-students-hierarchy";
     }
 
     @GetMapping("/classes/{classId}")
     public String classHierarchy() {
-        return "admin-students-react";
+        return "admin-students-hierarchy";
     }
 
     @GetMapping("/batches/{batchId}")
     public String batchHierarchy() {
-        return "admin-students-react";
+        return "admin-students-hierarchy";
     }
 
 }

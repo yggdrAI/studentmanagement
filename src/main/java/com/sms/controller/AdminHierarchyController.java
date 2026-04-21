@@ -30,6 +30,7 @@ import com.sms.repository.AttendanceRepository;
 import com.sms.repository.StudentProfileRepository;
 import com.sms.repository.StudentRepository;
 import com.sms.service.HierarchyCatalogService;
+import com.sms.service.StudentGroupingService;
 import com.sms.service.StudentService;
 
 @RestController
@@ -46,18 +47,49 @@ public class AdminHierarchyController {
     private final AttendanceRepository attendanceRepository;
     private final StudentService studentService;
     private final HierarchyCatalogService hierarchyCatalogService;
+    private final StudentGroupingService studentGroupingService;
 
     public AdminHierarchyController(StudentRepository studentRepository,
                                     StudentProfileRepository studentProfileRepository,
                                     AttendanceRepository attendanceRepository,
                                     StudentService studentService,
-                                    HierarchyCatalogService hierarchyCatalogService) {
+                                    HierarchyCatalogService hierarchyCatalogService,
+                                    StudentGroupingService studentGroupingService) {
         this.studentRepository = studentRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.attendanceRepository = attendanceRepository;
         this.studentService = studentService;
         this.hierarchyCatalogService = hierarchyCatalogService;
+        this.studentGroupingService = studentGroupingService;
     }
+
+    // ─── Grouping Pipeline Endpoints ────────────────────────────────────────
+
+    @PostMapping("/grouping/regenerate")
+    public ResponseEntity<Map<String, Object>> regenerateGroupings() {
+        Map<String, Object> result = studentGroupingService.regenerateAllGroupings();
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/grouping/programs")
+    public ResponseEntity<List<Map<String, Object>>> getProgramTree() {
+        List<Map<String, Object>> tree = hierarchyCatalogService.getProgramTree();
+        return ResponseEntity.ok(tree);
+    }
+
+    @GetMapping("/grouping/programs/summaries")
+    public ResponseEntity<List<Map<String, Object>>> getProgramSummaries() {
+        List<Map<String, Object>> summaries = hierarchyCatalogService.getProgramSummaries();
+        return ResponseEntity.ok(summaries);
+    }
+
+    @GetMapping("/grouping/programs/{programId}/students")
+    public ResponseEntity<List<Map<String, Object>>> getProgramStudents(@PathVariable Long programId) {
+        List<Map<String, Object>> students = hierarchyCatalogService.getStudentsForProgram(programId);
+        return ResponseEntity.ok(students);
+    }
+
+    // ─── Existing Hierarchy Endpoints ───────────────────────────────────────
 
     @GetMapping("/students-hierarchy")
     public ResponseEntity<Map<String, Object>> getStudentsHierarchy(
@@ -68,12 +100,16 @@ public class AdminHierarchyController {
             @RequestParam(required = false) String performance,
             @RequestParam(required = false, defaultValue = "true") boolean includeStudents) {
 
-        List<Student> students = studentRepository.findAllWithHierarchy();
+        List<Student> students = studentRepository.findAllWithFullHierarchy();
         Map<String, StudentProfile> profileByStudentId = loadProfilesByStudentId(students);
         Map<String, Double> marksMap = studentService.getAverageMarksMap(students);
         Map<String, Double> attendanceMap = loadAttendanceRateMap();
 
         List<Student> filtered = students.stream()
+                // Only show students that have been assigned through the grouping engine.
+                // Students without an academicClass would otherwise fall through to a
+                // serial-number heuristic that dumps everyone into Class 1.
+                .filter(student -> student.getAcademicClass() != null)
                 .filter(student -> course == null || course.isBlank() || matchesIgnoreCase(student.getCourse(), course))
                 .filter(student -> semester == null || semester.isBlank() || matchesIgnoreCase(student.getSemester(), semester))
             .filter(student -> classNumber == null || extractClassNumber(student, profileByStudentId.get(student.getId())) == classNumber)
@@ -104,10 +140,20 @@ public class AdminHierarchyController {
             .map(classKey -> buildClassNode(classKey, grouped.get(classKey), marksMap, attendanceMap, profileByStudentId, includeStudents))
                 .collect(Collectors.toList());
 
-        int totalBatchCount = grouped.size() * DEFAULT_CLUSTER_COUNT;
+        int totalBatchCount = grouped.values().stream()
+                .mapToInt(classBatches -> classBatches.size())
+                .sum();
+
+        long totalProgramCount = filtered.stream()
+                .map(Student::getAcademicProgram)
+                .filter(java.util.Objects::nonNull)
+                .map(p -> p.getId())
+                .distinct()
+                .count();
 
         return ResponseEntity.ok(Map.of(
                 "summary", Map.of(
+                        "totalPrograms", totalProgramCount,
                         "totalClasses", grouped.size(),
                         "totalBatches", totalBatchCount,
                         "totalStudents", filtered.size()
@@ -118,7 +164,7 @@ public class AdminHierarchyController {
 
     @GetMapping("/class/{classNumber}/analytics")
     public ResponseEntity<Map<String, Object>> getClassAnalytics(@PathVariable Integer classNumber) {
-        List<Student> allStudents = studentRepository.findAllWithHierarchy();
+        List<Student> allStudents = studentRepository.findAllWithFullHierarchy();
         Map<String, StudentProfile> profileByStudentId = loadProfilesByStudentId(allStudents);
         List<Student> classStudents = allStudents.stream()
                 .filter(student -> extractClassNumber(student, profileByStudentId.get(student.getId())) == classNumber)
@@ -177,7 +223,7 @@ public class AdminHierarchyController {
         int requestedClusterCount = requestedClusters == null ? DEFAULT_CLUSTER_COUNT : requestedClusters;
         int clusters = Math.max(2, Math.min(4, requestedClusterCount));
 
-        List<Student> students = studentRepository.findAllWithHierarchy().stream()
+        List<Student> students = studentRepository.findAllWithFullHierarchy().stream()
                 .filter(student -> req.getCourse() == null || req.getCourse().isBlank() || matchesIgnoreCase(student.getCourse(), req.getCourse()))
                 .filter(student -> req.getSemester() == null || req.getSemester().isBlank() || matchesIgnoreCase(student.getSemester(), req.getSemester()))
                 .filter(student -> req.getClassNumber() == null || extractClassNumber(student) == req.getClassNumber())
@@ -238,21 +284,41 @@ public class AdminHierarchyController {
                                Map<String, Double> attendanceMap,
                                Map<String, StudentProfile> profileByStudentId,
                                boolean includeStudents) {
-        int startBatchNumber = ((classNumber - 1) * DEFAULT_CLUSTER_COUNT) + 1;
+        // Determine program code from the first student in this class
+        String programCode = "";
+        int localClassNum = classNumber;
+        List<Student> allClassStudents = classBatches.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+        if (!allClassStudents.isEmpty()) {
+            Student firstStudent = allClassStudents.get(0);
+            if (firstStudent.getAcademicProgram() != null && firstStudent.getAcademicProgram().getCode() != null) {
+                programCode = firstStudent.getAcademicProgram().getCode();
+            }
+            if (firstStudent.getAcademicClass() != null && firstStudent.getAcademicClass().getLocalClassNumber() != null) {
+                localClassNum = firstStudent.getAcademicClass().getLocalClassNumber();
+            }
+        }
+        String classLabel = programCode.isEmpty()
+                ? "Class " + localClassNum
+                : programCode + " — Class " + localClassNum;
+
         List<Map<String, Object>> batches = new ArrayList<>();
-        for (int batchNumber = startBatchNumber; batchNumber < startBatchNumber + DEFAULT_CLUSTER_COUNT; batchNumber++) {
+        List<Integer> batchKeys = new ArrayList<>(classBatches.keySet());
+        batchKeys.sort(Integer::compareTo);
+        for (int batchNumber : batchKeys) {
             batches.add(buildBatchNode(classNumber, batchNumber, classBatches.getOrDefault(batchNumber, List.of()), marksMap, attendanceMap, profileByStudentId, includeStudents));
         }
 
-        List<Student> classStudents = classBatches.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+        List<Student> classStudents = allClassStudents;
         Map<String, Object> classAnalytics = buildClassAnalytics(classStudents, marksMap, attendanceMap, profileByStudentId);
 
         Map<String, Object> node = new HashMap<>();
         node.put("id", classNumber);
         node.put("number", classNumber);
-        node.put("label", "Class " + classNumber);
+        node.put("localNumber", localClassNum);
+        node.put("label", classLabel);
+        node.put("programCode", programCode);
         node.put("totalStudents", classStudents.size());
-        node.put("totalBatches", DEFAULT_CLUSTER_COUNT);
+        node.put("totalBatches", batches.size());
         node.put("batches", batches);
         node.put("analytics", classAnalytics);
         return node;
@@ -265,6 +331,15 @@ public class AdminHierarchyController {
                                Map<String, Double> attendanceMap,
                        Map<String, StudentProfile> profileByStudentId,
                        boolean includeStudents) {
+        // Derive the local batch number from the first student (if available)
+        int localBatchNum = batchNumber;
+        if (!batchStudents.isEmpty()) {
+            Student first = batchStudents.get(0);
+            if (first.getAcademicBatch() != null && first.getAcademicBatch().getLocalBatchNumber() != null) {
+                localBatchNum = first.getAcademicBatch().getLocalBatchNumber();
+            }
+        }
+
         List<Map<String, Object>> students = includeStudents
             ? batchStudents.stream()
                 .sorted(Comparator.comparingInt(student -> extractBatchMemberOrder(student, profileByStudentId.get(student.getId()))))
@@ -284,8 +359,8 @@ public class AdminHierarchyController {
         Map<String, Object> node = new HashMap<>();
         node.put("id", batchNumber);
         node.put("number", batchNumber);
-        node.put("localNumber", ((batchNumber - 1) % DEFAULT_CLUSTER_COUNT) + 1);
-        node.put("label", "Batch " + batchNumber);
+        node.put("localNumber", localBatchNum);
+        node.put("label", "Batch " + localBatchNum);
         node.put("classNumber", classNumber);
         node.put("studentsCount", batchStudents.size());
         node.put("totalStudents", batchStudents.size());
@@ -424,8 +499,14 @@ public class AdminHierarchyController {
     }
 
     private int extractClassNumber(Student student, StudentProfile profile) {
-        if (student != null && student.getAcademicClass() != null && student.getAcademicClass().getClassNumber() != null) {
-            return student.getAcademicClass().getClassNumber();
+        // Use the GLOBAL classNumber from the AcademicClass entity so that
+        // classes across different programs get unique numbers and don't
+        // merge together in the flat hierarchy view.
+        if (student != null && student.getAcademicClass() != null) {
+            Integer global = student.getAcademicClass().getClassNumber();
+            if (global != null && global > 0) return global;
+            Integer local = student.getAcademicClass().getLocalClassNumber();
+            if (local != null && local > 0) return local;
         }
 
         Integer profileClassNumber = extractTrailingInteger(profile == null ? null : profile.getFoundationClassroom());
@@ -438,8 +519,9 @@ public class AdminHierarchyController {
         if (classGroupNumber != null && classGroupNumber > 0) {
             return classGroupNumber;
         }
-        int batchNumber = extractBatchNumber(student, profile);
-        return batchNumber <= 0 ? 1 : ((batchNumber - 1) / DEFAULT_CLUSTER_COUNT) + 1;
+        // Do NOT fall back to a serial-based heuristic — that causes all
+        // unassigned students to pile up in Class 1.
+        return 0;
     }
 
     private int extractBatchNumber(Student student) {
@@ -447,8 +529,13 @@ public class AdminHierarchyController {
     }
 
     private int extractBatchNumber(Student student, StudentProfile profile) {
-        if (student != null && student.getAcademicBatch() != null && student.getAcademicBatch().getBatchNumber() != null) {
-            return student.getAcademicBatch().getBatchNumber();
+        // Use the GLOBAL batchNumber so batches across different programs
+        // get unique numbers and don't collide.
+        if (student != null && student.getAcademicBatch() != null) {
+            Integer global = student.getAcademicBatch().getBatchNumber();
+            if (global != null && global > 0) return global;
+            Integer local = student.getAcademicBatch().getLocalBatchNumber();
+            if (local != null && local > 0) return local;
         }
 
         if (profile != null && profile.getTeamNumber() != null && profile.getTeamNumber() > 0) {
@@ -463,8 +550,8 @@ public class AdminHierarchyController {
         if (batchGroupNumber != null && batchGroupNumber > 0) {
             return batchGroupNumber;
         }
-        int serial = extractSerialNumber(student, profile);
-        return serial <= 0 ? 1 : ((serial - 1) / BATCH_SIZE) + 1;
+        // Do NOT fall back to a serial-based heuristic.
+        return 0;
     }
 
     private int extractSerialNumber(Student student, StudentProfile profile) {
