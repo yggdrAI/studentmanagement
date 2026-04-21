@@ -39,8 +39,10 @@ import com.sms.model.SecurityAudit;
 import com.sms.model.Student;
 import com.sms.model.StudentProfile;
 import com.sms.model.Teacher;
+import com.sms.model.TeacherProfile;
 import com.sms.repository.SecurityAuditRepository;
 import com.sms.repository.StudentProfileRepository;
+import com.sms.repository.TeacherProfileRepository;
 import com.sms.repository.TeacherRepository;
 import com.sms.service.CredentialService;
 import com.sms.service.DashboardService;
@@ -65,6 +67,7 @@ public class AdminApiController {
     private final DatabaseMigrationService databaseMigrationService;
     private final CredentialService credentialService;
     private final TeacherRepository teacherRepository;
+    private final TeacherProfileRepository teacherProfileRepository;
     private final StudentAdvancedFilterService studentAdvancedFilterService;
 
     public AdminApiController(DashboardService dashboardService,
@@ -75,6 +78,7 @@ public class AdminApiController {
                               DatabaseMigrationService databaseMigrationService,
                               CredentialService credentialService,
                               TeacherRepository teacherRepository,
+                              TeacherProfileRepository teacherProfileRepository,
                               StudentAdvancedFilterService studentAdvancedFilterService) {
         this.dashboardService = dashboardService;
         this.studentService = studentService;
@@ -84,6 +88,7 @@ public class AdminApiController {
         this.databaseMigrationService = databaseMigrationService;
         this.credentialService = credentialService;
         this.teacherRepository = teacherRepository;
+        this.teacherProfileRepository = teacherProfileRepository;
         this.studentAdvancedFilterService = studentAdvancedFilterService;
     }
 
@@ -317,11 +322,22 @@ public class AdminApiController {
         List<Map<String, Object>> payload = new ArrayList<>();
         for (Teacher teacher : teacherRepository.findAll(Sort.by(Sort.Direction.ASC, "id"))) {
             String username = teacher.getUser() != null ? teacher.getUser().getUsername() : null;
+            TeacherProfile profile = teacherProfileRepository.findByTeacherId(teacher.getId()).orElse(null);
+            String displayName = teacher.getName() != null && !teacher.getName().isBlank()
+                ? teacher.getName()
+                : (teacher.getFirstName() == null ? "" : teacher.getFirstName()) +
+                  (teacher.getLastName() == null ? "" : (" " + teacher.getLastName()));
             payload.add(Map.of(
                     "id", teacher.getId(),
-                    "name", teacher.getName() == null ? "" : teacher.getName(),
+                    "name", displayName,
                     "email", teacher.getEmail() == null ? "" : teacher.getEmail(),
-                    "username", username == null ? "" : username
+                    "username", username == null ? "" : username,
+                    "employeeId", teacher.getEmployeeId() == null ? "" : teacher.getEmployeeId(),
+                    "department", teacher.getDepartment() == null ? "" : teacher.getDepartment(),
+                    "designation", teacher.getDesignation() == null ? "" : teacher.getDesignation(),
+                    "phone", teacher.getPhone() == null ? "" : teacher.getPhone(),
+                    "profileImage", profile != null && profile.getProfileImage() != null ? profile.getProfileImage() : "",
+                    "profilePhotoUrl", profile != null && profile.getProfilePhotoUrl() != null ? profile.getProfilePhotoUrl() : ""
             ));
         }
         return ResponseEntity.ok(payload);

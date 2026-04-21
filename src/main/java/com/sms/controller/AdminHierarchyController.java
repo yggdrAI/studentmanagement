@@ -65,7 +65,8 @@ public class AdminHierarchyController {
             @RequestParam(required = false) String semester,
             @RequestParam(required = false) Integer classNumber,
             @RequestParam(required = false) Integer batchNumber,
-            @RequestParam(required = false) String performance) {
+            @RequestParam(required = false) String performance,
+            @RequestParam(required = false, defaultValue = "true") boolean includeStudents) {
 
         List<Student> students = studentRepository.findAllWithHierarchy();
         Map<String, StudentProfile> profileByStudentId = loadProfilesByStudentId(students);
@@ -100,7 +101,7 @@ public class AdminHierarchyController {
 
         List<Map<String, Object>> classes = grouped.keySet().stream()
                 .sorted()
-                .map(classKey -> buildClassNode(classKey, grouped.get(classKey), marksMap, attendanceMap, profileByStudentId))
+            .map(classKey -> buildClassNode(classKey, grouped.get(classKey), marksMap, attendanceMap, profileByStudentId, includeStudents))
                 .collect(Collectors.toList());
 
         int totalBatchCount = grouped.size() * DEFAULT_CLUSTER_COUNT;
@@ -235,11 +236,12 @@ public class AdminHierarchyController {
                                                Map<Integer, List<Student>> classBatches,
                                                Map<String, Double> marksMap,
                                Map<String, Double> attendanceMap,
-                               Map<String, StudentProfile> profileByStudentId) {
+                               Map<String, StudentProfile> profileByStudentId,
+                               boolean includeStudents) {
         int startBatchNumber = ((classNumber - 1) * DEFAULT_CLUSTER_COUNT) + 1;
         List<Map<String, Object>> batches = new ArrayList<>();
         for (int batchNumber = startBatchNumber; batchNumber < startBatchNumber + DEFAULT_CLUSTER_COUNT; batchNumber++) {
-            batches.add(buildBatchNode(classNumber, batchNumber, classBatches.getOrDefault(batchNumber, List.of()), marksMap, attendanceMap, profileByStudentId));
+            batches.add(buildBatchNode(classNumber, batchNumber, classBatches.getOrDefault(batchNumber, List.of()), marksMap, attendanceMap, profileByStudentId, includeStudents));
         }
 
         List<Student> classStudents = classBatches.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
@@ -261,15 +263,18 @@ public class AdminHierarchyController {
                                                List<Student> batchStudents,
                                                Map<String, Double> marksMap,
                                Map<String, Double> attendanceMap,
-                               Map<String, StudentProfile> profileByStudentId) {
-        List<Map<String, Object>> students = batchStudents.stream()
+                       Map<String, StudentProfile> profileByStudentId,
+                       boolean includeStudents) {
+        List<Map<String, Object>> students = includeStudents
+            ? batchStudents.stream()
                 .sorted(Comparator.comparingInt(student -> extractBatchMemberOrder(student, profileByStudentId.get(student.getId()))))
-            .map(student -> buildStudentNode(student, marksMap, attendanceMap, profileByStudentId.get(student.getId())))
-                .collect(Collectors.toList());
+                .map(student -> buildStudentNode(student, marksMap, attendanceMap, profileByStudentId.get(student.getId())))
+                .collect(Collectors.toList())
+            : List.of();
 
         double avgMarks = average(batchStudents.stream().map(student -> marksMap.getOrDefault(student.getId(), 0.0)).collect(Collectors.toList()));
         double avgAttendance = average(batchStudents.stream().map(student -> attendanceMap.getOrDefault(student.getId(), 75.0)).collect(Collectors.toList()));
-        long risk = students.stream().filter(row -> "poor".equals(row.get("performanceBand"))).count();
+        long risk = batchStudents.stream().filter(student -> marksMap.getOrDefault(student.getId(), 0.0) < 50.0).count();
 
         Map<String, Object> analytics = new HashMap<>();
         analytics.put("avgMarks", round(avgMarks));
@@ -282,8 +287,8 @@ public class AdminHierarchyController {
         node.put("localNumber", ((batchNumber - 1) % DEFAULT_CLUSTER_COUNT) + 1);
         node.put("label", "Batch " + batchNumber);
         node.put("classNumber", classNumber);
-        node.put("studentsCount", students.size());
-        node.put("totalStudents", students.size());
+        node.put("studentsCount", batchStudents.size());
+        node.put("totalStudents", batchStudents.size());
         node.put("analytics", analytics);
         node.put("students", students);
         return node;

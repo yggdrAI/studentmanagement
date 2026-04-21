@@ -29,11 +29,20 @@
             gridBody.innerHTML = teachers.map((teacher) => `
                 <tr>
                     <td>${escapeHtml(teacher.id)}</td>
-                    <td>${escapeHtml(teacher.name)}</td>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <img src="${escapeHtml(teacher.profileImage || teacher.profilePhotoUrl || '/images/default-avatar.png')}" alt="Teacher" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid rgba(0,0,0,.12);" onerror="this.src='/images/default-avatar.png'" />
+                            <div>
+                                <div>${escapeHtml(teacher.name || teacher.fullName || '')}</div>
+                                <div style="font-size:12px; opacity:.75;">${escapeHtml([teacher.designation, teacher.department].filter(Boolean).join(' · '))}</div>
+                            </div>
+                        </div>
+                    </td>
                     <td>${escapeHtml(teacher.email)}</td>
                     <td>${escapeHtml(teacher.username)}</td>
                     <td>
                         <div style="display:flex; gap:8px;">
+                            <button class="btn btn-outline" type="button" data-upload-photo="${escapeHtml(teacher.id)}">Upload Photo</button>
                             <button class="btn btn-outline" type="button" data-change-password="${escapeHtml(teacher.id)}">Change Password</button>
                             <button class="btn btn-outline" type="button" data-reset-password="${escapeHtml(teacher.id)}">Reset To Teacher ID</button>
                         </div>
@@ -48,6 +57,34 @@
     }
 
     function bindActions() {
+        Array.from(document.querySelectorAll("[data-upload-photo]"))
+            .forEach((button) => {
+                button.addEventListener("click", async () => {
+                    const teacherId = button.getAttribute("data-upload-photo");
+                    if (!teacherId) {
+                        return;
+                    }
+
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = "image/*";
+                    input.onchange = async () => {
+                        const file = input.files && input.files[0] ? input.files[0] : null;
+                        if (!file) {
+                            return;
+                        }
+                        try {
+                            await window.smsApi.admin.teachers.uploadProfilePicture(teacherId, file);
+                            window.alert(`Profile picture updated for teacher ${teacherId}`);
+                            loadTeachers();
+                        } catch (error) {
+                            window.alert(error.message || "Profile picture upload failed");
+                        }
+                    };
+                    input.click();
+                });
+            });
+
         Array.from(document.querySelectorAll("[data-change-password]"))
             .forEach((button) => {
                 button.addEventListener("click", async () => {

@@ -10,4 +10,6 @@ import com.sms.model.Teacher;
 @Repository
 public interface TeacherRepository extends JpaRepository<Teacher, Long> {
 	Optional<Teacher> findByUserUsername(String username);
+	Optional<Teacher> findByEmail(String email);
+	Optional<Teacher> findByEmployeeId(String employeeId);
 }

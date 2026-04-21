@@ -228,7 +228,15 @@
             teachers: {
                 list: () => request('/api/admin/teachers'),
                 changePassword: (teacherId, payload) => request('/api/admin/teachers/' + encodeURIComponent(teacherId) + '/password', { method: 'PUT', body: JSON.stringify(payload) }),
-                resetPassword: (teacherId) => request('/api/admin/teachers/' + encodeURIComponent(teacherId) + '/password/reset', { method: 'POST' })
+                resetPassword: (teacherId) => request('/api/admin/teachers/' + encodeURIComponent(teacherId) + '/password/reset', { method: 'POST' }),
+                uploadProfilePicture: (teacherId, file) => {
+                    var formData = new FormData();
+                    formData.append('file', file);
+                    return request('/api/teachers/' + encodeURIComponent(teacherId) + '/profile-picture', {
+                        method: 'POST',
+                        body: formData
+                    });
+                }
             }
         },
 

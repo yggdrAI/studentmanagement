@@ -164,7 +164,7 @@ public class StudentProfileService {
         student.setCourse(course);
         student.setDepartment(department);
         student.setSemester(semester);
-        student.setProfileImageUrl(profileImage);
+        student.setProfileImageUrl(normalizePhotoUrl(profileImage, student.getProfileImageUrl()));
         if (admissionYear != null) {
             student.setEnrollmentYear(String.valueOf(admissionYear));
         }
@@ -210,7 +210,7 @@ public class StudentProfileService {
 
         student.setPhone(request.getPhone());
         student.setAddress(request.getAddress());
-        student.setProfileImageUrl(profileImage);
+        student.setProfileImageUrl(normalizePhotoUrl(profileImage, student.getProfileImageUrl()));
         student.setEmail(universityEmail);
         studentRepository.save(student);
 

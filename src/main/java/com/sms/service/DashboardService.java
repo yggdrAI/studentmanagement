@@ -15,9 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.sms.dto.dashboard.AssignTeacherRequest;
 import com.sms.dto.dashboard.ClassDTO;
 import com.sms.dto.dashboard.CourseProgressDto;
-import com.sms.dto.dashboard.DashboardDTO;
 import com.sms.dto.dashboard.CreateSubjectRequest;
 import com.sms.dto.dashboard.CreateTaskRequest;
+import com.sms.dto.dashboard.DashboardDTO;
 import com.sms.dto.dashboard.DashboardResponse;
 import com.sms.dto.dashboard.EnrollStudentRequest;
 import com.sms.dto.dashboard.ScheduleClassRequest;
@@ -33,12 +33,14 @@ import com.sms.model.StudentTask;
 import com.sms.model.TaskItem;
 import com.sms.model.TaskStatus;
 import com.sms.model.Teacher;
+import com.sms.model.TeacherProfile;
 import com.sms.repository.ClassSessionRepository;
 import com.sms.repository.CourseRepository;
 import com.sms.repository.EnrollmentRepository;
 import com.sms.repository.StudentRepository;
 import com.sms.repository.StudentTaskRepository;
 import com.sms.repository.TaskItemRepository;
+import com.sms.repository.TeacherProfileRepository;
 import com.sms.repository.TeacherRepository;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -53,6 +55,7 @@ public class DashboardService {
     private final TaskItemRepository taskItemRepository;
     private final StudentTaskRepository studentTaskRepository;
     private final ClassSessionRepository classSessionRepository;
+    private final TeacherProfileRepository teacherProfileRepository;
 
     public DashboardService(StudentRepository studentRepository,
                 TeacherRepository teacherRepository,
@@ -60,7 +63,8 @@ public class DashboardService {
                             EnrollmentRepository enrollmentRepository,
                             TaskItemRepository taskItemRepository,
                 StudentTaskRepository studentTaskRepository,
-                            ClassSessionRepository classSessionRepository) {
+                            ClassSessionRepository classSessionRepository,
+                TeacherProfileRepository teacherProfileRepository) {
         this.studentRepository = studentRepository;
     this.teacherRepository = teacherRepository;
     this.courseRepository = courseRepository;
@@ -68,6 +72,7 @@ public class DashboardService {
         this.taskItemRepository = taskItemRepository;
     this.studentTaskRepository = studentTaskRepository;
         this.classSessionRepository = classSessionRepository;
+        this.teacherProfileRepository = teacherProfileRepository;
     }
 
     @Cacheable(value = "dashboardSummary", key = "#studentId")
@@ -93,10 +98,17 @@ public class DashboardService {
         List<CourseProgressDto> courseDtos = enrollments.stream().map(enrollment -> {
         Course course = enrollment.getCourse();
             CourseProgressDto dto = new CourseProgressDto();
+        Teacher teacher = course.getTeacher();
+        TeacherProfile teacherProfile = teacher != null
+            ? teacherProfileRepository.findByTeacherId(teacher.getId()).orElse(null)
+            : null;
         dto.setCourseId(course.getId());
         dto.setCourseCode(course.getCode());
         dto.setCourseName(course.getCourseName());
-        dto.setFacultyName(course.getTeacher() != null ? course.getTeacher().getName() : "N/A");
+        dto.setFacultyName(teacher != null ? teacher.getName() : "N/A");
+        dto.setFacultyDepartment(teacher != null ? teacher.getDepartment() : null);
+        dto.setFacultyDesignation(teacher != null ? teacher.getDesignation() : null);
+        dto.setFacultyProfileImage(teacherProfile != null ? teacherProfile.getProfileImage() : null);
         dto.setCredits(course.getCredits());
         dto.setProgressPercent(round(calculateProgress(studentId, course.getId())));
             return dto;

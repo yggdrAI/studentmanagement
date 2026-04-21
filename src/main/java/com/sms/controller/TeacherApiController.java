@@ -21,6 +21,9 @@ import com.sms.dto.dashboard.ScheduleClassRequest;
 import com.sms.dto.dashboard.StudentProgressViewDto;
 import com.sms.model.Course;
 import com.sms.model.TaskItem;
+import com.sms.model.Teacher;
+import com.sms.model.TeacherProfile;
+import com.sms.repository.TeacherProfileRepository;
 import com.sms.service.CredentialService;
 import com.sms.service.DashboardService;
 
@@ -33,11 +36,32 @@ public class TeacherApiController {
 
     private final DashboardService dashboardService;
     private final CredentialService credentialService;
+    private final TeacherProfileRepository teacherProfileRepository;
 
     public TeacherApiController(DashboardService dashboardService,
-                                CredentialService credentialService) {
+                                CredentialService credentialService,
+                                TeacherProfileRepository teacherProfileRepository) {
         this.dashboardService = dashboardService;
         this.credentialService = credentialService;
+        this.teacherProfileRepository = teacherProfileRepository;
+    }
+
+    @GetMapping("/profile")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<Map<String, Object>> getTeacherProfile(Authentication authentication) {
+        Teacher teacher = dashboardService.resolveTeacherByUsername(authentication.getName());
+        TeacherProfile profile = teacherProfileRepository.findByTeacherId(teacher.getId()).orElse(null);
+        return ResponseEntity.ok(Map.of(
+                "id", teacher.getId(),
+                "fullName", teacher.getName() == null ? "" : teacher.getName(),
+                "email", teacher.getEmail() == null ? "" : teacher.getEmail(),
+                "employeeId", teacher.getEmployeeId() == null ? "" : teacher.getEmployeeId(),
+                "department", teacher.getDepartment() == null ? "" : teacher.getDepartment(),
+                "designation", teacher.getDesignation() == null ? "" : teacher.getDesignation(),
+                "phone", teacher.getPhone() == null ? "" : teacher.getPhone(),
+                "profileImage", profile != null && profile.getProfileImage() != null ? profile.getProfileImage() : "",
+                "profilePhotoUrl", profile != null && profile.getProfilePhotoUrl() != null ? profile.getProfilePhotoUrl() : ""
+        ));
     }
 
     @PostMapping("/subject")

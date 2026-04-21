@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "https://esm.sh/react@18.3.1";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "https://esm.sh/react@18.3.1";
 import { createRoot } from "https://esm.sh/react-dom@18.3.1/client";
 import {
   ResponsiveContainer,
@@ -13,6 +13,8 @@ import {
 const h = React.createElement;
 const PAGE_SIZE = 100;
 const CLASS_BATCH_COUNT = 4;
+const INITIAL_CLASSES_VISIBLE = 8;
+const CLASS_PAGE_SIZE = 8;
 const CACHE_PREFIX = "sms:hierarchy:cache:";
 const CACHE_TTL = 5 * 60 * 1000;
 
@@ -406,6 +408,8 @@ function ClassCard({ classItem, onOpenClass, onOpenBatch }) {
   );
 }
 
+const MemoClassCard = React.memo(ClassCard);
+
 function BatchCard({ batchItem, onOpenBatch }) {
   const batchNumber = getBatchNumber(batchItem);
   const studentsCount = Number(batchItem.studentsCount || batchItem.totalStudents || (batchItem.students || []).length || 0);
@@ -470,8 +474,36 @@ function StudentRow({ student, onViewProfile, onEdit, onDelete, onUploadPhoto, o
   );
 }
 
-function DashboardView({ summary, classes, searchQuery, setSearchQuery, filters, setFilters, onOpenClass, onOpenBatch, onRefresh, teachers, timetables }) {
-  const visibleClasses = filterClassesForSearch(classes, searchQuery);
+function DashboardView({ summary, classes, searchQuery, setSearchQuery, filters, setFilters, onOpenClass, onOpenBatch, onRefresh, teachers, timetables, loading }) {
+  const [visibleClassCount, setVisibleClassCount] = useState(INITIAL_CLASSES_VISIBLE);
+  const sentinelRef = useRef(null);
+
+  const filteredClasses = useMemo(() => filterClassesForSearch(classes, searchQuery), [classes, searchQuery]);
+  const visibleClasses = useMemo(
+    () => filteredClasses.slice(0, visibleClassCount),
+    [filteredClasses, visibleClassCount]
+  );
+  const hasMoreClasses = visibleClasses.length < filteredClasses.length;
+
+  useEffect(() => {
+    setVisibleClassCount(INITIAL_CLASSES_VISIBLE);
+  }, [searchQuery, filters.course, filters.semester, filters.performance, classes.length]);
+
+  useEffect(() => {
+    if (!hasMoreClasses || !sentinelRef.current) {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      const [entry] = entries;
+      if (entry && entry.isIntersecting) {
+        setVisibleClassCount((current) => Math.min(current + CLASS_PAGE_SIZE, filteredClasses.length));
+      }
+    }, { rootMargin: "180px 0px" });
+
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasMoreClasses, filteredClasses.length]);
 
   return h(
     React.Fragment,
@@ -543,19 +575,43 @@ function DashboardView({ summary, classes, searchQuery, setSearchQuery, filters,
       SectionCard,
       {
         title: "Classes",
-        subtitle: `Structured class cards with ${visibleClasses.length} visible result${visibleClasses.length === 1 ? "" : "s"}`,
+        subtitle: `Structured class cards with ${filteredClasses.length} total result${filteredClasses.length === 1 ? "" : "s"}`,
         className: "rh-panel-classes"
       },
-      h(
-        "div",
-        { className: "rh-class-grid-layout" },
-        visibleClasses.map((classItem) => h(ClassCard, {
-          key: String(getClassNumber(classItem)),
-          classItem,
-          onOpenClass,
-          onOpenBatch
-        }))
-      )
+      loading && classes.length === 0
+        ? h(
+            "div",
+            { className: "rh-class-grid-layout rh-skeleton-grid" },
+            Array.from({ length: INITIAL_CLASSES_VISIBLE }).map((_, index) =>
+              h("article", { key: `skeleton-${index}`, className: "rh-class-card rh-skeleton-card", "aria-hidden": "true" })
+            )
+          )
+        : h(
+            React.Fragment,
+            null,
+            h(
+              "div",
+              { className: "rh-class-grid-layout" },
+              visibleClasses.map((classItem) => h(MemoClassCard, {
+                key: String(getClassNumber(classItem)),
+                classItem,
+                onOpenClass,
+                onOpenBatch
+              }))
+            ),
+            hasMoreClasses
+              ? h(
+                  "div",
+                  { className: "rh-pager" },
+                  h("button", {
+                    type: "button",
+                    className: "rh-button",
+                    onClick: () => setVisibleClassCount((current) => Math.min(current + CLASS_PAGE_SIZE, filteredClasses.length))
+                  }, "Load more classes")
+                )
+              : null,
+            hasMoreClasses ? h("div", { ref: sentinelRef, className: "rh-scroll-sentinel", "aria-hidden": "true" }) : null
+          )
     ),
     h(
       "section",
@@ -1010,23 +1066,23 @@ function App() {
 
   const summary = data.summary || { totalClasses: 0, totalBatches: 0, totalStudents: 0 };
 
-  const refresh = () => setRefreshTick((current) => current + 1);
+  const refresh = useCallback(() => setRefreshTick((current) => current + 1), []);
 
-  const openClass = (classNumber) => navigate(`/classes/${classNumber}`);
-  const openBatch = (batchNumber) => navigate(`/batches/${batchNumber}`);
-  const openProfile = (studentId) => {
+  const openClass = useCallback((classNumber) => navigate(`/classes/${classNumber}`), []);
+  const openBatch = useCallback((batchNumber) => navigate(`/batches/${batchNumber}`), []);
+  const openProfile = useCallback((studentId) => {
     if (!studentId) {
       return;
     }
     window.location.href = `/students/${encodeURIComponent(studentId)}`;
-  };
-  const editStudent = (studentId) => {
+  }, []);
+  const editStudent = useCallback((studentId) => {
     if (!studentId) {
       return;
     }
     window.location.href = `/students/${encodeURIComponent(studentId)}?edit=1`;
-  };
-  const deleteStudent = async (studentId) => {
+  }, []);
+  const deleteStudent = useCallback(async (studentId) => {
     if (!studentId) {
       return;
     }
@@ -1038,15 +1094,15 @@ function App() {
 
     await api(`/api/admin/students/${encodeURIComponent(studentId)}`, { method: "DELETE" });
     refresh();
-  };
-  const uploadPhoto = (studentId) => {
+  }, [refresh]);
+  const uploadPhoto = useCallback((studentId) => {
     setPendingUploadStudentId(studentId);
     if (uploadInputRef.current) {
       uploadInputRef.current.value = "";
       uploadInputRef.current.click();
     }
-  };
-  const handleUploadChange = async (event) => {
+  }, []);
+  const handleUploadChange = useCallback(async (event) => {
     const file = event.target.files && event.target.files[0];
     if (!file || !pendingUploadStudentId) {
       return;
@@ -1058,7 +1114,7 @@ function App() {
     await api("/api/admin/upload-face", { method: "POST", body: formData });
     setPendingUploadStudentId("");
     refresh();
-  };
+  }, [pendingUploadStudentId, refresh]);
 
   return h(
     "div",
@@ -1106,7 +1162,8 @@ function App() {
               onOpenBatch: openBatch,
               onRefresh: refresh,
               teachers,
-              timetables
+              timetables,
+              loading
             })
           : route.type === "class"
             ? h(ClassView, {

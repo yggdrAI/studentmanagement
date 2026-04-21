@@ -6,6 +6,9 @@ public class CourseProgressDto {
     private String courseCode;
     private String courseName;
     private String facultyName;
+    private String facultyDepartment;
+    private String facultyDesignation;
+    private String facultyProfileImage;
     private Integer credits;
     private Double progressPercent;
 
@@ -39,6 +42,30 @@ public class CourseProgressDto {
 
     public void setFacultyName(String facultyName) {
         this.facultyName = facultyName;
+    }
+
+    public String getFacultyDepartment() {
+        return facultyDepartment;
+    }
+
+    public void setFacultyDepartment(String facultyDepartment) {
+        this.facultyDepartment = facultyDepartment;
+    }
+
+    public String getFacultyDesignation() {
+        return facultyDesignation;
+    }
+
+    public void setFacultyDesignation(String facultyDesignation) {
+        this.facultyDesignation = facultyDesignation;
+    }
+
+    public String getFacultyProfileImage() {
+        return facultyProfileImage;
+    }
+
+    public void setFacultyProfileImage(String facultyProfileImage) {
+        this.facultyProfileImage = facultyProfileImage;
     }
 
     public Integer getCredits() {
