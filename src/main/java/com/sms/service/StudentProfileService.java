@@ -82,10 +82,11 @@ public class StudentProfileService {
         String fullName = firstNonBlank(request.getFullName(), profile.getFullName(), student.getName());
         String profileImage = firstNonBlank(request.getProfileImage(), profile.getProfileImage(), student.getProfileImageUrl());
         
-        // Handle base64 image upload
-        if (profileImage != null && profileImage.startsWith("data:image")) {
+        // Handle base64 image upload — only process if it's a NEW upload from the request
+        String requestedImage = request.getProfileImage();
+        if (requestedImage != null && requestedImage.startsWith("data:image")) {
             try {
-                profileImage = imageUploadService.uploadBase64Image(profileImage, normalizedStudentId);
+                profileImage = imageUploadService.uploadBase64Image(requestedImage, normalizedStudentId);
             } catch (Exception e) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Profile image upload failed: " + safeMessage(e, "Invalid image format or image size exceeds the limit."), e);
@@ -122,6 +123,7 @@ public class StudentProfileService {
         }
         profile.setFullName(fullName);
         profile.setProfileImage(profileImage);
+        // For profilePhotoUrl (VARCHAR), skip data URIs; for @Lob profileImage, store directly
         profile.setProfilePhotoUrl(normalizePhotoUrl(profileImage, profile.getProfilePhotoUrl()));
         profile.setDob(dob);
         profile.setGender(gender);
@@ -164,7 +166,12 @@ public class StudentProfileService {
         student.setCourse(course);
         student.setDepartment(department);
         student.setSemester(semester);
-        student.setProfileImageUrl(normalizePhotoUrl(profileImage, student.getProfileImageUrl()));
+        // Student.profileImageUrl is @Lob — store data URI directly
+        if (profileImage != null && profileImage.startsWith("data:image")) {
+            student.setProfileImageUrl(profileImage);
+        } else {
+            student.setProfileImageUrl(normalizePhotoUrl(profileImage, student.getProfileImageUrl()));
+        }
         if (admissionYear != null) {
             student.setEnrollmentYear(String.valueOf(admissionYear));
         }

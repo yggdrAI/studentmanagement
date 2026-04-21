@@ -275,18 +275,18 @@ public class AdminApiController {
         student.setPhone(trimValue(payload.get("phone")));
         Student saved = studentService.save(student);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
-                "id", saved.getId(),
-                "name", saved.getName(),
-                "email", saved.getEmail(),
-                "course", saved.getCourse(),
-                "semester", saved.getSemester(),
-                "section", saved.getSection(),
-                "batch", saved.getEnrollmentYear(),
-                "classGroup", saved.getClassGroup(),
-                "batchGroup", saved.getBatchGroup(),
-                "message", "Student created successfully"
-        ));
+        return ResponseEntity.status(HttpStatus.CREATED).body(new HashMap<>() {{
+                put("id", saved.getId());
+                put("name", saved.getName());
+                put("email", saved.getEmail() != null ? saved.getEmail() : "");
+                put("course", saved.getCourse() != null ? saved.getCourse() : "");
+                put("semester", saved.getSemester() != null ? saved.getSemester() : "");
+                put("section", saved.getSection() != null ? saved.getSection() : "");
+                put("batch", saved.getEnrollmentYear() != null ? saved.getEnrollmentYear() : "");
+                put("classGroup", saved.getClassGroup() != null ? saved.getClassGroup() : "");
+                put("batchGroup", saved.getBatchGroup() != null ? saved.getBatchGroup() : "");
+                put("message", "Student created successfully");
+        }});
     }
 
     @PostMapping("/students/recompute-cohorts")

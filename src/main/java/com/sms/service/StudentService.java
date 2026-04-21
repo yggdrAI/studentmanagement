@@ -156,7 +156,9 @@ public class StudentService {
             spec = spec.and((root, query, cb) -> cb.or(
                     cb.like(cb.lower(root.get("id")), searchToken),
                     cb.like(cb.lower(root.get("name")), searchToken),
-                    cb.like(cb.lower(root.get("email")), searchToken)
+                    cb.like(cb.lower(root.get("email")), searchToken),
+                    cb.like(cb.lower(root.get("phone")), searchToken),
+                    cb.like(cb.lower(root.get("course")), searchToken)
             ));
         }
 

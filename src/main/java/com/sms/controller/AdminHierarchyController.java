@@ -197,11 +197,6 @@ public class AdminHierarchyController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "batchNumber must be >= 1");
         }
 
-        int expectedClassNumber = ((request.getBatchNumber() - 1) / DEFAULT_CLUSTER_COUNT) + 1;
-        if (expectedClassNumber != request.getClassNumber()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "batchNumber does not belong to classNumber");
-        }
-
         Student student = studentRepository.findById(request.getStudentId().trim())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
 

@@ -24,7 +24,10 @@
         allExpanded: false,
         toastTimer: null,
         draggingStudent: null,
-        pendingFaceStudentId: null
+        pendingFaceStudentId: null,
+        searchResults: [],
+        searchActiveIndex: -1,
+        searchAbortController: null
     };
 
     const refs = {
@@ -83,6 +86,53 @@
         { bg: "linear-gradient(135deg, #30cfd0 0%, #330867 100%)", text: "#fff" },
     ];
 
+    /* ─── Program code → human-readable name resolver ─── */
+    const PROGRAM_CODE_NAMES = {
+        "CSE": "Computer Science & Engineering",
+        "CSEU": "Computer Science & Engineering",
+        "ECEU": "Electronics & Communication Engineering",
+        "ECE": "Electronics & Communication Engineering",
+        "MEU": "Mechanical Engineering",
+        "ME": "Mechanical Engineering",
+        "CEU": "Civil Engineering",
+        "CE": "Civil Engineering",
+        "EEU": "Electrical Engineering",
+        "EE": "Electrical Engineering",
+        "BIO": "Biotechnology",
+        "BIOU": "Biotechnology",
+        "BT": "Biotechnology",
+        "LAW": "Law",
+        "BLAU": "B.A. LL.B (Hons.)",
+        "BLBU": "B.B.A. LL.B (Hons.)",
+        "BALU": "B.A. LL.B",
+        "MBA": "Master of Business Administration",
+        "MCA": "Master of Computer Applications",
+        "BBA": "Bachelor of Business Administration",
+        "BCA": "Bachelor of Computer Applications",
+        "BBAU": "Bachelor of Business Administration",
+        "BCAU": "Bachelor of Computer Applications",
+        "BAMU": "Bachelor of Arts (Multimedia)",
+        "BMBU": "Bachelor of Mass Media",
+        "ARIU": "B.Arch / Interior Design",
+        "DESU": "B.Des (Design)",
+        "DESGP": "M.Des (Design)",
+        "CSEGP": "M.Tech (Computer Science)",
+        "ECEGP": "M.Tech (Electronics)",
+        "BBAGP": "MBA",
+        "BLAGP": "LL.M",
+        "PHD": "Ph.D.",
+    };
+    function resolveProgramName(code, fallbackName) {
+        if (!code) return fallbackName || "Unknown Program";
+        const upper = code.replace(/[0-9]+$/, "").toUpperCase();
+        // Try full code, then without trailing digits, then first 3 chars
+        return PROGRAM_CODE_NAMES[code.toUpperCase()]
+            || PROGRAM_CODE_NAMES[upper]
+            || PROGRAM_CODE_NAMES[upper.substring(0, 3)]
+            || fallbackName
+            || code;
+    }
+
     function createHiddenFaceUploadInput() {
         const input = document.createElement("input");
         input.type = "file";
@@ -106,7 +156,6 @@
         refs.performanceFilter?.addEventListener("change", onServerFilterChange);
         refs.programFilter?.addEventListener("change", onProgramFilterChange);
         refs.groupingMode?.addEventListener("change", onGroupingModeChange);
-        refs.globalSearch?.addEventListener("input", debounce(onSearchChange, 180));
         refs.refreshBtn?.addEventListener("click", () => { loadPrograms(); loadHierarchy(); });
         refs.expandAllBtn?.addEventListener("click", expandAll);
         refs.collapseAllBtn?.addEventListener("click", collapseAll);
@@ -122,6 +171,9 @@
         refs.stepNextBtn?.addEventListener("click", nextStep);
         refs.createSubmitBtn?.addEventListener("click", submitCreateStudent);
         refs.createStudentForm?.addEventListener("submit", (e) => { e.preventDefault(); submitCreateStudent(); });
+
+        // ─── Advanced Search ────────────────────────────────────────────
+        initAdvancedSearch();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -165,18 +217,20 @@
             const totalStudents = program.totalStudents || 0;
             const totalClasses = program.totalClasses || 0;
             const totalBatches = program.totalBatches || 0;
+            const displayName = resolveProgramName(program.code, program.name);
+            const typeLabel = (program.programType || '').toUpperCase() === 'UG' ? 'Undergraduate' : (program.programType || '').toUpperCase() === 'PG' ? 'Postgraduate' : program.programType || '';
 
             return `
                 <article class="program-card ${isActive ? 'program-card-active' : ''}" 
                          data-program-id="${program.id}" 
                          style="background:${color.bg}; color:${color.text}"
                          tabindex="0" role="button"
-                         aria-label="${escapeHtml(program.name)} — ${totalStudents} students">
+                         aria-label="${escapeHtml(displayName)} — ${totalStudents} students">
                     <div class="program-card-header">
                         <span class="program-card-code">${escapeHtml(program.code || '')}</span>
-                        <span class="program-card-type">${escapeHtml(program.programType || '')}</span>
+                        <span class="program-card-type">${escapeHtml(typeLabel)}</span>
                     </div>
-                    <h3 class="program-card-name">${escapeHtml(program.name || 'Unknown')}</h3>
+                    <h3 class="program-card-name">${escapeHtml(displayName)}</h3>
                     <div class="program-card-stats">
                         <div class="program-stat">
                             <span class="program-stat-value">${totalStudents}</span>
@@ -799,6 +853,13 @@
             });
         }).join("");
 
+        // Sort students by enrollment number
+        students.sort((a, b) => {
+            const eA = (a.enrollment || a.enrollmentNumber || a.id || '').toString();
+            const eB = (b.enrollment || b.enrollmentNumber || b.id || '').toString();
+            return eA.localeCompare(eB, undefined, { numeric: true });
+        });
+
         const studentRows = students.length === 0
             ? '<div style="text-align:center;padding:40px 20px;color:#94a3b8;grid-column:1/-1"><div style="font-size:48px;margin-bottom:12px">📭</div><p>No students in this batch.</p></div>'
             : students.map(s => {
@@ -1180,9 +1241,207 @@
         renderHierarchy();
     }
 
-    function onSearchChange(event) {
-        state.filters.searchQuery = (event.target.value || "").toLowerCase();
+    function onSearchChange(query) {
+        state.filters.searchQuery = (query || "").toLowerCase();
         renderHierarchy();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ADVANCED SEARCH SYSTEM
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    function initAdvancedSearch() {
+        if (!refs.globalSearch) return;
+
+        // Create search results dropdown container
+        const searchWrapper = refs.globalSearch.parentElement;
+        searchWrapper.style.position = "relative";
+
+        const dropdown = document.createElement("div");
+        dropdown.className = "search-dropdown";
+        dropdown.id = "searchDropdown";
+        dropdown.hidden = true;
+        searchWrapper.appendChild(dropdown);
+
+        // Update placeholder
+        refs.globalSearch.placeholder = "Search by name, enrollment, ID, phone, email…  Ctrl+K";
+
+        // Debounced search handler
+        const debouncedSearch = debounce((query) => {
+            onSearchChange(query);
+            if (query.length >= 2) {
+                performServerSearch(query);
+            } else {
+                hideSearchDropdown();
+            }
+        }, 250);
+
+        refs.globalSearch.addEventListener("input", (e) => {
+            const query = e.target.value.trim();
+            debouncedSearch(query);
+        });
+
+        // Keyboard navigation
+        refs.globalSearch.addEventListener("keydown", (e) => {
+            const dropdown = document.getElementById("searchDropdown");
+            if (!dropdown || dropdown.hidden) {
+                if (e.key === "Escape") { refs.globalSearch.blur(); return; }
+                return;
+            }
+
+            const items = dropdown.querySelectorAll(".search-result-item");
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                state.searchActiveIndex = Math.min(state.searchActiveIndex + 1, items.length - 1);
+                updateSearchHighlight(items);
+            } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                state.searchActiveIndex = Math.max(state.searchActiveIndex - 1, -1);
+                updateSearchHighlight(items);
+            } else if (e.key === "Enter") {
+                e.preventDefault();
+                if (state.searchActiveIndex >= 0 && items[state.searchActiveIndex]) {
+                    items[state.searchActiveIndex].click();
+                }
+            } else if (e.key === "Escape") {
+                hideSearchDropdown();
+            }
+        });
+
+        // Focus/blur management
+        refs.globalSearch.addEventListener("focus", () => {
+            if (state.searchResults.length > 0 && refs.globalSearch.value.trim().length >= 2) {
+                renderSearchDropdown();
+            }
+        });
+
+        document.addEventListener("click", (e) => {
+            if (!searchWrapper.contains(e.target)) {
+                hideSearchDropdown();
+            }
+        });
+
+        // Ctrl+K shortcut
+        document.addEventListener("keydown", (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+                e.preventDefault();
+                refs.globalSearch.focus();
+                refs.globalSearch.select();
+            }
+        });
+    }
+
+    function performServerSearch(query) {
+        // Cancel previous request
+        if (state.searchAbortController) {
+            state.searchAbortController.abort();
+        }
+        state.searchAbortController = new AbortController();
+
+        const params = new URLSearchParams({ search: query, size: "12", sortBy: "name", sortDir: "asc" });
+        fetch(`/api/admin/students?${params.toString()}`, { signal: state.searchAbortController.signal })
+            .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+            .then(data => {
+                state.searchResults = Array.isArray(data.items) ? data.items : [];
+                state.searchActiveIndex = -1;
+                const totalElements = data.totalElements || state.searchResults.length;
+                renderSearchDropdown(totalElements);
+            })
+            .catch(err => {
+                if (err.name === "AbortError") return;
+                console.warn("Search failed:", err);
+            });
+    }
+
+    function renderSearchDropdown(totalCount) {
+        const dropdown = document.getElementById("searchDropdown");
+        if (!dropdown) return;
+
+        if (!state.searchResults.length) {
+            dropdown.innerHTML = `
+                <div class="search-empty">
+                    <span class="search-empty-icon">🔍</span>
+                    <span>No students found for this query</span>
+                </div>`;
+            dropdown.hidden = false;
+            return;
+        }
+
+        const countLabel = totalCount > state.searchResults.length
+            ? `Showing ${state.searchResults.length} of ${totalCount} results`
+            : `${state.searchResults.length} results`;
+
+        dropdown.innerHTML = `
+            <div class="search-header">
+                <span>${escapeHtml(countLabel)}</span>
+                <span class="search-hint">↑↓ navigate · Enter select · Esc close</span>
+            </div>
+            <div class="search-results-list">
+                ${state.searchResults.map((s, i) => {
+                    const initials = getInitials(s.name || "ST");
+                    const enrollment = s.enrollment || s.id || "";
+                    const course = s.course || s.degree || "";
+                    const email = s.email || "";
+                    const gender = s.gender || "";
+                    const classGroup = s.classGroup || "";
+                    const batchGroup = s.batchGroup || "";
+                    const avgMarks = typeof s.averageMarks === "number" ? s.averageMarks.toFixed(1) : "--";
+                    const phone = s.phone || "";
+                    const band = performanceBandFromMarks(s.averageMarks || 0);
+
+                    return `
+                        <div class="search-result-item ${i === state.searchActiveIndex ? 'active' : ''}" data-student-id="${escapeHtml(s.id)}" data-index="${i}">
+                            <div class="search-result-avatar">${escapeHtml(initials)}</div>
+                            <div class="search-result-info">
+                                <div class="search-result-name">${escapeHtml(s.name || "Unnamed")}</div>
+                                <div class="search-result-meta">
+                                    <span class="search-meta-tag">🆔 ${escapeHtml(enrollment)}</span>
+                                    ${course ? `<span class="search-meta-tag">📚 ${escapeHtml(course)}</span>` : ""}
+                                    ${email ? `<span class="search-meta-tag">✉️ ${escapeHtml(truncate(email, 24))}</span>` : ""}
+                                    ${phone ? `<span class="search-meta-tag">📞 ${escapeHtml(phone)}</span>` : ""}
+                                    ${classGroup ? `<span class="search-meta-tag">C${escapeHtml(classGroup)}</span>` : ""}
+                                    ${batchGroup ? `<span class="search-meta-tag">B${escapeHtml(batchGroup)}</span>` : ""}
+                                </div>
+                            </div>
+                            <div class="search-result-score">
+                                <span class="performance-badge ${band}">${avgMarks}</span>
+                            </div>
+                        </div>`;
+                }).join("")}
+            </div>`;
+
+        dropdown.hidden = false;
+
+        // Bind clicks
+        dropdown.querySelectorAll(".search-result-item").forEach(item => {
+            item.addEventListener("click", () => {
+                const sid = item.dataset.studentId;
+                if (sid) {
+                    hideSearchDropdown();
+                    openProfile(sid);
+                }
+            });
+            item.addEventListener("mouseenter", () => {
+                state.searchActiveIndex = parseInt(item.dataset.index);
+                updateSearchHighlight(dropdown.querySelectorAll(".search-result-item"));
+            });
+        });
+    }
+
+    function updateSearchHighlight(items) {
+        items.forEach((item, i) => {
+            item.classList.toggle("active", i === state.searchActiveIndex);
+        });
+        // Scroll into view
+        if (state.searchActiveIndex >= 0 && items[state.searchActiveIndex]) {
+            items[state.searchActiveIndex].scrollIntoView({ block: "nearest" });
+        }
+    }
+
+    function hideSearchDropdown() {
+        const dropdown = document.getElementById("searchDropdown");
+        if (dropdown) dropdown.hidden = true;
+        state.searchActiveIndex = -1;
     }
 
     function expandAll() {
@@ -1354,24 +1613,52 @@
     }
 
     function submitCreateStudent() {
-        if (!refs.studentIdInput?.value.trim() || !refs.studentNameInput?.value.trim()) { showToast("Student ID and Name are required"); return; }
-        const payload = { id: refs.studentIdInput.value, name: refs.studentNameInput.value, course: refs.studentCourseInput?.value || "", semester: refs.studentSemesterInput?.value || "", phone: refs.studentPhoneInput?.value || "" };
-        fetch("/api/students", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
-            .then(response => response.ok ? response.json() : Promise.reject(`HTTP ${response.status}`))
-            .then(() => { showToast("Student created successfully"); refs.createStudentForm?.reset(); createFormState.step = 1; renderSteps(); loadHierarchy({ preserveState: true }); loadTopPerformers(); })
-            .catch(error => showToast(`Create failed: ${error}`));
+        if (!refs.studentIdInput?.value.trim() || !refs.studentNameInput?.value.trim()) { showToast("⚠️ Student ID and Name are required"); return; }
+        const payload = { id: refs.studentIdInput.value.trim(), name: refs.studentNameInput.value.trim(), course: refs.studentCourseInput?.value || "", semester: refs.studentSemesterInput?.value || "", phone: refs.studentPhoneInput?.value || "" };
+        const submitBtn = refs.createSubmitBtn;
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Creating..."; }
+        fetch("/api/admin/students", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+            .then(response => {
+                if (response.status === 409) return Promise.reject("Student ID already exists");
+                if (!response.ok) return response.text().then(t => Promise.reject(t || `HTTP ${response.status}`));
+                return response.json();
+            })
+            .then((data) => {
+                showToast(`✅ Student "${data.name}" created successfully`);
+                refs.createStudentForm?.reset();
+                createFormState.step = 1;
+                renderSteps();
+                loadHierarchy({ preserveState: true });
+                loadPrograms();
+                loadTopPerformers();
+            })
+            .catch(error => showToast(`❌ Create failed: ${error}`))
+            .finally(() => { if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Create"; } });
     }
 
     function loadTopPerformers() {
-        fetch("/api/students?sort=performance&limit=5")
+        fetch("/api/admin/students?size=10&sortBy=name&sortDir=asc")
             .then(response => response.ok ? response.json() : Promise.reject())
             .then(data => {
-                const items = Array.isArray(data.content) ? data.content : [];
+                const items = Array.isArray(data.items) ? data.items : [];
+                // Sort by averageMarks descending to get top performers
+                const sorted = [...items].sort((a, b) => (b.averageMarks || 0) - (a.averageMarks || 0)).slice(0, 5);
                 if (refs.topPerformers) {
-                    refs.topPerformers.innerHTML = items.map((student, i) => `<li class="audit-item">#${i + 1} ${escapeHtml(student.name || "Unknown")} - ${(student.marks || 0).toFixed(1)}</li>`).join("") || '<li class="audit-item">No data available</li>';
+                    refs.topPerformers.innerHTML = sorted.map((student, i) => {
+                        const marks = student.averageMarks || 0;
+                        const band = performanceBandFromMarks(marks);
+                        return `<li class="audit-item" style="cursor:pointer" data-student-id="${escapeHtml(student.id)}">
+                            <span class="performance-badge ${band}" style="font-size:10px;padding:2px 6px;margin-right:6px">${marks.toFixed(1)}</span>
+                            #${i + 1} ${escapeHtml(student.name || "Unknown")}
+                        </li>`;
+                    }).join("") || '<li class="audit-item">No data available</li>';
+                    // Bind click to view profile
+                    refs.topPerformers.querySelectorAll("[data-student-id]").forEach(li => {
+                        li.addEventListener("click", () => openProfile(li.dataset.studentId));
+                    });
                 }
-                if (refs.avgMarksLabel && items.length > 0) {
-                    const avgMarks = items.reduce((sum, s) => sum + (s.marks || 0), 0) / items.length;
+                if (refs.avgMarksLabel && sorted.length > 0) {
+                    const avgMarks = sorted.reduce((sum, s) => sum + (s.averageMarks || 0), 0) / sorted.length;
                     refs.avgMarksLabel.textContent = avgMarks.toFixed(1);
                 }
             })
