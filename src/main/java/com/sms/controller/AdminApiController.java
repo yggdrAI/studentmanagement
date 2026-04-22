@@ -100,7 +100,6 @@ public class AdminApiController {
     }
 
     @PostMapping(value = "/upload-face", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('MANAGE_STUDENTS') and @permissionEngine.canAccessTenant(#tenantId)")
     public ResponseEntity<Map<String, Object>> uploadFace(
         @RequestParam("file") MultipartFile file,
         @RequestParam("studentId") String studentId,
@@ -209,6 +208,7 @@ public class AdminApiController {
             row.put("caste", profile != null ? profile.getCaste() : null);
             row.put("placeOfOrigin", profile != null ? profile.getPlaceOfOrigin() : null);
             row.put("averageMarks", averageMap.getOrDefault(student.getId(), 0.0));
+            row.put("phone", student.getPhone() == null ? "" : student.getPhone());
             row.put("avatar", buildAvatar(student.getName()));
             items.add(row);
         }

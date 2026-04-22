@@ -185,6 +185,7 @@ com\sms\dto\teacher\CreateTeacherRequest.class
 com\sms\repository\StudentImportRowRepository.class
 com\sms\util\LoggerUtil.class
 com\sms\repository\RefreshTokenRepository.class
+com\sms\controller\AdminApiController$1.class
 com\sms\dto\diet\DietLogBatchRequest$MealEntry.class
 com\sms\service\JwtService.class
 com\sms\dto\auth\LoginResponse.class

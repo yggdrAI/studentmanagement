@@ -418,6 +418,29 @@
     function loadHierarchy(options = {}) {
         if (state.loading) return;
 
+        // If we already have hierarchy data and are just refreshing, render immediately from cache
+        // to avoid visible loading delay, then silently refresh in background
+        const hasExistingData = state.hierarchy?.classes?.length > 0;
+        if (options.preserveState && hasExistingData) {
+            // Don't show loading spinner — just silently refresh
+            state.loading = true;
+            const params = new URLSearchParams();
+            if (state.filters.course) params.append("course", state.filters.course);
+            if (state.filters.semester) params.append("semester", state.filters.semester);
+            if (state.filters.performance) params.append("performance", state.filters.performance);
+
+            fetch(`/api/admin/students-hierarchy?${params.toString()}`)
+                .then(response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); })
+                .then(payload => {
+                    state.hierarchy = normalizeHierarchy(payload);
+                    state.loading = false;
+                    updateStatistics();
+                    renderHierarchy();
+                })
+                .catch(() => { state.loading = false; });
+            return;
+        }
+
         state.loading = true;
         showLoadingState();
 
@@ -973,32 +996,54 @@
                 e.stopPropagation();
                 const file = photoInput.files?.[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const base64 = reader.result;
-                    photoBtn.textContent = "⏳";
-                    fetch(`/api/admin/student/${encodeURIComponent(sid)}/profile`, {
+                // Validate file type client-side
+                if (!file.type.startsWith("image/")) {
+                    showToast("❌ Please select a valid image file");
+                    photoInput.value = "";
+                    return;
+                }
+                // Validate file size (max 10MB raw)
+                if (file.size > 10 * 1024 * 1024) {
+                    showToast("❌ Image is too large. Please select an image under 10MB.");
+                    photoInput.value = "";
+                    return;
+                }
+                photoBtn.textContent = "⏳";
+                // Compress aggressively to avoid server body-size limits
+                compressImageSafe(file).then(base64 => {
+                    return fetch(`/api/admin/student/${encodeURIComponent(sid)}/profile`, {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ profileImage: base64 })
-                    })
-                    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-                    .then(res => {
-                        photoBtn.textContent = "✅";
-                        const avatarWrap = wrap.querySelector(".fm-avatar-wrap");
-                        const existingAvatar = avatarWrap.querySelector(".fm-student-avatar");
-                        if (existingAvatar) {
-                            const img = document.createElement("img");
-                            img.src = res.profilePhotoUrl || base64;
-                            img.className = "fm-student-avatar fm-avatar-img";
-                            existingAvatar.replaceWith(img);
-                        }
-                        showToast("✅ Photo uploaded successfully");
-                        setTimeout(() => { photoBtn.textContent = "📷"; }, 2000);
-                    })
-                    .catch(err => { photoBtn.textContent = "📷"; showToast(`❌ Photo upload failed: ${err.message}`); });
-                };
-                reader.readAsDataURL(file);
+                    });
+                })
+                .then(r => {
+                    if (!r.ok) return r.text().then(t => { throw new Error(t || `HTTP ${r.status}`); });
+                    return r.json();
+                })
+                .then(res => {
+                    photoBtn.textContent = "✅";
+                    const avatarWrap = wrap.querySelector(".fm-avatar-wrap");
+                    const existingAvatar = avatarWrap.querySelector(".fm-student-avatar");
+                    if (existingAvatar) {
+                        const img = document.createElement("img");
+                        img.src = res.profileImage || "";
+                        img.className = "fm-student-avatar fm-avatar-img";
+                        existingAvatar.replaceWith(img);
+                    }
+                    showToast("✅ Photo uploaded successfully");
+                    setTimeout(() => { photoBtn.textContent = "📷"; }, 2000);
+                })
+                .catch(err => {
+                    photoBtn.textContent = "📷";
+                    const msg = err.message || "Unknown error";
+                    if (msg.includes("413") || msg.toLowerCase().includes("too large") || msg.toLowerCase().includes("size")) {
+                        showToast("❌ Image too large even after compression. Try a smaller photo.");
+                    } else {
+                        showToast(`❌ Photo upload failed: ${msg.substring(0, 120)}`);
+                    }
+                    photoInput.value = "";
+                });
             });
 
             // Transfer
@@ -1053,7 +1098,7 @@
                 })
                 .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
                 .then(() => {
-                    showToast("✅ Student details updated");
+                    showToast("✅ Student details updated and saved to database");
                     editPanel.hidden = true;
                     saveBtn.textContent = "💾 Save";
                     saveBtn.disabled = false;
@@ -1062,6 +1107,8 @@
                         const nameEl = wrap.querySelector(".fm-student-name");
                         if (nameEl) nameEl.textContent = payload.fullName;
                     }
+                    // Reload hierarchy to reflect changes in the main view
+                    loadHierarchy({ preserveState: true });
                 })
                 .catch(err => { showToast(`❌ Update failed: ${err.message}`); saveBtn.textContent = "💾 Save"; saveBtn.disabled = false; });
             });
@@ -1253,15 +1300,12 @@
     function initAdvancedSearch() {
         if (!refs.globalSearch) return;
 
-        // Create search results dropdown container
-        const searchWrapper = refs.globalSearch.parentElement;
-        searchWrapper.style.position = "relative";
-
+        // Create search results dropdown container - append to body for fixed positioning
         const dropdown = document.createElement("div");
         dropdown.className = "search-dropdown";
         dropdown.id = "searchDropdown";
         dropdown.hidden = true;
-        searchWrapper.appendChild(dropdown);
+        document.body.appendChild(dropdown);
 
         // Update placeholder
         refs.globalSearch.placeholder = "Search by name, enrollment, ID, phone, email…  Ctrl+K";
@@ -1316,7 +1360,8 @@
         });
 
         document.addEventListener("click", (e) => {
-            if (!searchWrapper.contains(e.target)) {
+            const dropdown = document.getElementById("searchDropdown");
+            if (dropdown && !dropdown.contains(e.target) && e.target !== refs.globalSearch) {
                 hideSearchDropdown();
             }
         });
@@ -1329,6 +1374,16 @@
                 refs.globalSearch.select();
             }
         });
+
+        // Reposition dropdown on scroll/resize
+        window.addEventListener("scroll", () => {
+            const dd = document.getElementById("searchDropdown");
+            if (dd && !dd.hidden) positionSearchDropdown();
+        }, { passive: true });
+        window.addEventListener("resize", () => {
+            const dd = document.getElementById("searchDropdown");
+            if (dd && !dd.hidden) positionSearchDropdown();
+        }, { passive: true });
     }
 
     function performServerSearch(query) {
@@ -1411,6 +1466,7 @@
             </div>`;
 
         dropdown.hidden = false;
+        positionSearchDropdown();
 
         // Bind clicks
         dropdown.querySelectorAll(".search-result-item").forEach(item => {
@@ -1442,6 +1498,28 @@
         const dropdown = document.getElementById("searchDropdown");
         if (dropdown) dropdown.hidden = true;
         state.searchActiveIndex = -1;
+    }
+
+    function positionSearchDropdown() {
+        const dropdown = document.getElementById("searchDropdown");
+        if (!dropdown || !refs.globalSearch) return;
+        const rect = refs.globalSearch.getBoundingClientRect();
+        const vpW = window.innerWidth;
+        const vpH = window.innerHeight;
+        const dropW = Math.max(rect.width, 420);
+        const top = rect.bottom + 6;
+        let left = rect.left;
+        // Prevent right-edge overflow
+        if (left + dropW > vpW - 12) {
+            left = Math.max(12, vpW - dropW - 12);
+        }
+        // Clamp max-height so it never clips off the bottom of the viewport
+        const availableHeight = vpH - top - 16;
+        const maxH = Math.max(200, Math.min(480, availableHeight));
+        dropdown.style.top = top + "px";
+        dropdown.style.left = left + "px";
+        dropdown.style.width = dropW + "px";
+        dropdown.style.maxHeight = maxH + "px";
     }
 
     function expandAll() {
@@ -1504,7 +1582,14 @@
         formData.append("studentId", studentId);
         formData.append("file", file);
         fetch("/api/admin/upload-face", { method: "POST", body: formData })
-            .then(response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(text || `HTTP ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
             .then(payload => showToast(payload?.message || `Face uploaded for ${studentId}`))
             .catch(error => showToast(`Face upload failed: ${error.message}`))
             .finally(() => { state.pendingFaceStudentId = null; event.target.value = ""; });
@@ -1574,6 +1659,68 @@
         if (v >= 60) return "good";
         if (v >= 50) return "average";
         return "poor";
+    }
+
+    /** Compress an image file to a max dimension and quality, returns a base64 data URI promise. */
+    function compressImage(file, maxDim, quality) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error("Failed to read file"));
+            reader.onload = () => {
+                const img = new Image();
+                img.onerror = () => reject(new Error("Failed to decode image"));
+                img.onload = () => {
+                    try {
+                        let w = img.width, h = img.height;
+                        if (w > maxDim || h > maxDim) {
+                            if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+                            else { w = Math.round(w * maxDim / h); h = maxDim; }
+                        }
+                        // Ensure minimum dimensions
+                        w = Math.max(1, w);
+                        h = Math.max(1, h);
+                        const canvas = document.createElement("canvas");
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext("2d");
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL("image/jpeg", quality));
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    /**
+     * Safe image compression with automatic quality reduction.
+     * Tries progressively lower quality + dimensions until the result
+     * is under the 2MB target (safe for JSON body in most Spring configs).
+     */
+    function compressImageSafe(file) {
+        const MAX_BASE64_SIZE = 2 * 1024 * 1024; // 2MB target
+        const attempts = [
+            { maxDim: 400, quality: 0.6 },
+            { maxDim: 300, quality: 0.5 },
+            { maxDim: 200, quality: 0.4 },
+            { maxDim: 150, quality: 0.3 },
+        ];
+
+        return (async () => {
+            for (const { maxDim, quality } of attempts) {
+                const result = await compressImage(file, maxDim, quality);
+                // Check byte size of the base64 payload
+                const payloadSize = result.length;
+                if (payloadSize <= MAX_BASE64_SIZE) {
+                    return result;
+                }
+            }
+            // Last resort: smallest possible
+            return compressImage(file, 100, 0.2);
+        })();
     }
 
     function formatNumber(value) { const n = Number(value) || 0; return n.toFixed(1).replace(/\.0$/, ""); }

@@ -141,6 +141,20 @@
             state.page = 0;
             debouncedFetch();
         });
+        // ESC key closes search results
+        refs.search?.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                // Close search popup/modal if open
+                const searchPopup = document.querySelector('.search-popup, .search-modal, .search-overlay');
+                if (searchPopup && searchPopup.classList.contains('open')) {
+                    searchPopup.classList.remove('open');
+                }
+                state.search = "";
+                refs.search.value = "";
+                state.page = 0;
+                debouncedFetch();
+            }
+        });
 
         refs.smartFilterInput?.addEventListener("keydown", (event) => {
             if (event.key === "Enter") {
@@ -320,6 +334,13 @@
             if (event.key === "Escape") {
                 closeCommandPalette();
                 closeDeleteModal();
+                // Also clear search results if search input is focused
+                if (document.activeElement === refs.search) {
+                    state.search = "";
+                    refs.search.value = "";
+                    state.page = 0;
+                    debouncedFetch();
+                }
             }
         });
 
@@ -813,9 +834,11 @@
                     if (!studentId) {
                         return;
                     }
-
                     state.pendingFaceStudentId = studentId;
-                    refs.faceUploadInput?.click();
+                    if (refs.faceUploadInput) {
+                        refs.faceUploadInput.value = "";
+                        refs.faceUploadInput.click();
+                    }
                 });
             });
 
@@ -842,71 +865,73 @@
                     } catch (error) {
                         toast(error.message || "Password update failed", "error");
                     }
-                });
-            });
-
-        Array.from(document.querySelectorAll("[data-reset-password]"))
-            .forEach((button) => {
-                button.addEventListener("click", async () => {
-                    const studentId = button.getAttribute("data-reset-password");
-                    if (!studentId) {
+                function renderGrid() {
+                    if (!state.items.length) {
+                        refs.gridBody.innerHTML = `<tr><td colspan="11" class="empty-state">No students match the current filters.</td></tr>`;
                         return;
                     }
 
-                    const confirmed = window.confirm(`Reset password for ${studentId} to enrollment number?`);
-                    if (!confirmed) {
-                        return;
-                    }
-
-                    try {
-                        await window.smsApi.admin.students.resetPassword(studentId);
-                        toast(`Password reset for ${studentId}`, "success");
-                    } catch (error) {
-                        toast(error.message || "Password reset failed", "error");
-                    }
-                });
-            });
-    }
-
-    function renderPagination() {
-        if (refs.pageLabel) {
-            refs.pageLabel.textContent = state.totalPages ? `Page ${state.page + 1} / ${state.totalPages}` : "Page 0 / 0";
-        }
-        if (refs.totalLabel) {
-            refs.totalLabel.textContent = `${state.totalElements} records`;
-        }
-        if (refs.prevPageBtn) {
-            refs.prevPageBtn.disabled = state.page <= 0;
-        }
-        if (refs.nextPageBtn) {
-            refs.nextPageBtn.disabled = state.page + 1 >= state.totalPages;
-        }
-        if (refs.selectAll) {
-            refs.selectAll.checked = false;
-        }
-    }
-
-    function syncBulkActions() {
-        const count = state.selected.size;
-        if (refs.bulkDeleteBtn) {
-            refs.bulkDeleteBtn.disabled = count === 0;
-            refs.bulkDeleteBtn.textContent = count ? `Bulk Delete (${count})` : "Bulk Delete";
-        }
-    }
-
-    function validateField(input) {
-        if (!input) {
-            return true;
-        }
-        const required = input.hasAttribute("required");
-        if (required && !input.value.trim()) {
-            input.setAttribute("aria-invalid", "true");
-            return false;
-        }
-        input.removeAttribute("aria-invalid");
-        return true;
-    }
-
+                    refs.gridBody.innerHTML = state.items.map((item) => {
+                        const checked = state.selected.has(item.id) ? "checked" : "";
+                        const marks = Number(item.averageMarks || 0);
+                        const marksPct = Math.max(0, Math.min(100, marks));
+                        const attendance = Number(item.attendancePercent || 0);
+                        const tagText = Array.isArray(item.aiTags) && item.aiTags.length ? item.aiTags.join(", ") : "";
+                        const progressClass = marks >= 75 ? "" : marks >= 50 ? "warn" : "error";
+                        // Fix: show classGroup, section, or class/section property if present
+                        const classDisplay = item.classGroup || item.section || item.class || item.classgroup || "-";
+                        return `
+                            <tr>
+                                <td><input type="checkbox" aria-label="Select ${escapeHtml(item.name)}" data-select-row="${escapeHtml(item.id)}" ${checked}></td>
+                                <td>${escapeHtml(item.id)}</td>
+                                <td><span class="avatar">${escapeHtml(item.avatar || "ST")}</span>${escapeHtml(item.name)}</td>
+                                <td>${escapeHtml(item.enrollment || item.id)}</td>
+                                <td>${escapeHtml(item.email || "")}</td>
+                                <td><span class="badge">${escapeHtml(item.course || "N/A")}</span></td>
+                                <td>${escapeHtml(item.semester || "-")}</td>
+                                <td>${escapeHtml(classDisplay)}</td>
+                                <td>${escapeHtml(item.batchGroup || item.batch || "-")}</td>
+                                <td>
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        <div class="progress ${progressClass}"><span style="width:${marksPct}%;"></span></div>
+                                        <span>${marks.toFixed(1)}</span>
+                                    </div>
+                                    <small style="color:var(--text-secondary);">Attendance ${attendance.toFixed(1)}%</small>
+                                    ${tagText ? `<div><small style="color:var(--text-secondary);">${escapeHtml(tagText)}</small></div>` : ""}
+                                </td>
+                                <td>
+                                    <div class="row-actions">
+                                        <span class="tooltip-wrap" data-tip="Edit profile">
+                                            <button class="row-icon-btn" aria-label="Edit ${escapeHtml(item.name)}" data-edit="${escapeHtml(item.id)}">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                                            </button>
+                                        </span>
+                                        <span class="tooltip-wrap" data-tip="Upload and register student face">
+                                            <button class="row-icon-btn" aria-label="Upload face for ${escapeHtml(item.name)}" data-upload-face="${escapeHtml(item.id)}">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.5"></circle><path d="M4 20c1.8-3.5 5-5 8-5s6.2 1.5 8 5"></path></svg>
+                                            </button>
+                                        </span>
+                                        <span class="tooltip-wrap" data-tip="Delete student">
+                                            <button class="row-icon-btn danger" aria-label="Delete ${escapeHtml(item.name)}" data-delete="${escapeHtml(item.id)}">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
+                                            </button>
+                                        </span>
+                                        <span class="tooltip-wrap" data-tip="Change login password">
+                                            <button class="row-icon-btn" aria-label="Change password for ${escapeHtml(item.name)}" data-change-password="${escapeHtml(item.id)}">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                            </button>
+                                        </span>
+                                        <span class="tooltip-wrap" data-tip="Reset password to enrollment number">
+                                            <button class="row-icon-btn" aria-label="Reset password for ${escapeHtml(item.name)}" data-reset-password="${escapeHtml(item.id)}">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 3 3 9 9 9"></polyline></svg>
+                                            </button>
+                                        </span>
+                                    </div>
+                                    <div class="face-upload-state ${statusClass(state.faceUploadStatus[item.id])}">${escapeHtml(statusLabel(state.faceUploadStatus[item.id]))}</div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join("");
     function validateStep1() {
         const idOk = validateField(document.getElementById("studentIdInput"));
         const nameOk = validateField(document.getElementById("studentNameInput"));

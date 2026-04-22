@@ -12,6 +12,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -66,6 +69,7 @@ public class AdminHierarchyController {
     // ─── Grouping Pipeline Endpoints ────────────────────────────────────────
 
     @PostMapping("/grouping/regenerate")
+    @CacheEvict(value = "hierarchyCache", allEntries = true)
     public ResponseEntity<Map<String, Object>> regenerateGroupings() {
         Map<String, Object> result = studentGroupingService.regenerateAllGroupings();
         return ResponseEntity.ok(result);
@@ -92,6 +96,7 @@ public class AdminHierarchyController {
     // ─── Existing Hierarchy Endpoints ───────────────────────────────────────
 
     @GetMapping("/students-hierarchy")
+    @Cacheable(value = "hierarchyCache", key = "#course + ':' + #semester + ':' + #classNumber + ':' + #batchNumber + ':' + #performance + ':' + #includeStudents")
     public ResponseEntity<Map<String, Object>> getStudentsHierarchy(
             @RequestParam(required = false) String course,
             @RequestParam(required = false) String semester,
@@ -106,10 +111,6 @@ public class AdminHierarchyController {
         Map<String, Double> attendanceMap = loadAttendanceRateMap();
 
         List<Student> filtered = students.stream()
-                // Only show students that have been assigned through the grouping engine.
-                // Students without an academicClass would otherwise fall through to a
-                // serial-number heuristic that dumps everyone into Class 1.
-                .filter(student -> student.getAcademicClass() != null)
                 .filter(student -> course == null || course.isBlank() || matchesIgnoreCase(student.getCourse(), course))
                 .filter(student -> semester == null || semester.isBlank() || matchesIgnoreCase(student.getSemester(), semester))
             .filter(student -> classNumber == null || extractClassNumber(student, profileByStudentId.get(student.getId())) == classNumber)
@@ -186,6 +187,7 @@ public class AdminHierarchyController {
     }
 
     @PostMapping("/students-hierarchy/reassign")
+    @CacheEvict(value = "hierarchyCache", allEntries = true)
     public ResponseEntity<Map<String, Object>> reassignStudent(@RequestBody ReassignRequest request) {
         if (request == null || request.getStudentId() == null || request.getStudentId().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "studentId is required");
@@ -514,9 +516,8 @@ public class AdminHierarchyController {
         if (classGroupNumber != null && classGroupNumber > 0) {
             return classGroupNumber;
         }
-        // Do NOT fall back to a serial-based heuristic — that causes all
-        // unassigned students to pile up in Class 1.
-        return 0;
+        // Fall back to class 1 so unassigned students still appear in the hierarchy.
+        return 1;
     }
 
     private int extractBatchNumber(Student student) {
@@ -545,8 +546,8 @@ public class AdminHierarchyController {
         if (batchGroupNumber != null && batchGroupNumber > 0) {
             return batchGroupNumber;
         }
-        // Do NOT fall back to a serial-based heuristic.
-        return 0;
+        // Fall back to batch 1 so unassigned students still appear in the hierarchy.
+        return 1;
     }
 
     private int extractSerialNumber(Student student, StudentProfile profile) {
