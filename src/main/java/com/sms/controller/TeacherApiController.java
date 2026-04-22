@@ -19,11 +19,13 @@ import com.sms.dto.dashboard.CreateSubjectRequest;
 import com.sms.dto.dashboard.CreateTaskRequest;
 import com.sms.dto.dashboard.ScheduleClassRequest;
 import com.sms.dto.dashboard.StudentProgressViewDto;
+import com.sms.dto.publication.PublicationResponse;
 import com.sms.model.Course;
 import com.sms.model.TaskItem;
 import com.sms.model.Teacher;
 import com.sms.model.TeacherProfile;
 import com.sms.repository.TeacherProfileRepository;
+import com.sms.service.AcademicPublicationService;
 import com.sms.service.CredentialService;
 import com.sms.service.DashboardService;
 
@@ -37,13 +39,16 @@ public class TeacherApiController {
     private final DashboardService dashboardService;
     private final CredentialService credentialService;
     private final TeacherProfileRepository teacherProfileRepository;
+    private final AcademicPublicationService academicPublicationService;
 
     public TeacherApiController(DashboardService dashboardService,
                                 CredentialService credentialService,
-                                TeacherProfileRepository teacherProfileRepository) {
+                                TeacherProfileRepository teacherProfileRepository,
+                                AcademicPublicationService academicPublicationService) {
         this.dashboardService = dashboardService;
         this.credentialService = credentialService;
         this.teacherProfileRepository = teacherProfileRepository;
+        this.academicPublicationService = academicPublicationService;
     }
 
     @GetMapping("/profile")
@@ -62,6 +67,12 @@ public class TeacherApiController {
                 "profileImage", profile != null && profile.getProfileImage() != null ? profile.getProfileImage() : "",
                 "profilePhotoUrl", profile != null && profile.getProfilePhotoUrl() != null ? profile.getProfilePhotoUrl() : ""
         ));
+    }
+
+    @GetMapping("/publications")
+    @PreAuthorize("hasRole('TEACHER')")
+    public ResponseEntity<List<PublicationResponse>> getTeacherPublications(Authentication authentication) {
+        return ResponseEntity.ok(academicPublicationService.getTeacherPublications(authentication.getName()));
     }
 
     @PostMapping("/subject")

@@ -43,6 +43,13 @@ public class AdminHierarchyController {
 
     private static final int BATCH_SIZE = 30;
     private static final int DEFAULT_CLUSTER_COUNT = 4;
+    /**
+     * Synthetic group identifiers for students with no class/batch assignments.
+     * We keep them distinct from real class/batch numbers so we don't merge them
+     * into "Class 1 / Batch 1" by accident.
+     */
+    private static final int UNASSIGNED_CLASS_NUMBER = 0;
+    private static final int UNASSIGNED_BATCH_NUMBER = 0;
     private static final Pattern TRAILING_NUMBER_PATTERN = Pattern.compile("(\\d+)$");
 
     private final StudentRepository studentRepository;
@@ -105,18 +112,27 @@ public class AdminHierarchyController {
             @RequestParam(required = false) String performance,
             @RequestParam(required = false, defaultValue = "true") boolean includeStudents) {
 
+        // UI sends semester as "2" (from the dropdown), while we often persist "Semester 2".
+        // It also sends short course labels like "B.Tech", while we may store full names.
+        // Normalize common "all" sentinel values and tolerate numeric semester filters.
+        final String normalizedCourse = normalizeAllSentinel(course);
+        final String normalizedSemester = normalizeAllSentinel(semester);
+        final String normalizedPerformance = normalizeAllSentinel(performance);
+        final Integer normalizedClassNumber = normalizeNonPositiveToNull(classNumber);
+        final Integer normalizedBatchNumber = normalizeNonPositiveToNull(batchNumber);
+
         List<Student> students = studentRepository.findAllWithFullHierarchy();
         Map<String, StudentProfile> profileByStudentId = loadProfilesByStudentId(students);
         Map<String, Double> marksMap = studentService.getAverageMarksMap(students);
         Map<String, Double> attendanceMap = loadAttendanceRateMap();
 
         List<Student> filtered = students.stream()
-                .filter(student -> course == null || course.isBlank() || matchesIgnoreCase(student.getCourse(), course))
-                .filter(student -> semester == null || semester.isBlank() || matchesIgnoreCase(student.getSemester(), semester))
-            .filter(student -> classNumber == null || extractClassNumber(student, profileByStudentId.get(student.getId())) == classNumber)
-            .filter(student -> batchNumber == null || extractBatchNumber(student, profileByStudentId.get(student.getId())) == batchNumber)
-                .filter(student -> performance == null || performance.isBlank()
-                        || performanceBand(marksMap.getOrDefault(student.getId(), 0.0)).equalsIgnoreCase(performance))
+                .filter(student -> normalizedCourse == null || normalizedCourse.isBlank() || matchesCourse(student.getCourse(), normalizedCourse))
+                .filter(student -> normalizedSemester == null || normalizedSemester.isBlank() || matchesSemester(student.getSemester(), normalizedSemester))
+            .filter(student -> normalizedClassNumber == null || classGroupingKey(student, profileByStudentId.get(student.getId())) == normalizedClassNumber)
+            .filter(student -> normalizedBatchNumber == null || batchGroupingKey(student, profileByStudentId.get(student.getId())) == normalizedBatchNumber)
+                .filter(student -> normalizedPerformance == null || normalizedPerformance.isBlank()
+                        || performanceBand(marksMap.getOrDefault(student.getId(), 0.0)).equalsIgnoreCase(normalizedPerformance))
                 .collect(Collectors.toList());
 
         if (filtered.isEmpty()) {
@@ -132,8 +148,8 @@ public class AdminHierarchyController {
 
         Map<Integer, Map<Integer, List<Student>>> grouped = filtered.stream()
             .collect(Collectors.groupingBy(
-                student -> extractClassNumber(student, profileByStudentId.get(student.getId())),
-                Collectors.groupingBy(student -> extractBatchNumber(student, profileByStudentId.get(student.getId())))
+                student -> classGroupingKey(student, profileByStudentId.get(student.getId())),
+                Collectors.groupingBy(student -> batchGroupingKey(student, profileByStudentId.get(student.getId())))
             ));
 
         List<Map<String, Object>> classes = grouped.keySet().stream()
@@ -281,6 +297,30 @@ public class AdminHierarchyController {
                                Map<String, Double> attendanceMap,
                                Map<String, StudentProfile> profileByStudentId,
                                boolean includeStudents) {
+        if (isUnassignedClassKey(classNumber)) {
+            List<Map<String, Object>> batches = new ArrayList<>();
+            List<Integer> batchKeys = new ArrayList<>(classBatches.keySet());
+            batchKeys.sort(Integer::compareTo);
+            for (int batchNumber : batchKeys) {
+                batches.add(buildBatchNode(classNumber, batchNumber, classBatches.getOrDefault(batchNumber, List.of()), marksMap, attendanceMap, profileByStudentId, includeStudents));
+            }
+
+            List<Student> allClassStudents = classBatches.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+            Map<String, Object> classAnalytics = buildClassAnalytics(allClassStudents, marksMap, attendanceMap, profileByStudentId);
+
+            Map<String, Object> node = new HashMap<>();
+            node.put("id", UNASSIGNED_CLASS_NUMBER);
+            node.put("number", UNASSIGNED_CLASS_NUMBER);
+            node.put("localNumber", UNASSIGNED_CLASS_NUMBER);
+            node.put("label", "Unassigned");
+            node.put("programCode", "");
+            node.put("totalStudents", allClassStudents.size());
+            node.put("totalBatches", batches.size());
+            node.put("batches", batches);
+            node.put("analytics", classAnalytics);
+            return node;
+        }
+
         // Determine program code from the first student in this class
         String programCode = "";
         int localClassNum = classNumber;
@@ -328,6 +368,36 @@ public class AdminHierarchyController {
                                Map<String, Double> attendanceMap,
                        Map<String, StudentProfile> profileByStudentId,
                        boolean includeStudents) {
+        if (isUnassignedBatchKey(batchNumber)) {
+            List<Map<String, Object>> students = includeStudents
+                    ? batchStudents.stream()
+                    .sorted(Comparator.comparingInt(student -> extractBatchMemberOrder(student, profileByStudentId.get(student.getId()))))
+                    .map(student -> buildStudentNode(student, marksMap, attendanceMap, profileByStudentId.get(student.getId())))
+                    .collect(Collectors.toList())
+                    : List.of();
+
+            double avgMarks = average(batchStudents.stream().map(student -> marksMap.getOrDefault(student.getId(), 0.0)).collect(Collectors.toList()));
+            double avgAttendance = average(batchStudents.stream().map(student -> attendanceMap.getOrDefault(student.getId(), 75.0)).collect(Collectors.toList()));
+            long risk = batchStudents.stream().filter(student -> marksMap.getOrDefault(student.getId(), 0.0) < 50.0).count();
+
+            Map<String, Object> analytics = new HashMap<>();
+            analytics.put("avgMarks", round(avgMarks));
+            analytics.put("attendance", round(avgAttendance));
+            analytics.put("riskStudents", risk);
+
+            Map<String, Object> node = new HashMap<>();
+            node.put("id", UNASSIGNED_BATCH_NUMBER);
+            node.put("number", UNASSIGNED_BATCH_NUMBER);
+            node.put("localNumber", UNASSIGNED_BATCH_NUMBER);
+            node.put("label", "Unassigned");
+            node.put("classNumber", classNumber);
+            node.put("studentsCount", batchStudents.size());
+            node.put("totalStudents", batchStudents.size());
+            node.put("analytics", analytics);
+            node.put("students", students);
+            return node;
+        }
+
         // Derive the local batch number from the first student (if available)
         int localBatchNum = batchNumber;
         if (!batchStudents.isEmpty()) {
@@ -472,6 +542,101 @@ public class AdminHierarchyController {
 
     private boolean matchesIgnoreCase(String actual, String expected) {
         return actual != null && actual.equalsIgnoreCase(expected);
+    }
+
+    private String normalizeAllSentinel(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) return "";
+        if ("all".equalsIgnoreCase(trimmed)
+                || "all courses".equalsIgnoreCase(trimmed)
+                || "all semesters".equalsIgnoreCase(trimmed)
+                || "all students".equalsIgnoreCase(trimmed)
+                || "all performance".equalsIgnoreCase(trimmed)) {
+            return "";
+        }
+        return trimmed;
+    }
+
+    private Integer normalizeNonPositiveToNull(Integer value) {
+        if (value == null) return null;
+        return value <= 0 ? null : value;
+    }
+
+    private boolean matchesCourse(String actualCourse, String filterCourse) {
+        if (actualCourse == null) return false;
+        if (filterCourse == null || filterCourse.isBlank()) return true;
+
+        if (matchesIgnoreCase(actualCourse, filterCourse)) {
+            return true;
+        }
+
+        // Loose matching to support dropdown values like "B.Tech" against stored strings like
+        // "Bachelor of Technology (Computer Science and Engineering)".
+        String normActual = normalizeLoose(actualCourse);
+        String normFilter = normalizeLoose(filterCourse);
+        if (normActual.isEmpty() || normFilter.isEmpty()) return false;
+        return normActual.contains(normFilter) || normFilter.contains(normActual);
+    }
+
+    private boolean matchesSemester(String actualSemester, String filterSemester) {
+        if (actualSemester == null) return false;
+        if (filterSemester == null || filterSemester.isBlank()) return true;
+
+        if (matchesIgnoreCase(actualSemester, filterSemester)) {
+            return true;
+        }
+
+        // Accept "2" vs "Semester 2" mismatches.
+        Integer filterNumber = parseTrailingInt(filterSemester);
+        Integer actualNumber = parseTrailingInt(actualSemester);
+        return filterNumber != null && actualNumber != null && filterNumber.equals(actualNumber);
+    }
+
+    private Integer parseTrailingInt(String value) {
+        if (value == null || value.isBlank()) return null;
+        Matcher matcher = TRAILING_NUMBER_PATTERN.matcher(value.trim());
+        if (!matcher.find()) return null;
+        try {
+            return Integer.valueOf(matcher.group(1));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private String normalizeLoose(String value) {
+        if (value == null) return "";
+        return value.toLowerCase()
+                .replace('&', ' ')
+                .replaceAll("[^a-z0-9]+", " ")
+                .trim()
+                .replaceAll("\\s+", " ");
+    }
+
+    private boolean isUnassigned(Student student) {
+        return student != null && student.getAcademicClass() == null && student.getAcademicBatch() == null;
+    }
+
+    private int classGroupingKey(Student student, StudentProfile profile) {
+        if (isUnassigned(student)) {
+            return UNASSIGNED_CLASS_NUMBER;
+        }
+        return extractClassNumber(student, profile);
+    }
+
+    private int batchGroupingKey(Student student, StudentProfile profile) {
+        if (isUnassigned(student)) {
+            return UNASSIGNED_BATCH_NUMBER;
+        }
+        return extractBatchNumber(student, profile);
+    }
+
+    private boolean isUnassignedClassKey(Integer classNumber) {
+        return classNumber != null && classNumber == UNASSIGNED_CLASS_NUMBER;
+    }
+
+    private boolean isUnassignedBatchKey(Integer batchNumber) {
+        return batchNumber != null && batchNumber == UNASSIGNED_BATCH_NUMBER;
     }
 
     private boolean hasFace(Student student) {

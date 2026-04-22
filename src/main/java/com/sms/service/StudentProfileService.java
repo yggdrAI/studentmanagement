@@ -55,7 +55,7 @@ public class StudentProfileService {
     public StudentProfileResponseDTO getProfileForStudent(String username) {
         String normalizedUsername = java.util.Objects.requireNonNull(username, "Username must not be null");
         Student student = studentRepository.findByUserUsername(normalizedUsername)
-            .orElseThrow(() -> new IllegalArgumentException("Student not found for username: " + normalizedUsername));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
         return mapProfile(student.getId(), "STUDENT");
     }
 
@@ -63,7 +63,7 @@ public class StudentProfileService {
     public StudentProfileResponseDTO getProfileForAdmin(String studentId) {
         String normalizedStudentId = java.util.Objects.requireNonNull(studentId, "Student id must not be null");
         studentRepository.findById(normalizedStudentId)
-            .orElseThrow(() -> new IllegalArgumentException("Student not found with id: " + normalizedStudentId));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
         return mapProfile(normalizedStudentId, "ADMIN");
     }
 
@@ -73,8 +73,12 @@ public class StudentProfileService {
                                                    AdminUpdateStudentProfileRequest request,
                                                    String actorUsername) {
         String normalizedStudentId = java.util.Objects.requireNonNull(studentId, "Student id must not be null");
+        if (request == null) {
+            request = new AdminUpdateStudentProfileRequest();
+        }
+        String safeActorUsername = actorUsername == null || actorUsername.isBlank() ? "ADMIN" : actorUsername;
         Student student = studentRepository.findById(normalizedStudentId)
-            .orElseThrow(() -> new IllegalArgumentException("Student not found with id: " + normalizedStudentId));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
 
         StudentProfile profile = studentProfileRepository.findByStudentId(normalizedStudentId)
             .orElseGet(() -> createProfileFromStudent(student));
@@ -149,7 +153,7 @@ public class StudentProfileService {
         profile.setPassingYear(passingYear);
         profile.setValidUpto(validUpto);
         profile.setIdCardNumber(idCardNumber);
-        profile.setUpdatedBy(actorUsername);
+        profile.setUpdatedBy(safeActorUsername);
 
         if (profile.getEnrollmentNumber() == null || profile.getEnrollmentNumber().isBlank()) {
             profile.setEnrollmentNumber(student.getId());

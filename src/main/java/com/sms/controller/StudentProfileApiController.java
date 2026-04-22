@@ -10,9 +10,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sms.dto.auth.ChangePasswordRequest;
+import com.sms.dto.publication.PublicationResponse;
 import com.sms.dto.profile.StudentDemographicConsentRequest;
 import com.sms.dto.profile.StudentProfileResponseDTO;
 import com.sms.dto.profile.StudentSelfUpdateProfileRequest;
+import com.sms.service.AcademicPublicationService;
 import com.sms.service.CredentialService;
 import com.sms.service.StudentProfileService;
 
@@ -25,16 +27,24 @@ public class StudentProfileApiController {
 
     private final StudentProfileService studentProfileService;
     private final CredentialService credentialService;
+    private final AcademicPublicationService academicPublicationService;
 
     public StudentProfileApiController(StudentProfileService studentProfileService,
-                                       CredentialService credentialService) {
+                                       CredentialService credentialService,
+                                       AcademicPublicationService academicPublicationService) {
         this.studentProfileService = studentProfileService;
         this.credentialService = credentialService;
+        this.academicPublicationService = academicPublicationService;
     }
 
     @GetMapping("/profile")
     public ResponseEntity<StudentProfileResponseDTO> getProfile(Authentication auth) {
         return ResponseEntity.ok(studentProfileService.getProfileForStudent(auth.getName()));
+    }
+
+    @GetMapping("/publications")
+    public ResponseEntity<java.util.List<PublicationResponse>> getPublications(Authentication auth) {
+        return ResponseEntity.ok(academicPublicationService.getStudentPublications(auth.getName()));
     }
 
     @PutMapping("/profile")
