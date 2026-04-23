@@ -21,6 +21,7 @@ public class CredentialService {
     private static final Pattern DIGIT = Pattern.compile(".*\\d.*");
     private static final Pattern SPECIAL = Pattern.compile(".*[^A-Za-z0-9].*");
     private static final String FIXED_ADMIN_USERNAME = "bhavya";
+    private static final String DEFAULT_TEACHER_PASSWORD = "1234";
 
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
@@ -28,9 +29,9 @@ public class CredentialService {
     private final PasswordEncoder passwordEncoder;
 
     public CredentialService(UserRepository userRepository,
-                             StudentRepository studentRepository,
-                             TeacherRepository teacherRepository,
-                             PasswordEncoder passwordEncoder) {
+            StudentRepository studentRepository,
+            TeacherRepository teacherRepository,
+            PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
         this.teacherRepository = teacherRepository;
@@ -123,7 +124,7 @@ public class CredentialService {
             throw new IllegalArgumentException("Teacher account is not linked to a user: " + teacherId);
         }
 
-        String defaultPassword = String.valueOf(teacherId);
+        String defaultPassword = DEFAULT_TEACHER_PASSWORD;
         user.setPassword(passwordEncoder.encode(defaultPassword));
         user.setIsFirstLogin(true);
         user.setFailedLoginAttempts(0);
@@ -150,8 +151,7 @@ public class CredentialService {
                 || !DIGIT.matcher(password).matches()
                 || !SPECIAL.matcher(password).matches()) {
             throw new IllegalArgumentException(
-                    "Password must contain uppercase, lowercase, number, and special character"
-            );
+                    "Password must contain uppercase, lowercase, number, and special character");
         }
     }
 

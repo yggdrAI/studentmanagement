@@ -90,7 +90,7 @@ public class TeacherAttendanceController {
 
     @GetMapping("/subject/{subjectId}/students")
     public ResponseEntity<List<Map<String, Object>>> getSubjectStudents(@PathVariable Long subjectId,
-                                                                        Authentication auth) {
+            Authentication auth) {
         resolveTeacherCourse(auth, subjectId);
         List<Map<String, Object>> payload = new ArrayList<>();
         dashboardService.getSubjectProgress(auth.getName(), subjectId).forEach(student -> {
@@ -117,38 +117,61 @@ public class TeacherAttendanceController {
             Course course = resolveTeacherCourse(auth, request.getSubjectId());
             Long teacherId = course.getTeacher().getId();
             String subjectName = course.getCourseName();
-            
-            // Generate JWT token
+            int expirySeconds = resolveExpirySeconds(request);
+            Integer maxDistanceMeters = request.getMaxDistanceMeters() == null
+                    ? 150
+                    : Math.max(100, Math.min(200, request.getMaxDistanceMeters()));
+
+            // Generate JWT token with short TTL + teacher geolocation constraints
             String qrToken = qrTokenService.generateAttendanceToken(
-                request.getSubjectId(),
-                teacherId,
-                request.getExpiryMinutes()
-            );
+                    request.getSubjectId(),
+                    teacherId,
+                    expirySeconds,
+                    request.getTeacherLatitude(),
+                    request.getTeacherLongitude(),
+                    maxDistanceMeters);
 
             // Generate QR code image
             String qrImageBase64 = qrTokenService.generateQRCodeBase64(qrToken);
-            
+
             // Calculate expiry
-            long expiryMs = request.getExpiryMinutes() * 60 * 1000;
+            long expiryMs = (long) expirySeconds * 1000L;
             long expiresAt = System.currentTimeMillis() + expiryMs;
-            Integer expirySeconds = request.getExpiryMinutes() * 60;
-            
+
             String sessionId = UUID.randomUUID().toString();
 
             AttendanceQRResponse response = new AttendanceQRResponse(
-                qrToken,
-                qrImageBase64,
-                request.getSubjectId(),
-                subjectName,
-                expiresAt,
-                expirySeconds,
-                sessionId
-            );
+                    qrToken,
+                    qrImageBase64,
+                    request.getSubjectId(),
+                    subjectName,
+                    expiresAt,
+                    expirySeconds,
+                    sessionId);
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    private int resolveExpirySeconds(GenerateAttendanceQRRequest request) {
+        boolean dynamicMode = false;
+        if (request != null) {
+            dynamicMode = Boolean.TRUE.equals(request.getDynamicQr())
+                    || (request.getQrMode() != null && "dynamic".equalsIgnoreCase(request.getQrMode()));
+        }
+        if (dynamicMode) {
+            return 10;
+        }
+        if (request != null && request.getExpirySeconds() != null && request.getExpirySeconds() > 0) {
+            return Math.max(8, Math.min(7200, request.getExpirySeconds()));
+        }
+        if (request != null && request.getExpiryMinutes() != null && request.getExpiryMinutes() > 0) {
+            int fromMinutes = request.getExpiryMinutes() * 60;
+            return Math.max(8, Math.min(7200, fromMinutes));
+        }
+        return 10;
     }
 
     /**
@@ -165,29 +188,26 @@ public class TeacherAttendanceController {
             Course course = resolveTeacherCourse(auth, request.getSubjectId());
             Long teacherId = course.getTeacher().getId();
             Long tenantId = resolveTenantId(httpRequest);
-            
+
             LocalDate attendanceDate = LocalDate.parse(
-                request.getAttendanceDate(),
-                DateTimeFormatter.ISO_LOCAL_DATE
-            );
+                    request.getAttendanceDate(),
+                    DateTimeFormatter.ISO_LOCAL_DATE);
 
             // Convert request records to service records
             List<AttendanceService.ManualAttendanceRecord> records = new ArrayList<>();
             for (var record : request.getAttendanceRecords()) {
                 records.add(new AttendanceService.ManualAttendanceRecord(
-                    record.getStudentId(),
-                    record.getStatus()
-                ));
+                        record.getStudentId(),
+                        record.getStatus()));
             }
 
             // Mark attendance
             attendanceService.markManualAttendance(
-                request.getSubjectId(),
-                teacherId,
-                attendanceDate,
-                records,
-                tenantId
-            );
+                    request.getSubjectId(),
+                    teacherId,
+                    attendanceDate,
+                    records,
+                    tenantId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -219,17 +239,16 @@ public class TeacherAttendanceController {
         try {
             resolveTeacherCourse(auth, subjectId);
             Long tenantId = resolveTenantId(httpRequest);
-            LocalDate attendanceDate = date != null ? 
-                LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE) : 
-                LocalDate.now();
+            LocalDate attendanceDate = date != null ? LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE)
+                    : LocalDate.now();
 
             List<Attendance> records = attendanceService.getAttendanceForDate(subjectId, attendanceDate, tenantId);
-            AttendanceService.AttendanceStats stats = 
-                attendanceService.getAttendanceStats(subjectId, attendanceDate, tenantId);
+            AttendanceService.AttendanceStats stats = attendanceService.getAttendanceStats(subjectId, attendanceDate,
+                    tenantId);
 
             long locationVerifiedCount = records.stream()
-                .filter(record -> Boolean.TRUE.equals(record.getLocationVerified()))
-                .count();
+                    .filter(record -> Boolean.TRUE.equals(record.getLocationVerified()))
+                    .count();
 
             Map<String, Object> response = new HashMap<>();
             response.put("date", attendanceDate);
@@ -240,7 +259,8 @@ public class TeacherAttendanceController {
             response.put("totalExpected", stats.getTotal());
             response.put("percentage", String.format("%.2f%%", stats.getPercentage()));
             response.put("locationVerifiedCount", locationVerifiedCount);
-            response.put("locationVerificationRate", String.format("%.2f%%", (locationVerifiedCount * 100.0) / Math.max(records.size(), 1)));
+            response.put("locationVerificationRate",
+                    String.format("%.2f%%", (locationVerifiedCount * 100.0) / Math.max(records.size(), 1)));
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -264,9 +284,8 @@ public class TeacherAttendanceController {
         try {
             resolveTeacherCourse(auth, subjectId);
             Long tenantId = resolveTenantId(httpRequest);
-            LocalDate attendanceDate = date != null ? 
-                LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE) : 
-                LocalDate.now();
+            LocalDate attendanceDate = date != null ? LocalDate.parse(date, DateTimeFormatter.ISO_LOCAL_DATE)
+                    : LocalDate.now();
 
             List<Attendance> records = attendanceService.getAttendanceForDate(subjectId, attendanceDate, tenantId);
 
@@ -295,8 +314,7 @@ public class TeacherAttendanceController {
     @GetMapping("/verify-qr")
     public ResponseEntity<Map<String, Object>> verifyQR(@RequestParam String token) {
         try {
-            AttendanceQRTokenService.AttendanceTokenClaims claims = 
-                qrTokenService.validateAttendanceToken(token);
+            AttendanceQRTokenService.AttendanceTokenClaims claims = qrTokenService.validateAttendanceToken(token);
 
             if (qrTokenService.isTokenExpired(claims.getExpiresAt())) {
                 Map<String, Object> response = new HashMap<>();

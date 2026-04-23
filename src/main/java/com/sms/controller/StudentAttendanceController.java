@@ -84,19 +84,17 @@ public class StudentAttendanceController {
                 claims = qrTokenService.validateAttendanceToken(markRequest.getQrToken());
             } catch (Exception e) {
                 return ResponseEntity.ok(new MarkAttendanceResponse(
-                    false,
-                    "Invalid QR token: " + e.getMessage(),
-                    "INVALID"
-                ));
+                        false,
+                        "Invalid QR token: " + e.getMessage(),
+                        "INVALID"));
             }
 
             // ✅ STEP 2: Check if token is expired
             if (qrTokenService.isTokenExpired(claims.getExpiresAt())) {
                 return ResponseEntity.ok(new MarkAttendanceResponse(
-                    false,
-                    "QR code has expired",
-                    "EXPIRED"
-                ));
+                        false,
+                        "QR code has expired",
+                        "EXPIRED"));
             }
 
             // ✅ STEP 3: Hash token for duplicate checking
@@ -106,10 +104,17 @@ public class StudentAttendanceController {
             Double longitude = markRequest.getLongitude();
             if (latitude == null || longitude == null) {
                 return ResponseEntity.ok(new MarkAttendanceResponse(
-                    false,
-                    "Location access is required to mark attendance",
-                    "LOCATION_REQUIRED"
-                ));
+                        false,
+                        "Location access is required to mark attendance",
+                        "LOCATION_REQUIRED"));
+            }
+
+            Long detectedAt = markRequest.getQrDetectedAtEpochMs();
+            if (detectedAt == null || Math.abs(System.currentTimeMillis() - detectedAt) > 30_000L) {
+                return ResponseEntity.ok(new MarkAttendanceResponse(
+                        false,
+                        "QR scan is stale. Please scan the latest QR code and retry.",
+                        "QR_STALE"));
             }
 
             // ✅ STEP 4: Get request info for audit
@@ -118,189 +123,202 @@ public class StudentAttendanceController {
             String deviceInfo = (userAgent != null ? userAgent : "UNKNOWN") + " | clientDeviceId=" + clientDeviceId;
             String deviceFingerprint = antiCheatingService.generateDeviceFingerprint(deviceInfo, clientIp);
 
+            // ✅ STEP 4.2: Verify proximity to teacher-issued QR location (100-200m policy)
+            Double teacherLatitude = claims.getTeacherLatitude();
+            Double teacherLongitude = claims.getTeacherLongitude();
+            if (teacherLatitude != null && teacherLongitude != null) {
+                int maxDistanceMeters = claims.getMaxDistanceMeters() == null
+                        ? 150
+                        : Math.max(100, Math.min(200, claims.getMaxDistanceMeters()));
+                double teacherDistanceMeters = geolocationService.calculateDistanceMeters(
+                        latitude, longitude, teacherLatitude, teacherLongitude);
+                if (teacherDistanceMeters > maxDistanceMeters) {
+                    antiCheatingService.logViolation(
+                            studentId,
+                            "TEACHER_DISTANCE_EXCEEDED",
+                            String.format("Student is %.0fm away from teacher session, limit=%dm",
+                                    teacherDistanceMeters, maxDistanceMeters),
+                            deviceFingerprint,
+                            clientIp,
+                            latitude,
+                            longitude,
+                            teacherLatitude,
+                            teacherLongitude,
+                            "CRITICAL");
+                    return ResponseEntity.ok(new MarkAttendanceResponse(
+                            false,
+                            String.format("You are %.0f m away from the teacher session. Move within %d m.",
+                                    teacherDistanceMeters, maxDistanceMeters),
+                            "TEACHER_DISTANCE_INVALID"));
+                }
+            }
+
             // ✅ STEP 4.5: Face verification before any geolocation decision
             FaceVerificationService.FaceVerificationResult faceResult;
             try {
                 faceResult = faceVerificationService.verifyFace(
-                    studentId,
-                    tenantId,
-                    markRequest.getFaceEmbedding(),
-                    markRequest.getLivenessVerified(),
-                    markRequest.getLivenessPrompt(),
-                    markRequest.getBlinkDetected(),
-                    markRequest.getHeadMovementDetected(),
-                    markRequest.getFrameCount(),
-                    markRequest.getMotionParallaxScore(),
-                    markRequest.getBrightnessVariance(),
-                    markRequest.getFrameEmbeddings(),
-                    markRequest.getFrameSnapshots()
-                );
+                        studentId,
+                        tenantId,
+                        markRequest.getFaceEmbedding(),
+                        markRequest.getLivenessVerified(),
+                        markRequest.getLivenessPrompt(),
+                        markRequest.getBlinkDetected(),
+                        markRequest.getHeadMovementDetected(),
+                        markRequest.getFrameCount(),
+                        markRequest.getMotionParallaxScore(),
+                        markRequest.getBrightnessVariance(),
+                        markRequest.getFrameEmbeddings(),
+                        markRequest.getFrameSnapshots());
             } catch (RuntimeException faceError) {
                 antiCheatingService.logViolation(
-                    studentId,
-                    "FACE_MISMATCH",
-                    faceError.getMessage(),
-                    deviceFingerprint,
-                    clientIp,
-                    latitude,
-                    longitude,
-                    null,
-                    null,
-                    "HIGH"
-                );
+                        studentId,
+                        "FACE_MISMATCH",
+                        faceError.getMessage(),
+                        deviceFingerprint,
+                        clientIp,
+                        latitude,
+                        longitude,
+                        null,
+                        null,
+                        "HIGH");
                 return ResponseEntity.ok(new MarkAttendanceResponse(
-                    false,
-                    faceError.getMessage(),
-                    "FACE_MISMATCH"
-                ));
+                        false,
+                        faceError.getMessage(),
+                        "FACE_MISMATCH"));
             }
 
             // ✅ STEP 5: Check if student is blocked
             if (antiCheatingService.isStudentBlocked(studentId)) {
                 antiCheatingService.logViolation(
-                    studentId,
-                    "STUDENT_BLOCKED",
-                    "Student has accumulated too many recent violations",
-                    deviceFingerprint,
-                    clientIp,
-                    latitude,
-                    longitude,
-                    null,
-                    null,
-                    "CRITICAL"
-                );
+                        studentId,
+                        "STUDENT_BLOCKED",
+                        "Student has accumulated too many recent violations",
+                        deviceFingerprint,
+                        clientIp,
+                        latitude,
+                        longitude,
+                        null,
+                        null,
+                        "CRITICAL");
                 return ResponseEntity.ok(new MarkAttendanceResponse(
-                    false,
-                    "Your account is temporarily blocked due to repeated suspicious activity",
-                    "BLOCKED"
-                ));
+                        false,
+                        "Your account is temporarily blocked due to repeated suspicious activity",
+                        "BLOCKED"));
             }
 
             // ✅ STEP 6: Rate-limit rapid attempts
             if (antiCheatingService.detectRapidAttempts(studentId)) {
                 antiCheatingService.logViolation(
-                    studentId,
-                    "RAPID_ATTEMPTS",
-                    "Attendance attempts exceeded the allowed rate",
-                    deviceFingerprint,
-                    clientIp,
-                    latitude,
-                    longitude,
-                    null,
-                    null,
-                    "HIGH"
-                );
+                        studentId,
+                        "RAPID_ATTEMPTS",
+                        "Attendance attempts exceeded the allowed rate",
+                        deviceFingerprint,
+                        clientIp,
+                        latitude,
+                        longitude,
+                        null,
+                        null,
+                        "HIGH");
                 return ResponseEntity.ok(new MarkAttendanceResponse(
-                    false,
-                    "Please wait a moment before trying again",
-                    "RATE_LIMITED"
-                ));
+                        false,
+                        "Please wait a moment before trying again",
+                        "RATE_LIMITED"));
             }
 
             // ✅ STEP 7: Validate campus geofence
             List<CampusLocation> activeLocations = campusLocationRepository.findAllActive();
             if (activeLocations.isEmpty()) {
                 return ResponseEntity.ok(new MarkAttendanceResponse(
-                    false,
-                    "Campus attendance zones are not configured yet",
-                    "CONFIG_ERROR"
-                ));
+                        false,
+                        "Campus attendance zones are not configured yet",
+                        "CONFIG_ERROR"));
             }
 
-            CampusLocation closestLocation = geolocationService.findClosestLocation(latitude, longitude, activeLocations);
+            CampusLocation closestLocation = geolocationService.findClosestLocation(latitude, longitude,
+                    activeLocations);
             if (closestLocation == null) {
                 return ResponseEntity.ok(new MarkAttendanceResponse(
-                    false,
-                    "Unable to validate location against campus zones",
-                    "CONFIG_ERROR"
-                ));
+                        false,
+                        "Unable to validate location against campus zones",
+                        "CONFIG_ERROR"));
             }
 
             boolean locationVerified = geolocationService.isInsideGeofence(latitude, longitude, closestLocation);
             if (!locationVerified) {
                 double distanceMeters = geolocationService.calculateDistanceMeters(
-                    latitude,
-                    longitude,
-                    closestLocation.getLatitude(),
-                    closestLocation.getLongitude()
-                );
+                        latitude,
+                        longitude,
+                        closestLocation.getLatitude(),
+                        closestLocation.getLongitude());
 
                 antiCheatingService.logViolation(
-                    studentId,
-                    "LOCATION_OUTSIDE_GEOFENCE",
-                    String.format("Student was %.0f meters outside %s", distanceMeters, closestLocation.getName()),
-                    deviceFingerprint,
-                    clientIp,
-                    latitude,
-                    longitude,
-                    closestLocation.getLatitude(),
-                    closestLocation.getLongitude(),
-                    "HIGH"
-                );
+                        studentId,
+                        "LOCATION_OUTSIDE_GEOFENCE",
+                        String.format("Student was %.0f meters outside %s", distanceMeters, closestLocation.getName()),
+                        deviceFingerprint,
+                        clientIp,
+                        latitude,
+                        longitude,
+                        closestLocation.getLatitude(),
+                        closestLocation.getLongitude(),
+                        "HIGH");
 
                 return ResponseEntity.ok(new MarkAttendanceResponse(
-                    false,
-                    String.format("You are outside the allowed attendance area for %s", closestLocation.getName()),
-                    "LOCATION_INVALID"
-                ));
+                        false,
+                        String.format("You are outside the allowed attendance area for %s", closestLocation.getName()),
+                        "LOCATION_INVALID"));
             }
 
             // ✅ STEP 8: Check VPN/proxy mismatch
             AntiCheatingService.VPNDetectionResult vpnResult = antiCheatingService.detectVPN(
-                latitude,
-                longitude,
-                clientIp,
-                geolocationService
-            );
+                    latitude,
+                    longitude,
+                    clientIp,
+                    geolocationService);
 
             if (vpnResult.isVPNDetected) {
                 antiCheatingService.logViolation(
-                    studentId,
-                    "VPN_DETECTED",
-                    vpnResult.reason,
-                    deviceFingerprint,
-                    clientIp,
-                    latitude,
-                    longitude,
-                    closestLocation.getLatitude(),
-                    closestLocation.getLongitude(),
-                    "CRITICAL"
-                );
+                        studentId,
+                        "VPN_DETECTED",
+                        vpnResult.reason,
+                        deviceFingerprint,
+                        clientIp,
+                        latitude,
+                        longitude,
+                        closestLocation.getLatitude(),
+                        closestLocation.getLongitude(),
+                        "CRITICAL");
 
                 return ResponseEntity.ok(new MarkAttendanceResponse(
-                    false,
-                    "VPN or proxy use was detected. Please use your direct device connection.",
-                    "VPN_BLOCKED"
-                ));
+                        false,
+                        "VPN or proxy use was detected. Please use your direct device connection.",
+                        "VPN_BLOCKED"));
             }
 
             // ✅ STEP 9: Detect impossible movement / spoofing
             AntiCheatingService.ImpossibleMovementResult movementResult = antiCheatingService.detectImpossibleMovement(
-                deviceFingerprint,
-                latitude,
-                longitude,
-                System.currentTimeMillis()
-            );
+                    deviceFingerprint,
+                    latitude,
+                    longitude,
+                    System.currentTimeMillis());
 
             if (movementResult.isImpossible) {
                 antiCheatingService.logViolation(
-                    studentId,
-                    "IMPOSSIBLE_MOVEMENT",
-                    movementResult.reason,
-                    deviceFingerprint,
-                    clientIp,
-                    latitude,
-                    longitude,
-                    closestLocation.getLatitude(),
-                    closestLocation.getLongitude(),
-                    "CRITICAL"
-                );
+                        studentId,
+                        "IMPOSSIBLE_MOVEMENT",
+                        movementResult.reason,
+                        deviceFingerprint,
+                        clientIp,
+                        latitude,
+                        longitude,
+                        closestLocation.getLatitude(),
+                        closestLocation.getLongitude(),
+                        "CRITICAL");
 
                 return ResponseEntity.ok(new MarkAttendanceResponse(
-                    false,
-                    "Suspicious movement pattern detected. Attendance was not marked.",
-                    "IMPOSSIBLE_MOVEMENT"
-                ));
+                        false,
+                        "Suspicious movement pattern detected. Attendance was not marked.",
+                        "IMPOSSIBLE_MOVEMENT"));
             }
 
             int confidenceScore = geolocationService.getConfidenceScore(latitude, longitude, closestLocation);
@@ -308,105 +326,99 @@ public class StudentAttendanceController {
             boolean deviceSharingDetected = antiCheatingService.detectDeviceSharing(deviceFingerprint, studentId);
 
             FraudDetectionService.FraudAssessment fraudAssessment = fraudDetectionService.assess(
-                studentId,
-                claims.getSubjectId(),
-                claims.getSessionId(),
-                deviceFingerprint,
-                clientIp,
-                clientDeviceId,
-                latitude,
-                longitude,
-                markRequest.getAccuracy(),
-                closestLocation,
-                confidenceScore,
-                markRequest.getQrDetectedAtEpochMs(),
-                true,
-                faceResult.getSimilarity(),
-                locationVerified,
-                deviceSharingDetected,
-                vpnResult,
-                movementResult
-            );
+                    studentId,
+                    claims.getSubjectId(),
+                    claims.getSessionId(),
+                    deviceFingerprint,
+                    clientIp,
+                    clientDeviceId,
+                    latitude,
+                    longitude,
+                    markRequest.getAccuracy(),
+                    closestLocation,
+                    confidenceScore,
+                    markRequest.getQrDetectedAtEpochMs(),
+                    true,
+                    faceResult.getSimilarity(),
+                    locationVerified,
+                    deviceSharingDetected,
+                    vpnResult,
+                    movementResult);
 
             if (fraudAssessment.isRejected()) {
                 fraudDetectionService.recordDecision(
-                    studentId,
-                    claims.getSubjectId(),
-                    null,
-                    fraudAssessment.getFraudScore(),
-                    fraudAssessment.getDecision(),
-                    fraudAssessment.getReasons(),
-                    clientDeviceId,
-                    clientIp,
-                    latitude,
-                    longitude,
-                    true
-                );
+                        studentId,
+                        claims.getSubjectId(),
+                        null,
+                        fraudAssessment.getFraudScore(),
+                        fraudAssessment.getDecision(),
+                        fraudAssessment.getReasons(),
+                        clientDeviceId,
+                        clientIp,
+                        latitude,
+                        longitude,
+                        true);
 
                 return ResponseEntity.ok(new MarkAttendanceResponse(
-                    false,
-                    "Fraud score too high: " + String.join(" | ", fraudAssessment.getReasons()),
-                    "REJECTED"
-                ));
+                        false,
+                        "Fraud score too high: " + String.join(" | ", fraudAssessment.getReasons()),
+                        "REJECTED"));
             }
 
             String attendanceStatus = fraudAssessment.isSuspicious() ? "PRESENT" : "PRESENT";
-            String markingType = fraudAssessment.isSuspicious() ? "QR_FACE_GEO_AI_SUSPICIOUS" : "QR_FACE_GEO_AI_APPROVED";
+            String markingType = fraudAssessment.isSuspicious() ? "QR_FACE_GEO_AI_SUSPICIOUS"
+                    : "QR_FACE_GEO_AI_APPROVED";
 
             // ✅ STEP 10: Mark attendance with all validations
             try {
                 Attendance attendance = attendanceService.markAttendance(
-                    studentId,
-                    claims.getSubjectId(),
-                    claims.getTeacherId(),
-                    attendanceStatus,
-                    markingType,
-                    deviceInfo,
-                    clientIp,
-                    latitude,
-                    longitude,
-                    true,
-                    deviceFingerprint,
-                    closestLocation.getId(),
-                    tokenHash,
-                    tenantId
-                );
+                        studentId,
+                        claims.getSubjectId(),
+                        claims.getTeacherId(),
+                        attendanceStatus,
+                        markingType,
+                        deviceInfo,
+                        clientIp,
+                        latitude,
+                        longitude,
+                        true,
+                        deviceFingerprint,
+                        closestLocation.getId(),
+                        tokenHash,
+                        tenantId);
 
                 fraudDetectionService.recordDecision(
-                    studentId,
-                    claims.getSubjectId(),
-                    attendance.getId(),
-                    fraudAssessment.getFraudScore(),
-                    fraudAssessment.getDecision(),
-                    fraudAssessment.getReasons(),
-                    clientDeviceId,
-                    clientIp,
-                    latitude,
-                    longitude,
-                    true
-                );
+                        studentId,
+                        claims.getSubjectId(),
+                        attendance.getId(),
+                        fraudAssessment.getFraudScore(),
+                        fraudAssessment.getDecision(),
+                        fraudAssessment.getReasons(),
+                        clientDeviceId,
+                        clientIp,
+                        latitude,
+                        longitude,
+                        true);
 
                 campusTrackingService.recordLocation(
-                    studentId,
-                    claims.getSubjectId(),
-                    claims.getSessionId(),
-                    attendance.getId(),
-                    latitude,
-                    longitude,
-                    true,
-                    false,
-                    faceResult.getSimilarity(),
-                    confidenceScore
-                );
+                        studentId,
+                        claims.getSubjectId(),
+                        claims.getSessionId(),
+                        attendance.getId(),
+                        latitude,
+                        longitude,
+                        true,
+                        false,
+                        faceResult.getSimilarity(),
+                        confidenceScore);
 
                 MarkAttendanceResponse response = new MarkAttendanceResponse(
-                    true,
-                    fraudAssessment.isSuspicious()
-                        ? "Attendance marked with suspicious activity flagged"
-                        : "Attendance marked successfully and all checks passed",
-                    fraudAssessment.isSuspicious() ? "SUSPICIOUS" : "MARKED",
-                    attendance.getId().toString()
-                );
+                        true,
+                        fraudAssessment.isSuspicious()
+                                ? "Attendance marked with suspicious activity flagged"
+                                : "Attendance marked successfully and all checks passed",
+                        fraudAssessment.isSuspicious() ? "SUSPICIOUS" : "MARKED",
+                        attendance.getId().toString());
                 response.setConfidenceScore(confidenceScore);
                 response.setFaceVerified(true);
                 response.setFaceSimilarity(faceResult.getSimilarity());
@@ -419,17 +431,15 @@ public class StudentAttendanceController {
             } catch (RuntimeException e) {
                 String status = e.getMessage().contains("already marked") ? "ALREADY_MARKED" : "ERROR";
                 return ResponseEntity.ok(new MarkAttendanceResponse(
-                    false,
-                    e.getMessage(),
-                    status
-                ));
+                        false,
+                        e.getMessage(),
+                        status));
             }
         } catch (Exception e) {
             return ResponseEntity.ok(new MarkAttendanceResponse(
-                false,
-                "Server error: " + e.getMessage(),
-                "ERROR"
-            ));
+                    false,
+                    "Server error: " + e.getMessage(),
+                    "ERROR"));
         }
     }
 
@@ -442,18 +452,17 @@ public class StudentAttendanceController {
             String studentId = auth.getName();
             Long tenantId = resolveTenantId(httpRequest);
             FaceVerificationService.FaceVerificationResult result = faceVerificationService.registerFace(
-                studentId,
-                tenantId,
-                request.getFaceEmbedding(),
-                request.getLivenessVerified(),
-                request.getLivenessPrompt(),
-                request.getBlinkDetected(),
-                request.getHeadMovementDetected(),
-                request.getFrameCount(),
-                request.getMotionParallaxScore(),
-                request.getBrightnessVariance(),
-                request.getFrameEmbeddings()
-            );
+                    studentId,
+                    tenantId,
+                    request.getFaceEmbedding(),
+                    request.getLivenessVerified(),
+                    request.getLivenessPrompt(),
+                    request.getBlinkDetected(),
+                    request.getHeadMovementDetected(),
+                    request.getFrameCount(),
+                    request.getMotionParallaxScore(),
+                    request.getBrightnessVariance(),
+                    request.getFrameEmbeddings());
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -525,7 +534,7 @@ public class StudentAttendanceController {
         try {
             String studentId = auth.getName();
             Long tenantId = resolveTenantId(request);
-            
+
             List<Attendance> records = attendanceService.getStudentAttendance(studentId, subjectId, tenantId);
             Double percentage = attendanceService.calculateAttendancePercentage(studentId, subjectId, tenantId);
 
@@ -574,11 +583,11 @@ public class StudentAttendanceController {
 
             boolean alreadyMarked = false;
             String status = "PENDING";
-            
+
             var existing = attendanceService.getAttendanceForDate(subjectId, today, tenantId)
-                .stream()
-                .filter(a -> a.getStudentId().equals(studentId))
-                .findFirst();
+                    .stream()
+                    .filter(a -> a.getStudentId().equals(studentId))
+                    .findFirst();
 
             if (existing.isPresent()) {
                 alreadyMarked = true;
@@ -608,8 +617,7 @@ public class StudentAttendanceController {
             if (latitude == null || longitude == null) {
                 return ResponseEntity.badRequest().body(Map.of(
                         "success", false,
-                        "message", "latitude and longitude are required"
-                ));
+                        "message", "latitude and longitude are required"));
             }
 
             List<CampusLocation> activeLocations = campusLocationRepository.findAllActive();
@@ -617,25 +625,23 @@ public class StudentAttendanceController {
                 return ResponseEntity.ok(Map.of(
                         "success", false,
                         "message", "No active campus locations configured",
-                        "inside", false
-                ));
+                        "inside", false));
             }
 
-            CampusLocation closestLocation = geolocationService.findClosestLocation(latitude, longitude, activeLocations);
+            CampusLocation closestLocation = geolocationService.findClosestLocation(latitude, longitude,
+                    activeLocations);
             if (closestLocation == null) {
                 return ResponseEntity.ok(Map.of(
                         "success", false,
                         "message", "Unable to resolve closest campus location",
-                        "inside", false
-                ));
+                        "inside", false));
             }
 
             double distanceMeters = geolocationService.calculateDistanceMeters(
                     latitude,
                     longitude,
                     closestLocation.getLatitude(),
-                    closestLocation.getLongitude()
-            );
+                    closestLocation.getLongitude());
             boolean inside = geolocationService.isInsideGeofence(latitude, longitude, closestLocation);
 
             Map<String, Object> response = new HashMap<>();
@@ -651,20 +657,19 @@ public class StudentAttendanceController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
-                    "message", e.getMessage()
-            ));
+                    "message", e.getMessage()));
         }
     }
 
     @GetMapping("/metrics")
     public ResponseEntity<Map<String, Object>> getAttendanceMetrics(@RequestParam Long subjectId,
-                                         Authentication auth,
-                                         HttpServletRequest request) {
+            Authentication auth,
+            HttpServletRequest request) {
         try {
             String studentId = auth.getName();
             Long tenantId = resolveTenantId(request);
-            AttendanceService.WeightedAttendanceMetrics metrics =
-                attendanceService.getWeightedAttendanceMetrics(studentId, subjectId, tenantId);
+            AttendanceService.WeightedAttendanceMetrics metrics = attendanceService
+                    .getWeightedAttendanceMetrics(studentId, subjectId, tenantId);
 
             Map<String, Object> response = new HashMap<>();
             response.put("subjectId", subjectId);
@@ -684,16 +689,15 @@ public class StudentAttendanceController {
 
     /**
      * Public endpoint to verify QR (for scanner app)
-        * Students verify a teacher-issued QR before marking attendance
+     * Students verify a teacher-issued QR before marking attendance
      * 
      * GET /api/student/attendance/verify-qr?token=...
      */
     @PostMapping("/verify-qr")
-        @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<Map<String, Object>> verifyQR(@RequestParam String token) {
         try {
-            AttendanceQRTokenService.AttendanceTokenClaims claims = 
-                qrTokenService.validateAttendanceToken(token);
+            AttendanceQRTokenService.AttendanceTokenClaims claims = qrTokenService.validateAttendanceToken(token);
 
             if (qrTokenService.isTokenExpired(claims.getExpiresAt())) {
                 Map<String, Object> response = new HashMap<>();
@@ -710,6 +714,7 @@ public class StudentAttendanceController {
             response.put("sessionId", claims.getSessionId());
             response.put("subjectId", claims.getSubjectId());
             response.put("remainingSeconds", remainingSeconds);
+            response.put("maxDistanceMeters", claims.getMaxDistanceMeters());
             response.put("message", "QR is valid - You can now mark attendance");
 
             return ResponseEntity.ok(response);

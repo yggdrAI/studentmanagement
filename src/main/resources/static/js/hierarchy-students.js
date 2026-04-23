@@ -162,7 +162,7 @@
         refs.aiGroupBtn?.addEventListener("click", runAiGrouping);
         refs.regenerateBtn?.addEventListener("click", regenerateStructure);
         refs.sidebarToggle?.addEventListener("click", toggleSidebar);
-        
+
         refs.createStudentForm?.addEventListener("input", (event) => {
             const field = event.target.name;
             if (field) createFormState.formData[field] = event.target.value;
@@ -676,6 +676,7 @@
     function renderStudentRow(student, classNumber, batchNumber) {
         const studentId = student.id ?? student.studentId ?? student.enrollment;
         const initials = getInitials(student.name || "Student");
+        const photoUrl = student.profileImage || student.profilePhotoUrl || student.photoUrl || "";
         const performanceBand = student.performanceBand || student.performance?.status || performanceBandFromMarks(student.performance?.averageMarks ?? student.marks ?? 0);
         const marks = student.performance?.averageMarks ?? student.marks ?? 0;
         const attendance = student.attendance ?? student.performance?.attendance ?? 0;
@@ -684,7 +685,10 @@
         return `
             <article class="student-row ${searchMatch ? "" : "match-hidden"}" draggable="true" data-student-id="${escapeHtml(String(studentId))}" data-class-number="${escapeHtml(String(classNumber))}" data-batch-number="${escapeHtml(String(batchNumber))}">
                 <div class="student-info">
-                    <div class="student-avatar">${escapeHtml(initials)}</div>
+                    ${photoUrl
+                ? `<img src="${escapeHtml(photoUrl)}" class="student-avatar" alt="${escapeHtml(initials)}">`
+                : `<div class="student-avatar">${escapeHtml(initials)}</div>`
+            }
                     <div class="student-details">
                         <div class="student-name">${escapeHtml(student.name || "Unnamed Student")}</div>
                         <div class="student-meta">${escapeHtml(student.enrollment || student.enrollmentNumber || student.rollNumber || "")}${student.email ? ` • ${escapeHtml(student.email)}` : ""}</div>
@@ -1017,33 +1021,33 @@
                         body: JSON.stringify({ profileImage: base64 })
                     });
                 })
-                .then(r => {
-                    if (!r.ok) return r.text().then(t => { throw new Error(t || `HTTP ${r.status}`); });
-                    return r.json();
-                })
-                .then(res => {
-                    photoBtn.textContent = "✅";
-                    const avatarWrap = wrap.querySelector(".fm-avatar-wrap");
-                    const existingAvatar = avatarWrap.querySelector(".fm-student-avatar");
-                    if (existingAvatar) {
-                        const img = document.createElement("img");
-                        img.src = res.profileImage || "";
-                        img.className = "fm-student-avatar fm-avatar-img";
-                        existingAvatar.replaceWith(img);
-                    }
-                    showToast("✅ Photo uploaded successfully");
-                    setTimeout(() => { photoBtn.textContent = "📷"; }, 2000);
-                })
-                .catch(err => {
-                    photoBtn.textContent = "📷";
-                    const msg = err.message || "Unknown error";
-                    if (msg.includes("413") || msg.toLowerCase().includes("too large") || msg.toLowerCase().includes("size")) {
-                        showToast("❌ Image too large even after compression. Try a smaller photo.");
-                    } else {
-                        showToast(`❌ Photo upload failed: ${msg.substring(0, 120)}`);
-                    }
-                    photoInput.value = "";
-                });
+                    .then(r => {
+                        if (!r.ok) return r.text().then(t => { throw new Error(t || `HTTP ${r.status}`); });
+                        return r.json();
+                    })
+                    .then(res => {
+                        photoBtn.textContent = "✅";
+                        const avatarWrap = wrap.querySelector(".fm-avatar-wrap");
+                        const existingAvatar = avatarWrap.querySelector(".fm-student-avatar");
+                        if (existingAvatar) {
+                            const img = document.createElement("img");
+                            img.src = res.profileImage || "";
+                            img.className = "fm-student-avatar fm-avatar-img";
+                            existingAvatar.replaceWith(img);
+                        }
+                        showToast("✅ Photo uploaded successfully");
+                        setTimeout(() => { photoBtn.textContent = "📷"; }, 2000);
+                    })
+                    .catch(err => {
+                        photoBtn.textContent = "📷";
+                        const msg = err.message || "Unknown error";
+                        if (msg.includes("413") || msg.toLowerCase().includes("too large") || msg.toLowerCase().includes("size")) {
+                            showToast("❌ Image too large even after compression. Try a smaller photo.");
+                        } else {
+                            showToast(`❌ Photo upload failed: ${msg.substring(0, 120)}`);
+                        }
+                        photoInput.value = "";
+                    });
             });
 
             // Transfer
@@ -1065,14 +1069,14 @@
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ studentId: sid, classNumber: classNum, batchNumber: batchNum })
                 })
-                .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-                .then(() => {
-                    showToast(`✅ Student transferred successfully`);
-                    transferPanel.hidden = true;
-                    loadHierarchy({ preserveState: true });
-                    setTimeout(() => openBatchModal(classId, batchId), 800);
-                })
-                .catch(err => { showToast(`❌ Transfer failed: ${err.message}`); confirmBtn.textContent = "Transfer"; confirmBtn.disabled = false; });
+                    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+                    .then(() => {
+                        showToast(`✅ Student transferred successfully`);
+                        transferPanel.hidden = true;
+                        loadHierarchy({ preserveState: true });
+                        setTimeout(() => openBatchModal(classId, batchId), 800);
+                    })
+                    .catch(err => { showToast(`❌ Transfer failed: ${err.message}`); confirmBtn.textContent = "Transfer"; confirmBtn.disabled = false; });
             });
 
             // Edit
@@ -1096,21 +1100,21 @@
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload)
                 })
-                .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-                .then(() => {
-                    showToast("✅ Student details updated and saved to database");
-                    editPanel.hidden = true;
-                    saveBtn.textContent = "💾 Save";
-                    saveBtn.disabled = false;
-                    // Update name in the card
-                    if (payload.fullName) {
-                        const nameEl = wrap.querySelector(".fm-student-name");
-                        if (nameEl) nameEl.textContent = payload.fullName;
-                    }
-                    // Reload hierarchy to reflect changes in the main view
-                    loadHierarchy({ preserveState: true });
-                })
-                .catch(err => { showToast(`❌ Update failed: ${err.message}`); saveBtn.textContent = "💾 Save"; saveBtn.disabled = false; });
+                    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+                    .then(() => {
+                        showToast("✅ Student details updated and saved to database");
+                        editPanel.hidden = true;
+                        saveBtn.textContent = "💾 Save";
+                        saveBtn.disabled = false;
+                        // Update name in the card
+                        if (payload.fullName) {
+                            const nameEl = wrap.querySelector(".fm-student-name");
+                            if (nameEl) nameEl.textContent = payload.fullName;
+                        }
+                        // Reload hierarchy to reflect changes in the main view
+                        loadHierarchy({ preserveState: true });
+                    })
+                    .catch(err => { showToast(`❌ Update failed: ${err.message}`); saveBtn.textContent = "💾 Save"; saveBtn.disabled = false; });
             });
         });
     }
@@ -1433,20 +1437,24 @@
             </div>
             <div class="search-results-list">
                 ${state.searchResults.map((s, i) => {
-                    const initials = getInitials(s.name || "ST");
-                    const enrollment = s.enrollment || s.id || "";
-                    const course = s.course || s.degree || "";
-                    const email = s.email || "";
-                    const gender = s.gender || "";
-                    const classGroup = s.classGroup || "";
-                    const batchGroup = s.batchGroup || "";
-                    const avgMarks = typeof s.averageMarks === "number" ? s.averageMarks.toFixed(1) : "--";
-                    const phone = s.phone || "";
-                    const band = performanceBandFromMarks(s.averageMarks || 0);
+            const initials = getInitials(s.name || "ST");
+            const photoUrl = s.profileImage || s.profilePhotoUrl || s.photoUrl || "";
+            const enrollment = s.enrollment || s.id || "";
+            const course = s.course || s.degree || "";
+            const email = s.email || "";
+            const gender = s.gender || "";
+            const classGroup = s.classGroup || "";
+            const batchGroup = s.batchGroup || "";
+            const avgMarks = typeof s.averageMarks === "number" ? s.averageMarks.toFixed(1) : "--";
+            const phone = s.phone || "";
+            const band = performanceBandFromMarks(s.averageMarks || 0);
 
-                    return `
+            return `
                         <div class="search-result-item ${i === state.searchActiveIndex ? 'active' : ''}" data-student-id="${escapeHtml(s.id)}" data-index="${i}">
-                            <div class="search-result-avatar">${escapeHtml(initials)}</div>
+                            ${photoUrl
+                    ? `<img src="${escapeHtml(photoUrl)}" class="search-result-avatar" alt="${escapeHtml(initials)}">`
+                    : `<div class="search-result-avatar">${escapeHtml(initials)}</div>`
+                }
                             <div class="search-result-info">
                                 <div class="search-result-name">${escapeHtml(s.name || "Unnamed")}</div>
                                 <div class="search-result-meta">
@@ -1462,7 +1470,7 @@
                                 <span class="performance-badge ${band}">${avgMarks}</span>
                             </div>
                         </div>`;
-                }).join("")}
+        }).join("")}
             </div>`;
 
         dropdown.hidden = false;
@@ -1701,15 +1709,26 @@
      * is under the 2MB target (safe for JSON body in most Spring configs).
      */
     function compressImageSafe(file) {
-        const MAX_BASE64_SIZE = 2 * 1024 * 1024; // 2MB target
+        const MAX_BASE64_SIZE = 10 * 1024 * 1024; // keep original quality up to backend limit
+        const fileToDataUri = (inputFile) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ""));
+            reader.onerror = () => reject(new Error("Failed to read file"));
+            reader.readAsDataURL(inputFile);
+        });
         const attempts = [
-            { maxDim: 400, quality: 0.6 },
-            { maxDim: 300, quality: 0.5 },
-            { maxDim: 200, quality: 0.4 },
-            { maxDim: 150, quality: 0.3 },
+            { maxDim: 1400, quality: 0.92 },
+            { maxDim: 1200, quality: 0.88 },
+            { maxDim: 1000, quality: 0.84 },
+            { maxDim: 900, quality: 0.8 },
+            { maxDim: 768, quality: 0.76 },
         ];
 
         return (async () => {
+            const original = await fileToDataUri(file);
+            if (original.length <= MAX_BASE64_SIZE) {
+                return original;
+            }
             for (const { maxDim, quality } of attempts) {
                 const result = await compressImage(file, maxDim, quality);
                 // Check byte size of the base64 payload
@@ -1719,7 +1738,7 @@
                 }
             }
             // Last resort: smallest possible
-            return compressImage(file, 100, 0.2);
+            return compressImage(file, 640, 0.72);
         })();
     }
 

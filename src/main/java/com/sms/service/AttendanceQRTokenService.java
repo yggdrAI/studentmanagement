@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
 import java.util.UUID;
+import java.util.Map;
 
 /**
  * Service for generating and validating attendance QR tokens
@@ -29,30 +30,56 @@ public class AttendanceQRTokenService {
 
     private static final int DEFAULT_EXPIRY_MINUTES = 5;
     private static final int MAX_EXPIRY_MINUTES = 30;
+    private static final int DEFAULT_EXPIRY_SECONDS = 10;
+    private static final int MIN_EXPIRY_SECONDS = 8;
+    private static final int MAX_EXPIRY_SECONDS = 7200;
 
     /**
      * Generate secure JWT token for attendance QR
      * Token contains: SubjectID | TeacherID | Timestamp | SessionID
      */
     public String generateAttendanceToken(Long subjectId, Long teacherId, Integer expiryMinutes) {
-        // Validate expiry
         int exMins = (expiryMinutes == null || expiryMinutes <= 0) ? DEFAULT_EXPIRY_MINUTES : expiryMinutes;
-        if (exMins > MAX_EXPIRY_MINUTES) exMins = MAX_EXPIRY_MINUTES;
+        if (exMins > MAX_EXPIRY_MINUTES)
+            exMins = MAX_EXPIRY_MINUTES;
+        int expirySeconds = exMins * 60;
+        return generateAttendanceToken(subjectId, teacherId, expirySeconds, null, null, null);
+    }
+
+    public String generateAttendanceToken(Long subjectId,
+            Long teacherId,
+            Integer expirySeconds,
+            Double teacherLatitude,
+            Double teacherLongitude,
+            Integer maxDistanceMeters) {
+        // Validate expiry
+        int exSecs = (expirySeconds == null || expirySeconds <= 0) ? DEFAULT_EXPIRY_SECONDS : expirySeconds;
+        exSecs = Math.max(MIN_EXPIRY_SECONDS, Math.min(MAX_EXPIRY_SECONDS, exSecs));
+        Integer boundedDistance = maxDistanceMeters == null ? 150 : Math.max(100, Math.min(200, maxDistanceMeters));
 
         SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
-        
+
         String sessionId = UUID.randomUUID().toString();
         Instant now = Instant.now();
-        Instant expiryTime = now.plusSeconds((long) exMins * 60);
+        Instant expiryTime = now.plusSeconds(exSecs);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject("ATTENDANCE")
                 .claim("subjectId", subjectId)
                 .claim("teacherId", teacherId)
                 .claim("sessionId", sessionId)
                 .claim("type", "ATTENDANCE_QR")
+                .claim("maxDistanceMeters", boundedDistance)
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(expiryTime))
+                .expiration(Date.from(expiryTime));
+
+        if (teacherLatitude != null && teacherLongitude != null) {
+            builder.claims(Map.of(
+                    "teacherLatitude", teacherLatitude,
+                    "teacherLongitude", teacherLongitude));
+        }
+
+        return builder
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -63,7 +90,7 @@ public class AttendanceQRTokenService {
     public AttendanceTokenClaims validateAttendanceToken(String token) throws Exception {
         try {
             SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
-            
+
             var claims = Jwts.parser()
                     .verifyWith(key)
                     .build()
@@ -80,8 +107,10 @@ public class AttendanceQRTokenService {
                     ((Number) claims.get("teacherId")).longValue(),
                     (String) claims.get("sessionId"),
                     claims.getIssuedAt().getTime(),
-                    claims.getExpiration().getTime()
-            );
+                    claims.getExpiration().getTime(),
+                    getNullableDouble(claims.get("teacherLatitude")),
+                    getNullableDouble(claims.get("teacherLongitude")),
+                    claims.get("maxDistanceMeters") instanceof Number n ? n.intValue() : null);
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid or tampered token: " + e.getMessage(), e);
         }
@@ -133,8 +162,7 @@ public class AttendanceQRTokenService {
      */
     public String hashToken(String token) {
         return Base64.getEncoder().encodeToString(
-            token.getBytes()
-        ).substring(0, Math.min(40, token.length()));
+                token.getBytes()).substring(0, Math.min(40, token.length()));
     }
 
     /**
@@ -146,19 +174,65 @@ public class AttendanceQRTokenService {
         private final String sessionId;
         private final long issuedAt;
         private final long expiresAt;
+        private final Double teacherLatitude;
+        private final Double teacherLongitude;
+        private final Integer maxDistanceMeters;
 
-        public AttendanceTokenClaims(Long subjectId, Long teacherId, String sessionId, long issuedAt, long expiresAt) {
+        public AttendanceTokenClaims(Long subjectId,
+                Long teacherId,
+                String sessionId,
+                long issuedAt,
+                long expiresAt,
+                Double teacherLatitude,
+                Double teacherLongitude,
+                Integer maxDistanceMeters) {
             this.subjectId = subjectId;
             this.teacherId = teacherId;
             this.sessionId = sessionId;
             this.issuedAt = issuedAt;
             this.expiresAt = expiresAt;
+            this.teacherLatitude = teacherLatitude;
+            this.teacherLongitude = teacherLongitude;
+            this.maxDistanceMeters = maxDistanceMeters;
         }
 
-        public Long getSubjectId() { return subjectId; }
-        public Long getTeacherId() { return teacherId; }
-        public String getSessionId() { return sessionId; }
-        public long getIssuedAt() { return issuedAt; }
-        public long getExpiresAt() { return expiresAt; }
+        public Long getSubjectId() {
+            return subjectId;
+        }
+
+        public Long getTeacherId() {
+            return teacherId;
+        }
+
+        public String getSessionId() {
+            return sessionId;
+        }
+
+        public long getIssuedAt() {
+            return issuedAt;
+        }
+
+        public long getExpiresAt() {
+            return expiresAt;
+        }
+
+        public Double getTeacherLatitude() {
+            return teacherLatitude;
+        }
+
+        public Double getTeacherLongitude() {
+            return teacherLongitude;
+        }
+
+        public Integer getMaxDistanceMeters() {
+            return maxDistanceMeters;
+        }
+    }
+
+    private Double getNullableDouble(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        return null;
     }
 }

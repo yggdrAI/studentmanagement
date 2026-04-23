@@ -71,15 +71,15 @@ public class AdminApiController {
     private final StudentAdvancedFilterService studentAdvancedFilterService;
 
     public AdminApiController(DashboardService dashboardService,
-                              StudentService studentService,
-                              StudentProfileRepository studentProfileRepository,
-                              SecurityAuditRepository securityAuditRepository,
-                              FaceVerificationService faceVerificationService,
-                              DatabaseMigrationService databaseMigrationService,
-                              CredentialService credentialService,
-                              TeacherRepository teacherRepository,
-                              TeacherProfileRepository teacherProfileRepository,
-                              StudentAdvancedFilterService studentAdvancedFilterService) {
+            StudentService studentService,
+            StudentProfileRepository studentProfileRepository,
+            SecurityAuditRepository securityAuditRepository,
+            FaceVerificationService faceVerificationService,
+            DatabaseMigrationService databaseMigrationService,
+            CredentialService credentialService,
+            TeacherRepository teacherRepository,
+            TeacherProfileRepository teacherProfileRepository,
+            StudentAdvancedFilterService studentAdvancedFilterService) {
         this.dashboardService = dashboardService;
         this.studentService = studentService;
         this.studentProfileRepository = studentProfileRepository;
@@ -93,47 +93,46 @@ public class AdminApiController {
     }
 
     @PostMapping("/students/search")
-    public ResponseEntity<StudentAdvancedFilterResponse> advancedStudentSearch(@RequestBody(required = false) StudentAdvancedFilterRequest request,
-                                                                               Authentication authentication) {
+    public ResponseEntity<StudentAdvancedFilterResponse> advancedStudentSearch(
+            @RequestBody(required = false) StudentAdvancedFilterRequest request,
+            Authentication authentication) {
         StudentAdvancedFilterResponse response = studentAdvancedFilterService.search(request, authentication);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping(value = "/upload-face", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, Object>> uploadFace(
-        @RequestParam("file") MultipartFile file,
-        @RequestParam("studentId") String studentId,
-        @RequestParam(name = "tenantId", required = false) Long tenantId,
-        @RequestParam(name = "livenessPrompt", defaultValue = "blink-and-turn") String livenessPrompt,
-        @RequestParam(name = "livenessVerified", defaultValue = "true") Boolean livenessVerified) {
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("studentId") String studentId,
+            @RequestParam(name = "tenantId", required = false) Long tenantId,
+            @RequestParam(name = "livenessPrompt", defaultValue = "blink-and-turn") String livenessPrompt,
+            @RequestParam(name = "livenessVerified", defaultValue = "true") Boolean livenessVerified) {
 
         if (file == null || file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Face image file is required");
         }
 
         studentService.findById(studentId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
 
         try {
             FaceVerificationService.FaceVerificationResult result = faceVerificationService.registerFaceFromImageUpload(
-                studentId,
-                tenantId,
-                file.getBytes(),
-                file.getOriginalFilename(),
-                livenessVerified,
-                livenessPrompt,
-                true,
-                true,
-                3
-            );
+                    studentId,
+                    tenantId,
+                    file.getBytes(),
+                    file.getOriginalFilename(),
+                    livenessVerified,
+                    livenessPrompt,
+                    true,
+                    true,
+                    3);
 
             return ResponseEntity.ok(Map.of(
-                "success", result.isVerified(),
-                "message", result.getMessage(),
-                "studentId", studentId,
-                "tenantId", tenantId == null ? 1L : tenantId,
-                "model", "Facenet512"
-            ));
+                    "success", result.isVerified(),
+                    "message", result.getMessage(),
+                    "studentId", studentId,
+                    "tenantId", tenantId == null ? 1L : tenantId,
+                    "model", "Facenet512"));
         } catch (Exception ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
@@ -141,68 +140,81 @@ public class AdminApiController {
 
     @GetMapping("/students")
     public ResponseEntity<Map<String, Object>> getStudents(@RequestParam(name = "page", defaultValue = "0") int page,
-                                                           @RequestParam(name = "size", defaultValue = "20") int size,
-                                                           @RequestParam(name = "search", required = false) String search,
-                                                           @RequestParam(name = "course", required = false) String course,
-                                                           @RequestParam(name = "degree", required = false) String degree,
-                                                           @RequestParam(name = "school", required = false) String school,
-                                                           @RequestParam(name = "house", required = false) String house,
-                                                           @RequestParam(name = "gender", required = false) String gender,
-                                                           @RequestParam(name = "classGroup", required = false) String classGroup,
-                                                           @RequestParam(name = "batchGroup", required = false) String batchGroup,
-                                                           @RequestParam(name = "religion", required = false) String religion,
-                                                           @RequestParam(name = "caste", required = false) String caste,
-                                                           @RequestParam(name = "placeOfOrigin", required = false) String placeOfOrigin,
-                                                           @RequestParam(name = "semester", required = false) String semester,
-                                                           @RequestParam(name = "minAge", required = false) Integer minAge,
-                                                           @RequestParam(name = "maxAge", required = false) Integer maxAge,
-                                                           @RequestParam(name = "sortBy", defaultValue = "id") String sortBy,
-                                                           @RequestParam(name = "sortDir", defaultValue = "asc") String sortDir) {
+            @RequestParam(name = "size", defaultValue = "20") int size,
+            @RequestParam(name = "search", required = false) String search,
+            @RequestParam(name = "course", required = false) String course,
+            @RequestParam(name = "degree", required = false) String degree,
+            @RequestParam(name = "school", required = false) String school,
+            @RequestParam(name = "house", required = false) String house,
+            @RequestParam(name = "gender", required = false) String gender,
+            @RequestParam(name = "classGroup", required = false) String classGroup,
+            @RequestParam(name = "batchGroup", required = false) String batchGroup,
+            @RequestParam(name = "religion", required = false) String religion,
+            @RequestParam(name = "caste", required = false) String caste,
+            @RequestParam(name = "placeOfOrigin", required = false) String placeOfOrigin,
+            @RequestParam(name = "semester", required = false) String semester,
+            @RequestParam(name = "minAge", required = false) Integer minAge,
+            @RequestParam(name = "maxAge", required = false) Integer maxAge,
+            @RequestParam(name = "sortBy", defaultValue = "id") String sortBy,
+            @RequestParam(name = "sortDir", defaultValue = "asc") String sortDir) {
 
         int normalizedSize = Math.min(Math.max(size, 1), 100);
         Page<Student> studentsPage = studentService.getStudentsPage(
-            search,
-            course,
-            degree,
-            school,
-            house,
-            gender,
-            classGroup,
-            batchGroup,
-            religion,
-            caste,
-            placeOfOrigin,
-            minAge,
-            maxAge,
-            semester,
-            page,
-            normalizedSize,
-            sortBy,
-            sortDir
-        );
+                search,
+                course,
+                degree,
+                school,
+                house,
+                gender,
+                classGroup,
+                batchGroup,
+                religion,
+                caste,
+                placeOfOrigin,
+                minAge,
+                maxAge,
+                semester,
+                page,
+                normalizedSize,
+                sortBy,
+                sortDir);
 
         Map<String, Double> averageMap = studentService.getAverageMarksMap(studentsPage.getContent());
         Map<String, StudentProfile> profileByStudentId = new HashMap<>();
         List<String> studentIds = studentsPage.getContent().stream().map(Student::getId).toList();
-        studentProfileRepository.findAllById(studentIds).forEach(profile -> profileByStudentId.put(profile.getStudentId(), profile));
+        studentProfileRepository.findAllById(studentIds)
+                .forEach(profile -> profileByStudentId.put(profile.getStudentId(), profile));
         List<Map<String, Object>> items = new ArrayList<>();
 
         for (Student student : studentsPage.getContent()) {
             StudentProfile profile = profileByStudentId.get(student.getId());
+            String profileImage = firstNonBlank(
+                    profile != null ? profile.getProfilePhotoUrl() : null,
+                    profile != null ? profile.getProfileImage() : null,
+                    student.getProfileImageUrl());
             Map<String, Object> row = new HashMap<>();
             row.put("id", student.getId());
             row.put("name", student.getName());
-            row.put("enrollment", profile != null && profile.getEnrollmentNumber() != null ? profile.getEnrollmentNumber() : student.getId());
+            row.put("enrollment",
+                    profile != null && profile.getEnrollmentNumber() != null ? profile.getEnrollmentNumber()
+                            : student.getId());
             row.put("email", student.getEmail());
-            row.put("course", profile != null && profile.getCourse() != null ? profile.getCourse() : student.getCourse());
+            row.put("course",
+                    profile != null && profile.getCourse() != null ? profile.getCourse() : student.getCourse());
             row.put("semester", student.getSemester());
-            row.put("section", profile != null && profile.getSection() != null ? profile.getSection() : student.getSection());
+            row.put("section",
+                    profile != null && profile.getSection() != null ? profile.getSection() : student.getSection());
             row.put("batch", student.getEnrollmentYear());
             row.put("classGroup", student.getClassGroup());
             row.put("batchGroup", student.getBatchGroup());
-            row.put("gender", profile != null && profile.getGender() != null ? profile.getGender() : StudentFieldDerivationUtils.inferGender(student.getName(), student.getGender()));
-            row.put("degree", profile != null && profile.getCourse() != null ? profile.getCourse() : student.getCourse());
-            row.put("school", profile != null ? StudentFieldDerivationUtils.resolveCollegeName(profile.getCollege(), profile.getCourse()) : StudentFieldDerivationUtils.resolveCollegeName(null, student.getCourse()));
+            row.put("gender", profile != null && profile.getGender() != null ? profile.getGender()
+                    : StudentFieldDerivationUtils.inferGender(student.getName(), student.getGender()));
+            row.put("degree",
+                    profile != null && profile.getCourse() != null ? profile.getCourse() : student.getCourse());
+            row.put("school",
+                    profile != null
+                            ? StudentFieldDerivationUtils.resolveCollegeName(profile.getCollege(), profile.getCourse())
+                            : StudentFieldDerivationUtils.resolveCollegeName(null, student.getCourse()));
             row.put("house", profile != null ? profile.getHouse() : null);
             row.put("religion", profile != null ? profile.getReligion() : null);
             row.put("caste", profile != null ? profile.getCaste() : null);
@@ -210,6 +222,9 @@ public class AdminApiController {
             row.put("averageMarks", averageMap.getOrDefault(student.getId(), 0.0));
             row.put("phone", student.getPhone() == null ? "" : student.getPhone());
             row.put("avatar", buildAvatar(student.getName()));
+            row.put("profileImage", profileImage);
+            row.put("profilePhotoUrl", profileImage);
+            row.put("photoUrl", profileImage);
             items.add(row);
         }
 
@@ -220,8 +235,7 @@ public class AdminApiController {
                 "totalElements", studentsPage.getTotalElements(),
                 "totalPages", studentsPage.getTotalPages(),
                 "hasNext", studentsPage.hasNext(),
-                "hasPrevious", studentsPage.hasPrevious()
-        ));
+                "hasPrevious", studentsPage.hasPrevious()));
     }
 
     @GetMapping("/database/export")
@@ -229,11 +243,12 @@ public class AdminApiController {
         try {
             DatabaseMigrationService.ExportedDatabaseBackup backup = databaseMigrationService.exportCurrentDatabase();
             return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + backup.fileName())
-                .contentType(MediaType.TEXT_PLAIN)
-                .body(backup.content());
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + backup.fileName())
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body(backup.content());
         } catch (Exception ex) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Database export failed: " + ex.getMessage(), ex);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Database export failed: " + ex.getMessage(), ex);
         }
     }
 
@@ -246,11 +261,11 @@ public class AdminApiController {
         try {
             databaseMigrationService.restoreDatabaseFromScript(file.getBytes());
             return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", databaseMigrationService.getLastMigrationMessage()
-            ));
+                    "success", true,
+                    "message", databaseMigrationService.getLastMigrationMessage()));
         } catch (Exception ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Database restore failed: " + ex.getMessage(), ex);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Database restore failed: " + ex.getMessage(),
+                    ex);
         }
     }
 
@@ -275,7 +290,8 @@ public class AdminApiController {
         student.setPhone(trimValue(payload.get("phone")));
         Student saved = studentService.save(student);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(new HashMap<>() {{
+        return ResponseEntity.status(HttpStatus.CREATED).body(new HashMap<>() {
+            {
                 put("id", saved.getId());
                 put("name", saved.getName());
                 put("email", saved.getEmail() != null ? saved.getEmail() : "");
@@ -286,16 +302,16 @@ public class AdminApiController {
                 put("classGroup", saved.getClassGroup() != null ? saved.getClassGroup() : "");
                 put("batchGroup", saved.getBatchGroup() != null ? saved.getBatchGroup() : "");
                 put("message", "Student created successfully");
-        }});
+            }
+        });
     }
 
     @PostMapping("/students/recompute-cohorts")
     public ResponseEntity<Map<String, Object>> recomputeStudentCohorts() {
         int updated = studentService.recomputeCohortsForAllStudents();
         return ResponseEntity.ok(Map.of(
-            "updated", updated,
-            "message", "Student class/batch groups recomputed"
-        ));
+                "updated", updated,
+                "message", "Student class/batch groups recomputed"));
     }
 
     @DeleteMapping("/students/{id}")
@@ -306,7 +322,7 @@ public class AdminApiController {
 
     @PutMapping("/students/{id}/password")
     public ResponseEntity<Map<String, Object>> setStudentPassword(@PathVariable("id") String id,
-                                                                  @Valid @RequestBody AdminSetPasswordRequest request) {
+            @Valid @RequestBody AdminSetPasswordRequest request) {
         credentialService.adminSetStudentPassword(id, request.getNewPassword(), request.getConfirmPassword());
         return ResponseEntity.ok(Map.of("message", "Student password updated", "studentId", id));
     }
@@ -324,9 +340,9 @@ public class AdminApiController {
             String username = teacher.getUser() != null ? teacher.getUser().getUsername() : null;
             TeacherProfile profile = teacherProfileRepository.findByTeacherId(teacher.getId()).orElse(null);
             String displayName = teacher.getName() != null && !teacher.getName().isBlank()
-                ? teacher.getName()
-                : (teacher.getFirstName() == null ? "" : teacher.getFirstName()) +
-                  (teacher.getLastName() == null ? "" : (" " + teacher.getLastName()));
+                    ? teacher.getName()
+                    : (teacher.getFirstName() == null ? "" : teacher.getFirstName()) +
+                            (teacher.getLastName() == null ? "" : (" " + teacher.getLastName()));
             payload.add(Map.of(
                     "id", teacher.getId(),
                     "name", displayName,
@@ -336,16 +352,17 @@ public class AdminApiController {
                     "department", teacher.getDepartment() == null ? "" : teacher.getDepartment(),
                     "designation", teacher.getDesignation() == null ? "" : teacher.getDesignation(),
                     "phone", teacher.getPhone() == null ? "" : teacher.getPhone(),
-                    "profileImage", profile != null && profile.getProfileImage() != null ? profile.getProfileImage() : "",
-                    "profilePhotoUrl", profile != null && profile.getProfilePhotoUrl() != null ? profile.getProfilePhotoUrl() : ""
-            ));
+                    "profileImage",
+                    profile != null && profile.getProfileImage() != null ? profile.getProfileImage() : "",
+                    "profilePhotoUrl",
+                    profile != null && profile.getProfilePhotoUrl() != null ? profile.getProfilePhotoUrl() : ""));
         }
         return ResponseEntity.ok(payload);
     }
 
     @PutMapping("/teachers/{teacherId}/password")
     public ResponseEntity<Map<String, Object>> setTeacherPassword(@PathVariable("teacherId") Long teacherId,
-                                                                  @Valid @RequestBody AdminSetPasswordRequest request) {
+            @Valid @RequestBody AdminSetPasswordRequest request) {
         credentialService.adminSetTeacherPassword(teacherId, request.getNewPassword(), request.getConfirmPassword());
         return ResponseEntity.ok(Map.of("message", "Teacher password updated", "teacherId", teacherId));
     }
@@ -369,19 +386,19 @@ public class AdminApiController {
         Map<String, Double> averageMap = studentService.getAverageMarksMap(students);
 
         StringBuilder csv = new StringBuilder();
-                 csv.append("ID,Name,Email,Course,Semester,Section,Batch,ClassGroup,BatchGroup,AverageMarks\n");
+        csv.append("ID,Name,Email,Course,Semester,Section,Batch,ClassGroup,BatchGroup,AverageMarks\n");
         for (Student student : students) {
             csv.append(escapeCsv(student.getId())).append(',')
-               .append(escapeCsv(student.getName())).append(',')
-               .append(escapeCsv(student.getEmail())).append(',')
-               .append(escapeCsv(student.getCourse())).append(',')
-             .append(escapeCsv(student.getSemester())).append(',')
-             .append(escapeCsv(student.getSection())).append(',')
-             .append(escapeCsv(student.getEnrollmentYear())).append(',')
-                         .append(escapeCsv(student.getClassGroup())).append(',')
-                         .append(escapeCsv(student.getBatchGroup())).append(',')
-               .append(String.format("%.2f", averageMap.getOrDefault(student.getId(), 0.0)))
-               .append("\n");
+                    .append(escapeCsv(student.getName())).append(',')
+                    .append(escapeCsv(student.getEmail())).append(',')
+                    .append(escapeCsv(student.getCourse())).append(',')
+                    .append(escapeCsv(student.getSemester())).append(',')
+                    .append(escapeCsv(student.getSection())).append(',')
+                    .append(escapeCsv(student.getEnrollmentYear())).append(',')
+                    .append(escapeCsv(student.getClassGroup())).append(',')
+                    .append(escapeCsv(student.getBatchGroup())).append(',')
+                    .append(String.format("%.2f", averageMap.getOrDefault(student.getId(), 0.0)))
+                    .append("\n");
         }
 
         byte[] body = csv.toString().getBytes(StandardCharsets.UTF_8);
@@ -393,11 +410,11 @@ public class AdminApiController {
     }
 
     @GetMapping("/students/activity")
-    public ResponseEntity<List<Map<String, Object>>> getActivity(@RequestParam(name = "limit", defaultValue = "15") int limit) {
+    public ResponseEntity<List<Map<String, Object>>> getActivity(
+            @RequestParam(name = "limit", defaultValue = "15") int limit) {
         int normalizedLimit = Math.min(Math.max(limit, 1), 50);
         List<SecurityAudit> audits = securityAuditRepository.findAll(
-                PageRequest.of(0, normalizedLimit, Sort.by(Sort.Direction.DESC, "createdAt"))
-        ).getContent();
+                PageRequest.of(0, normalizedLimit, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent();
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         List<Map<String, Object>> items = new ArrayList<>();
@@ -426,8 +443,7 @@ public class AdminApiController {
         return ResponseEntity.ok(Map.of(
                 "enrollmentId", enrollment.getId(),
                 "studentId", enrollment.getStudent().getId(),
-                "subjectId", enrollment.getCourse().getId()
-        ));
+                "subjectId", enrollment.getCourse().getId()));
     }
 
     @PostMapping("/assign-teacher")
@@ -436,8 +452,7 @@ public class AdminApiController {
         Course course = dashboardService.assignTeacher(request);
         return ResponseEntity.ok(Map.of(
                 "subjectId", course.getId(),
-                "teacherId", course.getTeacher().getId()
-        ));
+                "teacherId", course.getTeacher().getId()));
     }
 
     private String buildAvatar(String name) {
@@ -449,6 +464,18 @@ public class AdminApiController {
             return parts[0].substring(0, 1).toUpperCase();
         }
         return (parts[0].substring(0, 1) + parts[parts.length - 1].substring(0, 1)).toUpperCase();
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null || values.length == 0) {
+            return "";
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 
     private String escapeCsv(String value) {

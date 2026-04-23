@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.sms.model.Role;
 import com.sms.model.User;
 
 @Repository
@@ -22,6 +23,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("select u from User u where lower(u.username) = lower(:identifier) or lower(u.email) = lower(:identifier)")
     Optional<User> findByUsernameOrEmailIgnoreCase(@Param("identifier") String identifier);
+
+    Optional<User> findFirstByRoleOrderByIdAsc(Role role);
 
     void deleteByUsername(String username);
 }

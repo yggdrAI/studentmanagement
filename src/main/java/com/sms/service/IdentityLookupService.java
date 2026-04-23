@@ -5,6 +5,7 @@ import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 
+import com.sms.model.Role;
 import com.sms.model.User;
 import com.sms.repository.UserRepository;
 
@@ -36,7 +37,15 @@ public class IdentityLookupService {
         }
 
         return userRepository.findByUsernameIgnoreCase(value)
-                .or(() -> userRepository.findByUsernameOrEmailIgnoreCase(value));
+                .or(() -> userRepository.findByUsernameOrEmailIgnoreCase(value))
+                .or(() -> resolveTeacherAlias(value));
+    }
+
+    private Optional<User> resolveTeacherAlias(String value) {
+        if (value == null || !"teacher".equalsIgnoreCase(value.trim())) {
+            return Optional.empty();
+        }
+        return userRepository.findFirstByRoleOrderByIdAsc(Role.TEACHER);
     }
 
     public Optional<User> findByEmailOrPhone(String emailOrPhone) {

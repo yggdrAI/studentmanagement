@@ -4,8 +4,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -31,6 +34,7 @@ import com.sms.repository.StudentRepository;
 
 @Service
 public class StudentProfileService {
+    private static final Logger log = LoggerFactory.getLogger(StudentProfileService.class);
 
     private static final String DEMOGRAPHIC_CONSENT_VERSION = "1.0";
 
@@ -39,24 +43,27 @@ public class StudentProfileService {
     private final StudentDocumentRepository studentDocumentRepository;
     private final AcademicRecordRepository academicRecordRepository;
     private final ImageUploadService imageUploadService;
+    private final FaceVerificationService faceVerificationService;
 
     public StudentProfileService(StudentRepository studentRepository,
-                                 StudentProfileRepository studentProfileRepository,
-                                 StudentDocumentRepository studentDocumentRepository,
-                                 AcademicRecordRepository academicRecordRepository,
-                                 ImageUploadService imageUploadService) {
+            StudentProfileRepository studentProfileRepository,
+            StudentDocumentRepository studentDocumentRepository,
+            AcademicRecordRepository academicRecordRepository,
+            ImageUploadService imageUploadService,
+            FaceVerificationService faceVerificationService) {
         this.studentRepository = studentRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.studentDocumentRepository = studentDocumentRepository;
         this.academicRecordRepository = academicRecordRepository;
         this.imageUploadService = imageUploadService;
+        this.faceVerificationService = faceVerificationService;
     }
 
     @Cacheable(value = "studentProfile", key = "'student:' + #username")
     public StudentProfileResponseDTO getProfileForStudent(String username) {
         String normalizedUsername = java.util.Objects.requireNonNull(username, "Username must not be null");
         Student student = studentRepository.findByUserUsername(normalizedUsername)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
         return mapProfile(student.getId(), "STUDENT");
     }
 
@@ -64,63 +71,96 @@ public class StudentProfileService {
     public StudentProfileResponseDTO getProfileForAdmin(String studentId) {
         String normalizedStudentId = java.util.Objects.requireNonNull(studentId, "Student id must not be null");
         studentRepository.findById(normalizedStudentId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
         return mapProfile(normalizedStudentId, "ADMIN");
     }
 
     @Transactional
     @CacheEvict(value = "studentProfile", allEntries = true)
     public StudentProfileResponseDTO updateByAdmin(String studentId,
-                                                   AdminUpdateStudentProfileRequest request,
-                                                   String actorUsername) {
+            AdminUpdateStudentProfileRequest request,
+            String actorUsername) {
         String normalizedStudentId = java.util.Objects.requireNonNull(studentId, "Student id must not be null");
         if (request == null) {
             request = new AdminUpdateStudentProfileRequest();
         }
         String safeActorUsername = actorUsername == null || actorUsername.isBlank() ? "ADMIN" : actorUsername;
         Student student = studentRepository.findById(normalizedStudentId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+
+        try {
 
         StudentProfile profile = studentProfileRepository.findByStudentId(normalizedStudentId)
-            .orElseGet(() -> createProfileFromStudent(student));
+                .orElseGet(() -> createProfileFromStudent(student));
 
         String fullName = firstNonBlank(request.getFullName(), profile.getFullName(), student.getName());
-        String profileImage = firstNonBlank(request.getProfileImage(), profile.getProfileImage(), student.getProfileImageUrl());
-        
-        // Handle base64 image upload — only process if it's a NEW upload from the request
+        String profileImage = firstNonBlank(request.getProfileImage(), profile.getProfileImage(),
+                student.getProfileImageUrl());
+
+        // Handle base64 image upload — only process if it's a NEW upload from the
+        // request
         String requestedImage = request.getProfileImage();
         if (isDataImageUri(requestedImage)) {
             try {
                 profileImage = imageUploadService.uploadBase64Image(requestedImage, normalizedStudentId);
             } catch (Exception e) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Profile image upload failed: " + safeMessage(e, "Invalid image format or image size exceeds the limit."), e);
+                        "Profile image upload failed: "
+                                + safeMessage(e, "Invalid image format or image size exceeds the limit."),
+                        e);
+            }
+            try {
+                byte[] imageBytes = decodeDataImage(profileImage);
+                faceVerificationService.registerFaceFromImageUpload(
+                        normalizedStudentId,
+                        1L,
+                        imageBytes,
+                        normalizedStudentId + "-profile-upload.jpg",
+                        true,
+                        "profile-image-upload");
+            } catch (Exception e) {
+                // Do not block profile image upload when embedding service is unavailable.
+                log.warn("Face registration skipped for student {} after profile image upload: {}", normalizedStudentId,
+                        safeMessage(e, e.getClass().getSimpleName()));
             }
         }
-        
-        String gender = StudentFieldDerivationUtils.inferGender(fullName, firstNonBlank(request.getGender(), profile.getGender(), student.getGender()));
+
+        String gender = StudentFieldDerivationUtils.inferGender(fullName,
+                firstNonBlank(request.getGender(), profile.getGender(), student.getGender()));
         String religion = firstNonBlank(request.getReligion(), profile.getReligion());
         String bloodGroup = firstNonBlank(request.getBloodGroup(), profile.getBloodGroup());
         String phone = firstNonBlank(request.getPhone(), profile.getPhone(), student.getPhone());
-        String universityEmail = firstNonBlank(request.getUniversityEmail(), request.getEmail(), profile.getUniversityEmail(), profile.getEmail(), student.getEmail(), deriveStudentEmail(normalizedStudentId));
+        String universityEmail = firstNonBlank(request.getUniversityEmail(), request.getEmail(),
+                profile.getUniversityEmail(), profile.getEmail(), student.getEmail(),
+                deriveStudentEmail(normalizedStudentId));
         String personalEmail = firstNonBlank(request.getPersonalEmail(), profile.getPersonalEmail());
         String address = firstNonBlank(request.getAddress(), profile.getAddress(), student.getAddress());
         String guardianName = firstNonBlank(request.getGuardianName(), profile.getGuardianName());
         String guardianPhone = firstNonBlank(request.getGuardianPhone(), profile.getGuardianPhone());
-        String college = StudentFieldDerivationUtils.resolveCollegeName(firstNonBlank(request.getCollege(), profile.getCollege()), firstNonBlank(request.getCourse(), profile.getCourse(), student.getCourse()));
+        String college = StudentFieldDerivationUtils.resolveCollegeName(
+                firstNonBlank(request.getCollege(), profile.getCollege()),
+                firstNonBlank(request.getCourse(), profile.getCourse(), student.getCourse()));
         String course = firstNonBlank(request.getCourse(), profile.getCourse(), student.getCourse());
         String department = firstNonBlank(request.getDepartment(), profile.getDepartment(), student.getDepartment());
         String semester = firstNonBlank(request.getSemester(), profile.getSemester(), student.getSemester());
         String section = firstNonBlank(request.getSection(), profile.getSection());
-        String house = StudentFieldDerivationUtils.resolveHouse(firstNonBlank(request.getHouse(), profile.getHouse()), null);
-        String foundationClassroom = normalizeFoundationClassroom(firstNonBlank(request.getFoundationClassroom(), profile.getFoundationClassroom()), house);
+        String house = StudentFieldDerivationUtils.resolveHouse(firstNonBlank(request.getHouse(), profile.getHouse()),
+                null);
+        String foundationClassroom = normalizeFoundationClassroom(
+                firstNonBlank(request.getFoundationClassroom(), profile.getFoundationClassroom()), house);
         Integer teamNumber = request.getTeamNumber() != null ? request.getTeamNumber() : profile.getTeamNumber();
-        Integer memberNumber = request.getMemberNumber() != null ? request.getMemberNumber() : profile.getMemberNumber();
-        Integer admissionYear = request.getAdmissionYear() != null ? request.getAdmissionYear() : profile.getAdmissionYear();
-        Integer passingYear = StudentFieldDerivationUtils.derivePassingYear(course, admissionYear, request.getPassingYear() != null ? request.getPassingYear() : profile.getPassingYear());
-        LocalDate dob = request.getDob() != null ? request.getDob() : (profile.getDob() != null ? profile.getDob() : student.getDob());
-        LocalDate validUpto = StudentFieldDerivationUtils.deriveValidUpto(course, admissionYear, passingYear, request.getValidUpto());
-        String idCardNumber = firstNonBlank(request.getIdCardNumber(), profile.getIdCardNumber(), "BU-" + normalizedStudentId);
+        Integer memberNumber = request.getMemberNumber() != null ? request.getMemberNumber()
+                : profile.getMemberNumber();
+        Integer admissionYear = request.getAdmissionYear() != null ? request.getAdmissionYear()
+                : profile.getAdmissionYear();
+        Integer passingYear = StudentFieldDerivationUtils.derivePassingYear(course, admissionYear,
+                request.getPassingYear() != null ? request.getPassingYear() : profile.getPassingYear());
+        LocalDate dob = request.getDob() != null ? request.getDob()
+                : (profile.getDob() != null ? profile.getDob() : student.getDob());
+        LocalDate validUpto = StudentFieldDerivationUtils.deriveValidUpto(course, admissionYear, passingYear,
+                request.getValidUpto());
+        String idCardNumber = firstNonBlank(request.getIdCardNumber(), profile.getIdCardNumber(),
+                "BU-" + normalizedStudentId);
 
         profile.setStudentId(normalizedStudentId);
         if (student.getUser() != null) {
@@ -128,7 +168,8 @@ public class StudentProfileService {
         }
         profile.setFullName(fullName);
         profile.setProfileImage(profileImage);
-        // For profilePhotoUrl (VARCHAR), skip data URIs; for @Lob profileImage, store directly
+        // For profilePhotoUrl (VARCHAR), skip data URIs; for @Lob profileImage, store
+        // directly
         profile.setProfilePhotoUrl(normalizePhotoUrl(profileImage, profile.getProfilePhotoUrl()));
         profile.setDob(dob);
         profile.setGender(gender);
@@ -175,12 +216,9 @@ public class StudentProfileService {
         student.setCourse(course);
         student.setDepartment(department);
         student.setSemester(semester);
-        // Student.profileImageUrl is @Lob — store data URI directly
-        if (isDataImageUri(profileImage)) {
-            student.setProfileImageUrl(profileImage);
-        } else {
-            student.setProfileImageUrl(normalizePhotoUrl(profileImage, student.getProfileImageUrl()));
-        }
+        // Keep large/base64 payload in student_profile (LOB) and avoid duplicating into
+        // student.profileImageUrl, which may still be a constrained column in existing DBs.
+        student.setProfileImageUrl(normalizePhotoUrl(profileImage, student.getProfileImageUrl()));
         if (admissionYear != null) {
             student.setEnrollmentYear(String.valueOf(admissionYear));
         }
@@ -191,6 +229,13 @@ public class StudentProfileService {
         }
 
         return mapProfile(normalizedStudentId, "ADMIN");
+        } catch (ResponseStatusException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            log.error("Failed to update admin profile for student {}", normalizedStudentId, ex);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Profile update failed: " + safeMessage(ex, "Unexpected error"), ex);
+        }
     }
 
     @Transactional
@@ -198,25 +243,45 @@ public class StudentProfileService {
     public StudentProfileResponseDTO updateByStudent(String username, StudentSelfUpdateProfileRequest request) {
         String normalizedUsername = java.util.Objects.requireNonNull(username, "Username must not be null");
         Student student = studentRepository.findByUserUsername(normalizedUsername)
-            .orElseThrow(() -> new IllegalArgumentException("Student not found for username: " + normalizedUsername));
+                .orElseThrow(
+                        () -> new IllegalArgumentException("Student not found for username: " + normalizedUsername));
+
+        try {
 
         StudentProfile profile = studentProfileRepository.findByStudentId(student.getId())
-            .orElseGet(() -> createProfileFromStudent(student));
+                .orElseGet(() -> createProfileFromStudent(student));
 
         String profileImage = request.getProfileImage();
-        
+
         // Handle base64 image upload
         if (isDataImageUri(profileImage)) {
             try {
                 profileImage = imageUploadService.uploadBase64Image(profileImage, student.getId());
             } catch (Exception e) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Profile image upload failed: " + safeMessage(e, "Invalid image format or image size exceeds the limit."), e);
+                        "Profile image upload failed: "
+                                + safeMessage(e, "Invalid image format or image size exceeds the limit."),
+                        e);
+            }
+            try {
+                byte[] imageBytes = decodeDataImage(profileImage);
+                faceVerificationService.registerFaceFromImageUpload(
+                        student.getId(),
+                        1L,
+                        imageBytes,
+                        student.getId() + "-profile-upload.jpg",
+                        true,
+                        "profile-image-upload");
+            } catch (Exception e) {
+                // Do not block profile image upload when embedding service is unavailable.
+                log.warn("Face registration skipped for student {} after profile image upload: {}", student.getId(),
+                        safeMessage(e, e.getClass().getSimpleName()));
             }
         }
 
         profile.setPhone(request.getPhone());
-        String universityEmail = firstNonBlank(profile.getUniversityEmail(), profile.getEmail(), deriveStudentEmail(student.getId()));
+        String universityEmail = firstNonBlank(profile.getUniversityEmail(), profile.getEmail(),
+                deriveStudentEmail(student.getId()));
         profile.setUniversityEmail(universityEmail);
         profile.setEmail(universityEmail);
         profile.setAddress(request.getAddress());
@@ -234,11 +299,9 @@ public class StudentProfileService {
 
         student.setPhone(request.getPhone());
         student.setAddress(request.getAddress());
-        if (isDataImageUri(profileImage)) {
-            student.setProfileImageUrl(profileImage);
-        } else {
-            student.setProfileImageUrl(normalizePhotoUrl(profileImage, student.getProfileImageUrl()));
-        }
+        // Keep large/base64 payload in student_profile (LOB) and avoid duplicating into
+        // student.profileImageUrl, which may still be a constrained column in existing DBs.
+        student.setProfileImageUrl(normalizePhotoUrl(profileImage, student.getProfileImageUrl()));
         student.setEmail(universityEmail);
         try {
             studentRepository.saveAndFlush(student);
@@ -247,21 +310,30 @@ public class StudentProfileService {
         }
 
         return mapProfile(student.getId(), "STUDENT");
+        } catch (ResponseStatusException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            log.error("Failed to update student profile for {}", normalizedUsername, ex);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Profile update failed: " + safeMessage(ex, "Unexpected error"), ex);
+        }
     }
 
     @Transactional
     @CacheEvict(value = "studentProfile", allEntries = true)
-    public StudentProfileResponseDTO submitDemographicConsent(String username, StudentDemographicConsentRequest request) {
+    public StudentProfileResponseDTO submitDemographicConsent(String username,
+            StudentDemographicConsentRequest request) {
         String normalizedUsername = java.util.Objects.requireNonNull(username, "Username must not be null");
         Student student = studentRepository.findByUserUsername(normalizedUsername)
-            .orElseThrow(() -> new IllegalArgumentException("Student not found for username: " + normalizedUsername));
+                .orElseThrow(
+                        () -> new IllegalArgumentException("Student not found for username: " + normalizedUsername));
 
         if (!Boolean.TRUE.equals(request.getConsentGiven())) {
             throw new IllegalArgumentException("Consent is required before saving demographics");
         }
 
         StudentProfile profile = studentProfileRepository.findByStudentId(student.getId())
-            .orElseGet(() -> createProfileFromStudent(student));
+                .orElseGet(() -> createProfileFromStudent(student));
 
         profile.setGender(clean(request.getGender()));
         profile.setGenderSource("SELF_DECLARED");
@@ -285,19 +357,21 @@ public class StudentProfileService {
     private StudentProfileResponseDTO mapProfile(String studentId, String viewerRole) {
         String normalizedStudentId = java.util.Objects.requireNonNull(studentId, "Student id must not be null");
         Student student = studentRepository.findById(normalizedStudentId)
-            .orElseThrow(() -> new IllegalArgumentException("Student not found with id: " + normalizedStudentId));
+                .orElseThrow(() -> new IllegalArgumentException("Student not found with id: " + normalizedStudentId));
 
         StudentProfile profile = studentProfileRepository.findByStudentId(normalizedStudentId)
-            .orElseGet(() -> createProfileFromStudent(student));
+                .orElseGet(() -> createProfileFromStudent(student));
 
-        List<StudentDocument> documents = studentDocumentRepository.findByStudentIdOrderByUploadedAtDesc(normalizedStudentId);
+        List<StudentDocument> documents = studentDocumentRepository
+                .findByStudentIdOrderByUploadedAtDesc(normalizedStudentId);
         List<AcademicRecord> records = academicRecordRepository.findByStudentIdOrderBySubjectAsc(normalizedStudentId);
 
         StudentProfileResponseDTO dto = new StudentProfileResponseDTO();
         dto.setStudentId(normalizedStudentId);
         dto.setFullName(firstNonBlank(profile.getFullName(), student.getName()));
         dto.setEnrollmentNumber(firstNonBlank(profile.getEnrollmentNumber(), student.getId()));
-        dto.setProfileImage(firstNonBlank(profile.getProfilePhotoUrl(), profile.getProfileImage(), student.getProfileImageUrl()));
+        dto.setProfileImage(
+                firstNonBlank(profile.getProfilePhotoUrl(), profile.getProfileImage(), student.getProfileImageUrl()));
 
         dto.setDob(profile.getDob() != null ? profile.getDob() : student.getDob());
         dto.setGender(firstNonBlank(profile.getGender(), student.getGender()));
@@ -306,7 +380,8 @@ public class StudentProfileService {
         dto.setCasteCategory(profile.getCasteCategory());
 
         dto.setPhone(firstNonBlank(profile.getPhone(), student.getPhone()));
-        String universityEmail = firstNonBlank(profile.getUniversityEmail(), profile.getEmail(), student.getEmail(), deriveStudentEmail(studentId));
+        String universityEmail = firstNonBlank(profile.getUniversityEmail(), profile.getEmail(), student.getEmail(),
+                deriveStudentEmail(studentId));
         dto.setUniversityEmail(universityEmail);
         dto.setPersonalEmail(profile.getPersonalEmail());
         dto.setEmail(universityEmail);
@@ -324,8 +399,10 @@ public class StudentProfileService {
         dto.setFoundationClassroom(normalizeFoundationClassroom(profile.getFoundationClassroom(), profile.getHouse()));
         dto.setTeamNumber(profile.getTeamNumber());
         dto.setMemberNumber(profile.getMemberNumber());
-        dto.setAdmissionYear(profile.getAdmissionYear() != null ? profile.getAdmissionYear() : parseYear(student.getEnrollmentYear()));
-        dto.setPassingYear(StudentFieldDerivationUtils.derivePassingYear(dto.getCourse(), dto.getAdmissionYear(), profile.getPassingYear()));
+        dto.setAdmissionYear(profile.getAdmissionYear() != null ? profile.getAdmissionYear()
+                : parseYear(student.getEnrollmentYear()));
+        dto.setPassingYear(StudentFieldDerivationUtils.derivePassingYear(dto.getCourse(), dto.getAdmissionYear(),
+                profile.getPassingYear()));
 
         dto.setValidUpto(profile.getValidUpto());
         dto.setIdCardNumber(firstNonBlank(profile.getIdCardNumber(), "BU-" + studentId));
@@ -378,8 +455,10 @@ public class StudentProfileService {
         profile.setMemberNumber(null);
         profile.setAdmissionYear(parseYear(student.getEnrollmentYear()));
         profile.setCollege(StudentFieldDerivationUtils.resolveCollegeName(null, student.getCourse()));
-        profile.setPassingYear(StudentFieldDerivationUtils.derivePassingYear(student.getCourse(), profile.getAdmissionYear(), null));
-        profile.setValidUpto(StudentFieldDerivationUtils.deriveValidUpto(student.getCourse(), profile.getAdmissionYear(), profile.getPassingYear(), null));
+        profile.setPassingYear(
+                StudentFieldDerivationUtils.derivePassingYear(student.getCourse(), profile.getAdmissionYear(), null));
+        profile.setValidUpto(StudentFieldDerivationUtils.deriveValidUpto(student.getCourse(),
+                profile.getAdmissionYear(), profile.getPassingYear(), null));
         profile.setIdCardNumber("BU-" + student.getId());
         profile.setProfileImage(student.getProfileImageUrl());
         profile.setUpdatedBy("System");
@@ -431,17 +510,17 @@ public class StudentProfileService {
 
     private int calculateCompletion(StudentProfileResponseDTO dto) {
         List<Object> fields = Arrays.asList(
-            dto.getFullName(), dto.getEnrollmentNumber(), dto.getProfileImage(),
-            dto.getDob(), dto.getGender(), dto.getReligion(), dto.getBloodGroup(),
-            dto.getPhone(), dto.getEmail(), dto.getAddress(),
-            dto.getUniversityEmail(), dto.getPersonalEmail(),
-            dto.getGuardianName(), dto.getGuardianPhone(),
-            dto.getCollege(), dto.getCourse(), dto.getDepartment(), dto.getSemester(), dto.getSection(), dto.getHouse(),
-            dto.getFoundationClassroom(), dto.getTeamNumber(), dto.getMemberNumber(),
-            dto.getAdmissionYear(), dto.getPassingYear(),
-            dto.getValidUpto(), dto.getIdCardNumber(),
-            dto.getCreatedAt(), dto.getUpdatedAt()
-        );
+                dto.getFullName(), dto.getEnrollmentNumber(), dto.getProfileImage(),
+                dto.getDob(), dto.getGender(), dto.getReligion(), dto.getBloodGroup(),
+                dto.getPhone(), dto.getEmail(), dto.getAddress(),
+                dto.getUniversityEmail(), dto.getPersonalEmail(),
+                dto.getGuardianName(), dto.getGuardianPhone(),
+                dto.getCollege(), dto.getCourse(), dto.getDepartment(), dto.getSemester(), dto.getSection(),
+                dto.getHouse(),
+                dto.getFoundationClassroom(), dto.getTeamNumber(), dto.getMemberNumber(),
+                dto.getAdmissionYear(), dto.getPassingYear(),
+                dto.getValidUpto(), dto.getIdCardNumber(),
+                dto.getCreatedAt(), dto.getUpdatedAt());
 
         int filled = 0;
         int total = fields.size();
@@ -519,6 +598,18 @@ public class StudentProfileService {
             return false;
         }
         return value.matches("^[A-Za-z0-9+/=\\s]+$");
+    }
+
+    private byte[] decodeDataImage(String dataUri) {
+        if (dataUri == null || dataUri.isBlank() || !isDataImageUri(dataUri)) {
+            throw new IllegalArgumentException("Profile image must be a valid data:image URI");
+        }
+        int commaIndex = dataUri.indexOf(',');
+        if (commaIndex < 0 || commaIndex >= dataUri.length() - 1) {
+            throw new IllegalArgumentException("Invalid image payload");
+        }
+        String payload = dataUri.substring(commaIndex + 1).replaceAll("\\s+", "");
+        return Base64.getDecoder().decode(payload);
     }
 
     private String safeMessage(Exception ex, String fallback) {

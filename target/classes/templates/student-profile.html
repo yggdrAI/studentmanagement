@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Profile ERP</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
     <link rel="stylesheet" th:href="@{/css/profile-flagship.css}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
@@ -110,7 +112,7 @@
             top: -40px;
             width: 180px;
             height: 180px;
-            background: radial-gradient(circle, rgba(255,255,255,0.2), rgba(255,255,255,0));
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
         }
 
         .id-card h2 {
@@ -132,7 +134,7 @@
             border-radius: 16px;
             border: 2px solid rgba(255, 255, 255, 0.72);
             object-fit: cover;
-            background: rgba(255,255,255,0.08);
+            background: rgba(255, 255, 255, 0.08);
         }
 
         .avatar-shell {
@@ -154,7 +156,7 @@
             width: 28px;
             height: 28px;
             border-radius: 999px;
-            border: 2px solid rgba(255,255,255,0.85);
+            border: 2px solid rgba(255, 255, 255, 0.85);
             background: #2563eb;
             color: #fff;
             display: inline-flex;
@@ -241,6 +243,7 @@
                 opacity: 0;
                 transform: translateY(20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -361,9 +364,11 @@
             0% {
                 box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
             }
+
             50% {
                 box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
             }
+
             100% {
                 box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
             }
@@ -397,7 +402,7 @@
         }
 
         .id-qr-shell {
-            background: rgba(255,255,255,0.92);
+            background: rgba(255, 255, 255, 0.92);
             border-radius: 12px;
             padding: var(--space-2);
             width: fit-content;
@@ -422,7 +427,7 @@
             padding: 0.3rem 0.65rem;
             border-radius: 999px;
             border: 1px solid rgba(148, 163, 184, 0.5);
-            background: rgba(255,255,255,0.12);
+            background: rgba(255, 255, 255, 0.12);
             color: #e2e8f0;
             font-size: 0.72rem;
             letter-spacing: 0.04em;
@@ -493,7 +498,7 @@
 
         .tab-btn {
             border: 1px solid var(--card-border);
-            background: rgba(255,255,255,0.56);
+            background: rgba(255, 255, 255, 0.56);
             color: var(--text-primary);
             border-radius: 999px;
             padding: 0.48rem 0.9rem;
@@ -672,14 +677,19 @@
         .skeleton {
             height: 64px;
             border-radius: 14px;
-            background: linear-gradient(90deg, rgba(148,163,184,0.18), rgba(226,232,240,0.55), rgba(148,163,184,0.18));
+            background: linear-gradient(90deg, rgba(148, 163, 184, 0.18), rgba(226, 232, 240, 0.55), rgba(148, 163, 184, 0.18));
             background-size: 220% 100%;
             animation: shimmer 1.2s infinite;
         }
 
         @keyframes shimmer {
-            from { background-position: 200% 0; }
-            to { background-position: -20% 0; }
+            from {
+                background-position: 200% 0;
+            }
+
+            to {
+                background-position: -20% 0;
+            }
         }
 
         .status-pill {
@@ -837,616 +847,656 @@
         }
     </style>
 </head>
+
 <body class="profile-flagship-page">
 
-<div th:replace="~{fragments/sidebar :: sidebar(activeTab='profile')}"></div>
+    <div th:replace="~{fragments/sidebar :: sidebar(activeTab='profile')}"></div>
 
-<main class="content-area" id="maincontent" tabindex="-1">
-    <div class="content-wrapper student-profile-page">
-        <div class="hero-bar">
-            <div>
-                <h1 class="hero-title">Student Profile System</h1>
-                <p class="hero-subtitle">University ERP identity, academics, guardians, and metadata.</p>
+    <main class="content-area" id="maincontent" tabindex="-1">
+        <div class="content-wrapper student-profile-page">
+            <div class="hero-bar">
+                <div>
+                    <h1 class="hero-title">Student Profile System</h1>
+                    <p class="hero-subtitle">University ERP identity, academics, guardians, and metadata.</p>
+                </div>
+                <div class="hero-actions">
+                    <button class="btn btn-primary" type="button" id="editModeBtn" style="display:none;">Edit Mode:
+                        OFF</button>
+                    <button class="btn btn-primary" type="button" id="saveBtn" style="display:none;">Save
+                        Changes</button>
+                    <button class="btn btn-secondary" type="button" id="cancelBtn" style="display:none;">Cancel</button>
+                    <input type="file" id="profileImageFile" accept="image/*" style="display:none;">
+                    <button class="btn btn-outline" type="button" id="downloadBtn">Download PDF</button>
+                </div>
             </div>
-            <div class="hero-actions">
-                <button class="btn btn-primary" type="button" id="editModeBtn" style="display:none;">Edit Mode: OFF</button>
-                <button class="btn btn-primary" type="button" id="saveBtn" style="display:none;">Save Changes</button>
-                <button class="btn btn-secondary" type="button" id="cancelBtn" style="display:none;">Cancel</button>
-                <input type="file" id="profileImageFile" accept="image/*" style="display:none;">
-                <button class="btn btn-outline" type="button" id="downloadBtn">Download PDF</button>
-            </div>
+
+            <section class="top-layout">
+                <article class="id-card glass-card">
+                    <h2>Bennett University</h2>
+                    <p class="id-card-sub">Government-grade student identity record</p>
+
+                    <div class="avatar-shell" id="avatarShell" title="Profile photo actions">
+                        <img id="idAvatar" class="id-avatar" alt="Profile photo" src="" style="display:none;">
+                        <div id="idFallback" class="id-avatar id-fallback">ID</div>
+                        <span class="avatar-plus" id="avatarPlus">+</span>
+                        <div class="avatar-menu" id="avatarMenu">
+                            <button type="button" id="avatarUploadAction">Upload Photo</button>
+                            <button type="button" id="avatarRemoveAction">Remove Photo</button>
+                        </div>
+                    </div>
+
+                    <!-- Image Viewer Modal -->
+                    <div id="imageViewerModal" class="image-viewer-modal" style="display:none;">
+                        <div class="image-viewer-backdrop"></div>
+                        <div class="image-viewer-container">
+                            <div class="image-viewer-header">
+                                <h3>Profile Photo</h3>
+                                <button class="image-viewer-close" id="imageViewerClose" title="Close">×</button>
+                            </div>
+                            <div class="image-viewer-content">
+                                <img id="imageViewerImg" class="image-viewer-image" alt="Profile photo enlarged" src="">
+                            </div>
+                            <div class="image-viewer-footer">
+                                <button class="image-viewer-btn" id="imageViewerZoomIn" title="Zoom in">🔍+</button>
+                                <button class="image-viewer-btn" id="imageViewerZoomOut" title="Zoom out">🔍−</button>
+                                <button class="image-viewer-btn" id="imageViewerReset" title="Reset zoom">Reset</button>
+                                <span class="image-viewer-zoom-level" id="imageViewerZoomLevel">100%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="id-main">
+                        <p class="id-name" id="idName">Loading...</p>
+                        <p class="id-line" id="idEnrollment">Enrollment No: -</p>
+                        <p class="id-line" id="idCourse">Course: -</p>
+                        <p class="id-line" id="idValidity">Valid Upto: -</p>
+                    </div>
+
+                    <div class="id-qr-shell">
+                        <canvas id="idQrCanvas" width="96" height="96"></canvas>
+                    </div>
+
+                    <div class="id-footer">
+                        <span class="badge" id="idRoleBadge">STUDENT</span>
+                        <span id="idCardCode">Card: -</span>
+                    </div>
+                </article>
+
+                <article class="panel glass-card">
+                    <div class="panel-top">
+                        <div class="summary-stack">
+                            <h2 style="margin:0;">Profile Summary</h2>
+                            <p class="meta-line" id="activityLine">Last updated by System</p>
+                            <div class="completion-row">
+                                <span style="font-weight:600;">Profile Completion:</span>
+                                <div class="progress-track">
+                                    <div class="progress-fill" id="completionFill"></div>
+                                </div>
+                                <strong id="completionText">0%</strong>
+                            </div>
+                            <div class="strength-pill" id="strengthPill">Strength: Weak</div>
+                            <div class="smart-hints" id="suggestionBox">Suggestions will appear here.</div>
+                            <div class="ai-summary-card" id="profileAiSummaryCard">
+                                <div class="ai-summary-title">AI Summary</div>
+                                <div class="ai-summary-text" id="profileAiSummaryText">Generating personalized
+                                    insights...</div>
+                                <div class="mini-analytics-grid">
+                                    <div class="mini-chart-card">
+                                        <h4>Performance Graph</h4>
+                                        <div class="mini-chart-viewport">
+                                            <canvas id="profilePerformanceCanvas"></canvas>
+                                            <div class="mini-chart-empty" id="profilePerformanceCanvasEmpty">No Data
+                                                Available</div>
+                                        </div>
+                                    </div>
+                                    <div class="mini-chart-card">
+                                        <h4>Attendance Heatmap</h4>
+                                        <div class="mini-chart-viewport">
+                                            <canvas id="profileHeatmapCanvas"></canvas>
+                                            <div class="mini-chart-empty" id="profileHeatmapCanvasEmpty">No Data
+                                                Available</div>
+                                        </div>
+                                    </div>
+                                    <div class="mini-chart-card">
+                                        <h4>Behavior Trend</h4>
+                                        <div class="mini-chart-viewport">
+                                            <canvas id="profileBehaviorCanvas"></canvas>
+                                            <div class="mini-chart-empty" id="profileBehaviorCanvasEmpty">No Data
+                                                Available</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="status-pill" id="viewerRolePill">Viewer: STUDENT</span>
+                    </div>
+
+                    <div id="skeletonLoader" class="skeleton-wrap">
+                        <div class="skeleton"></div>
+                        <div class="skeleton"></div>
+                        <div class="skeleton"></div>
+                        <div class="skeleton"></div>
+                        <div class="skeleton"></div>
+                        <div class="skeleton"></div>
+                    </div>
+
+                    <div id="profileBody" style="display:none;">
+                        <div class="tabs">
+                            <button class="tab-btn active" data-tab="personal">Personal</button>
+                            <button class="tab-btn" data-tab="demographics"
+                                th:if="${profileMode != 'ADMIN'}">Demographics</button>
+                            <button class="tab-btn" data-tab="academic">Academic</button>
+                            <button class="tab-btn" data-tab="identity">Identity</button>
+                            <button class="tab-btn" data-tab="contact">Contact</button>
+                            <button class="tab-btn" data-tab="guardian">Guardian</button>
+                            <button class="tab-btn" data-tab="security"
+                                th:if="${profileMode != 'ADMIN'}">Security</button>
+                            <button class="tab-btn" data-tab="documents">Documents</button>
+                            <button class="tab-btn" data-tab="analytics">Analytics</button>
+                            <button class="tab-btn" data-tab="metadata">Metadata</button>
+                        </div>
+
+                        <section class="tab-pane active" data-pane="personal">
+                            <div class="field-grid" id="personalGrid"></div>
+                        </section>
+                        <section class="tab-pane" data-pane="demographics" th:if="${profileMode != 'ADMIN'}">
+                            <div class="field-grid" style="grid-template-columns: 1fr;">
+                                <div class="field-card full consent-panel">
+                                    <h3 class="consent-title">Demographic Self Declaration</h3>
+                                    <p class="consent-note">These details are saved only when you explicitly provide
+                                        consent.</p>
+                                    <div class="field-grid" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+                                        <div class="field-card">
+                                            <label class="field-label" for="demoGender">Gender</label>
+                                            <select id="demoGender" class="field-input editable">
+                                                <option value="">Select</option>
+                                                <option value="Male">Male</option>
+                                                <option value="Female">Female</option>
+                                                <option value="Non-binary">Non-binary</option>
+                                                <option value="Prefer not to say">Prefer not to say</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                        <div class="field-card">
+                                            <label class="field-label" for="demoReligion">Religion</label>
+                                            <select id="demoReligion" class="field-input editable">
+                                                <option value="">Select</option>
+                                                <option value="Hindu">Hindu</option>
+                                                <option value="Muslim">Muslim</option>
+                                                <option value="Christian">Christian</option>
+                                                <option value="Sikh">Sikh</option>
+                                                <option value="Buddhist">Buddhist</option>
+                                                <option value="Jain">Jain</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                        <div class="field-card">
+                                            <label class="field-label" for="demoCategory">Category</label>
+                                            <select id="demoCategory" class="field-input editable">
+                                                <option value="">Select</option>
+                                                <option value="General">General</option>
+                                                <option value="OBC">OBC</option>
+                                                <option value="SC">SC</option>
+                                                <option value="ST">ST</option>
+                                                <option value="EWS">EWS</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                        <div class="field-card">
+                                            <label class="field-label" for="demoSpecificCaste">Specific Caste
+                                                (Optional)</label>
+                                            <input id="demoSpecificCaste" class="field-input editable" type="text"
+                                                placeholder="Optional" />
+                                        </div>
+                                    </div>
+                                    <label class="consent-check" for="demoConsentGiven">
+                                        <input id="demoConsentGiven" type="checkbox" />
+                                        <span>I consent to storing my self-declared demographic data for profile and
+                                            academic administration purposes.</span>
+                                    </label>
+                                    <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                                        <button class="btn btn-primary" type="button" id="submitDemographicsBtn">Submit
+                                            Demographics</button>
+                                        <span id="demographicsStatus" class="field-value">No consent submission
+                                            yet.</span>
+                                    </div>
+                                    <div class="consent-meta" id="demographicsMeta"></div>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="tab-pane" data-pane="academic">
+                            <div class="field-grid" id="academicGrid"></div>
+                        </section>
+                        <section class="tab-pane" data-pane="identity">
+                            <div class="field-grid" id="identityGrid"></div>
+                        </section>
+                        <section class="tab-pane" data-pane="contact">
+                            <div class="field-grid" id="contactGrid"></div>
+                        </section>
+                        <section class="tab-pane" data-pane="guardian">
+                            <div class="field-grid" id="guardianGrid"></div>
+                        </section>
+                        <section class="tab-pane" data-pane="security" th:if="${profileMode != 'ADMIN'}">
+                            <div class="field-grid" style="grid-template-columns: 1fr;">
+                                <div class="field-card full">
+                                    <label class="field-label" for="currentPassword">Current Password</label>
+                                    <input class="field-input editable" id="currentPassword" type="password"
+                                        placeholder="Enter current password" />
+                                </div>
+                                <div class="field-card full">
+                                    <label class="field-label" for="newPassword">New Password</label>
+                                    <input class="field-input editable" id="newPassword" type="password"
+                                        placeholder="Enter new password" />
+                                </div>
+                                <div class="field-card full">
+                                    <label class="field-label" for="confirmPassword">Confirm New Password</label>
+                                    <input class="field-input editable" id="confirmPassword" type="password"
+                                        placeholder="Confirm new password" />
+                                </div>
+                                <div class="field-card full" style="display:flex; gap:0.75rem; align-items:center;">
+                                    <button class="btn btn-primary" type="button" id="changePasswordBtn">Change
+                                        Password</button>
+                                    <span id="changePasswordStatus" class="field-value">Use your current password to
+                                        update credentials.</span>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="tab-pane" data-pane="documents">
+                            <table class="documents-table" id="documentsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>File</th>
+                                        <th>Uploaded At</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </section>
+                        <section class="tab-pane" data-pane="analytics">
+                            <div class="field-grid" id="analyticsGrid"></div>
+                        </section>
+                        <section class="tab-pane" data-pane="metadata">
+                            <div class="field-grid" id="metadataGrid"></div>
+                        </section>
+                    </div>
+                </article>
+            </section>
         </div>
+    </main>
 
-        <section class="top-layout">
-            <article class="id-card glass-card">
-                <h2>Bennett University</h2>
-                <p class="id-card-sub">Government-grade student identity record</p>
+    <div th:replace="~{fragments/sidebar :: floating-tools}"></div>
 
-                <div class="avatar-shell" id="avatarShell" title="Profile photo actions">
-                    <img id="idAvatar" class="id-avatar" alt="Profile photo" src="" style="display:none;">
-                    <div id="idFallback" class="id-avatar id-fallback">ID</div>
-                    <span class="avatar-plus" id="avatarPlus">+</span>
-                    <div class="avatar-menu" id="avatarMenu">
-                        <button type="button" id="avatarUploadAction">Upload Photo</button>
-                        <button type="button" id="avatarRemoveAction">Remove Photo</button>
-                    </div>
-                </div>
+    <div class="toast" id="saveToast">Changes saved successfully.</div>
 
-                <!-- Image Viewer Modal -->
-                <div id="imageViewerModal" class="image-viewer-modal" style="display:none;">
-                    <div class="image-viewer-backdrop"></div>
-                    <div class="image-viewer-container">
-                        <div class="image-viewer-header">
-                            <h3>Profile Photo</h3>
-                            <button class="image-viewer-close" id="imageViewerClose" title="Close">×</button>
-                        </div>
-                        <div class="image-viewer-content">
-                            <img id="imageViewerImg" class="image-viewer-image" alt="Profile photo enlarged" src="">
-                        </div>
-                        <div class="image-viewer-footer">
-                            <button class="image-viewer-btn" id="imageViewerZoomIn" title="Zoom in">🔍+</button>
-                            <button class="image-viewer-btn" id="imageViewerZoomOut" title="Zoom out">🔍−</button>
-                            <button class="image-viewer-btn" id="imageViewerReset" title="Reset zoom">Reset</button>
-                            <span class="image-viewer-zoom-level" id="imageViewerZoomLevel">100%</span>
-                        </div>
-                    </div>
-                </div>
+    <script th:inline="javascript">
+        const PROFILE_MODE = /*[[${profileMode}]]*/ 'STUDENT';
+        const TARGET_STUDENT_ID = /*[[${targetStudentId}]]*/ '';
+        const CAN_ADMIN_EDIT = PROFILE_MODE === 'ADMIN';
+        const PROFILE_QUERY = new URLSearchParams(window.location.search);
+        const FORCE_PASSWORD_CHANGE = PROFILE_QUERY.get('forcePasswordChange') === '1';
 
-                <div class="id-main">
-                    <p class="id-name" id="idName">Loading...</p>
-                    <p class="id-line" id="idEnrollment">Enrollment No: -</p>
-                    <p class="id-line" id="idCourse">Course: -</p>
-                    <p class="id-line" id="idValidity">Valid Upto: -</p>
-                </div>
+        let currentProfile = null;
+        let originalProfileSnapshot = null;
+        let editEnabled = CAN_ADMIN_EDIT && (PROFILE_QUERY.get('edit') === '1' || PROFILE_QUERY.get('mode') === 'edit');
+        let autoSaveTimer = null;
+        const profileCharts = {};
 
-                <div class="id-qr-shell">
-                    <canvas id="idQrCanvas" width="96" height="96"></canvas>
-                </div>
+        const PROFILE_SCHEMA = [
+            { key: 'fullName', label: 'Full Name', section: 'personal', type: 'text', required: true },
+            { key: 'dob', label: 'Date of Birth', section: 'personal', type: 'date', required: true },
+            {
+                key: 'gender', label: 'Gender', section: 'personal', type: 'select', required: true,
+                options: ['Male', 'Female', 'Non-binary', 'Prefer not to say', 'Other']
+            },
+            {
+                key: 'religion', label: 'Religion', section: 'personal', type: 'select', required: true,
+                options: ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Other']
+            },
+            {
+                key: 'bloodGroup', label: 'Blood Group', section: 'personal', type: 'select', required: true,
+                options: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+            },
 
-                <div class="id-footer">
-                    <span class="badge" id="idRoleBadge">STUDENT</span>
-                    <span id="idCardCode">Card: -</span>
-                </div>
-            </article>
+            { key: 'college', label: 'College', section: 'academic', type: 'text', required: true },
+            {
+                key: 'course', label: 'Course', section: 'academic', type: 'select', required: true,
+                options: ['B.Tech', 'BBA', 'BCA', 'MBA', 'M.Tech', 'MCA', 'BA', 'B.Com']
+            },
+            {
+                key: 'department', label: 'Department', section: 'academic', type: 'select', required: true,
+                options: ['Computer Science', 'IT', 'Mechanical', 'Civil', 'ECE', 'Management']
+            },
+            { key: 'semester', label: 'Semester', section: 'academic', type: 'select', required: true },
+            {
+                key: 'section', label: 'Section', section: 'academic', type: 'select', required: true,
+                options: ['A', 'B', 'C', 'D']
+            },
+            { key: 'house', label: 'House', section: 'academic', type: 'text' },
+            { key: 'foundationClassroom', label: 'Foundation Classroom', section: 'academic', type: 'text' },
+            { key: 'teamNumber', label: 'Team Number', section: 'academic', type: 'number' },
+            { key: 'memberNumber', label: 'Member Number', section: 'academic', type: 'number' },
+            { key: 'admissionYear', label: 'Admission Year', section: 'academic', type: 'select', required: true },
+            { key: 'passingYear', label: 'Passing Year', section: 'academic', type: 'select', required: true },
 
-            <article class="panel glass-card">
-                <div class="panel-top">
-                    <div class="summary-stack">
-                        <h2 style="margin:0;">Profile Summary</h2>
-                        <p class="meta-line" id="activityLine">Last updated by System</p>
-                        <div class="completion-row">
-                            <span style="font-weight:600;">Profile Completion:</span>
-                            <div class="progress-track"><div class="progress-fill" id="completionFill"></div></div>
-                            <strong id="completionText">0%</strong>
-                        </div>
-                        <div class="strength-pill" id="strengthPill">Strength: Weak</div>
-                        <div class="smart-hints" id="suggestionBox">Suggestions will appear here.</div>
-                        <div class="ai-summary-card" id="profileAiSummaryCard">
-                            <div class="ai-summary-title">AI Summary</div>
-                            <div class="ai-summary-text" id="profileAiSummaryText">Generating personalized insights...</div>
-                            <div class="mini-analytics-grid">
-                                <div class="mini-chart-card">
-                                    <h4>Performance Graph</h4>
-                                    <div class="mini-chart-viewport">
-                                        <canvas id="profilePerformanceCanvas"></canvas>
-                                        <div class="mini-chart-empty" id="profilePerformanceCanvasEmpty">No Data Available</div>
-                                    </div>
-                                </div>
-                                <div class="mini-chart-card">
-                                    <h4>Attendance Heatmap</h4>
-                                    <div class="mini-chart-viewport">
-                                        <canvas id="profileHeatmapCanvas"></canvas>
-                                        <div class="mini-chart-empty" id="profileHeatmapCanvasEmpty">No Data Available</div>
-                                    </div>
-                                </div>
-                                <div class="mini-chart-card">
-                                    <h4>Behavior Trend</h4>
-                                    <div class="mini-chart-viewport">
-                                        <canvas id="profileBehaviorCanvas"></canvas>
-                                        <div class="mini-chart-empty" id="profileBehaviorCanvasEmpty">No Data Available</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <span class="status-pill" id="viewerRolePill">Viewer: STUDENT</span>
-                </div>
+            { key: 'enrollmentNumber', label: 'Enrollment Number', section: 'identity', type: 'text', readonly: true },
+            { key: 'studentId', label: 'Student ID', section: 'identity', type: 'text', readonly: true },
+            { key: 'idCardNumber', label: 'ID Card Number', section: 'identity', type: 'text', required: true },
+            { key: 'validUpto', label: 'Valid Upto', section: 'identity', type: 'date', required: true },
+            { key: 'profileImage', label: 'Profile Image URL', section: 'identity', type: 'text' },
 
-                <div id="skeletonLoader" class="skeleton-wrap">
-                    <div class="skeleton"></div>
-                    <div class="skeleton"></div>
-                    <div class="skeleton"></div>
-                    <div class="skeleton"></div>
-                    <div class="skeleton"></div>
-                    <div class="skeleton"></div>
-                </div>
+            { key: 'phone', label: 'Phone', section: 'contact', type: 'text', required: true },
+            { key: 'universityEmail', label: 'University Email', section: 'contact', type: 'text', required: true },
+            { key: 'personalEmail', label: 'Personal Email', section: 'contact', type: 'text' },
+            { key: 'address', label: 'Address', section: 'contact', type: 'text', required: true, full: true },
 
-                <div id="profileBody" style="display:none;">
-                    <div class="tabs">
-                        <button class="tab-btn active" data-tab="personal">Personal</button>
-                        <button class="tab-btn" data-tab="demographics" th:if="${profileMode != 'ADMIN'}">Demographics</button>
-                        <button class="tab-btn" data-tab="academic">Academic</button>
-                        <button class="tab-btn" data-tab="identity">Identity</button>
-                        <button class="tab-btn" data-tab="contact">Contact</button>
-                        <button class="tab-btn" data-tab="guardian">Guardian</button>
-                        <button class="tab-btn" data-tab="security" th:if="${profileMode != 'ADMIN'}">Security</button>
-                        <button class="tab-btn" data-tab="documents">Documents</button>
-                        <button class="tab-btn" data-tab="analytics">Analytics</button>
-                        <button class="tab-btn" data-tab="metadata">Metadata</button>
-                    </div>
+            { key: 'guardianName', label: 'Guardian Name', section: 'guardian', type: 'text', required: true },
+            { key: 'guardianPhone', label: 'Guardian Phone', section: 'guardian', type: 'text', required: true }
+        ];
 
-                    <section class="tab-pane active" data-pane="personal">
-                        <div class="field-grid" id="personalGrid"></div>
-                    </section>
-                    <section class="tab-pane" data-pane="demographics" th:if="${profileMode != 'ADMIN'}">
-                        <div class="field-grid" style="grid-template-columns: 1fr;">
-                            <div class="field-card full consent-panel">
-                                <h3 class="consent-title">Demographic Self Declaration</h3>
-                                <p class="consent-note">These details are saved only when you explicitly provide consent.</p>
-                                <div class="field-grid" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
-                                    <div class="field-card">
-                                        <label class="field-label" for="demoGender">Gender</label>
-                                        <select id="demoGender" class="field-input editable">
-                                            <option value="">Select</option>
-                                            <option value="Male">Male</option>
-                                            <option value="Female">Female</option>
-                                            <option value="Non-binary">Non-binary</option>
-                                            <option value="Prefer not to say">Prefer not to say</option>
-                                            <option value="Other">Other</option>
-                                        </select>
-                                    </div>
-                                    <div class="field-card">
-                                        <label class="field-label" for="demoReligion">Religion</label>
-                                        <select id="demoReligion" class="field-input editable">
-                                            <option value="">Select</option>
-                                            <option value="Hindu">Hindu</option>
-                                            <option value="Muslim">Muslim</option>
-                                            <option value="Christian">Christian</option>
-                                            <option value="Sikh">Sikh</option>
-                                            <option value="Buddhist">Buddhist</option>
-                                            <option value="Jain">Jain</option>
-                                            <option value="Other">Other</option>
-                                        </select>
-                                    </div>
-                                    <div class="field-card">
-                                        <label class="field-label" for="demoCategory">Category</label>
-                                        <select id="demoCategory" class="field-input editable">
-                                            <option value="">Select</option>
-                                            <option value="General">General</option>
-                                            <option value="OBC">OBC</option>
-                                            <option value="SC">SC</option>
-                                            <option value="ST">ST</option>
-                                            <option value="EWS">EWS</option>
-                                            <option value="Other">Other</option>
-                                        </select>
-                                    </div>
-                                    <div class="field-card">
-                                        <label class="field-label" for="demoSpecificCaste">Specific Caste (Optional)</label>
-                                        <input id="demoSpecificCaste" class="field-input editable" type="text" placeholder="Optional" />
-                                    </div>
-                                </div>
-                                <label class="consent-check" for="demoConsentGiven">
-                                    <input id="demoConsentGiven" type="checkbox" />
-                                    <span>I consent to storing my self-declared demographic data for profile and academic administration purposes.</span>
-                                </label>
-                                <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
-                                    <button class="btn btn-primary" type="button" id="submitDemographicsBtn">Submit Demographics</button>
-                                    <span id="demographicsStatus" class="field-value">No consent submission yet.</span>
-                                </div>
-                                <div class="consent-meta" id="demographicsMeta"></div>
-                            </div>
-                        </div>
-                    </section>
-                    <section class="tab-pane" data-pane="academic">
-                        <div class="field-grid" id="academicGrid"></div>
-                    </section>
-                    <section class="tab-pane" data-pane="identity">
-                        <div class="field-grid" id="identityGrid"></div>
-                    </section>
-                    <section class="tab-pane" data-pane="contact">
-                        <div class="field-grid" id="contactGrid"></div>
-                    </section>
-                    <section class="tab-pane" data-pane="guardian">
-                        <div class="field-grid" id="guardianGrid"></div>
-                    </section>
-                    <section class="tab-pane" data-pane="security" th:if="${profileMode != 'ADMIN'}">
-                        <div class="field-grid" style="grid-template-columns: 1fr;">
-                            <div class="field-card full">
-                                <label class="field-label" for="currentPassword">Current Password</label>
-                                <input class="field-input editable" id="currentPassword" type="password" placeholder="Enter current password" />
-                            </div>
-                            <div class="field-card full">
-                                <label class="field-label" for="newPassword">New Password</label>
-                                <input class="field-input editable" id="newPassword" type="password" placeholder="Enter new password" />
-                            </div>
-                            <div class="field-card full">
-                                <label class="field-label" for="confirmPassword">Confirm New Password</label>
-                                <input class="field-input editable" id="confirmPassword" type="password" placeholder="Confirm new password" />
-                            </div>
-                            <div class="field-card full" style="display:flex; gap:0.75rem; align-items:center;">
-                                <button class="btn btn-primary" type="button" id="changePasswordBtn">Change Password</button>
-                                <span id="changePasswordStatus" class="field-value">Use your current password to update credentials.</span>
-                            </div>
-                        </div>
-                    </section>
-                    <section class="tab-pane" data-pane="documents">
-                        <table class="documents-table" id="documentsTable">
-                            <thead><tr><th>Type</th><th>File</th><th>Uploaded At</th></tr></thead>
-                            <tbody></tbody>
-                        </table>
-                    </section>
-                    <section class="tab-pane" data-pane="analytics">
-                        <div class="field-grid" id="analyticsGrid"></div>
-                    </section>
-                    <section class="tab-pane" data-pane="metadata">
-                        <div class="field-grid" id="metadataGrid"></div>
-                    </section>
-                </div>
-            </article>
-        </section>
-    </div>
-</main>
-
-<div th:replace="~{fragments/sidebar :: floating-tools}"></div>
-
-<div class="toast" id="saveToast">Changes saved successfully.</div>
-
-<script th:inline="javascript">
-    const PROFILE_MODE = /*[[${profileMode}]]*/ 'STUDENT';
-    const TARGET_STUDENT_ID = /*[[${targetStudentId}]]*/ '';
-    const CAN_ADMIN_EDIT = PROFILE_MODE === 'ADMIN';
-    const PROFILE_QUERY = new URLSearchParams(window.location.search);
-    const FORCE_PASSWORD_CHANGE = PROFILE_QUERY.get('forcePasswordChange') === '1';
-
-    let currentProfile = null;
-    let originalProfileSnapshot = null;
-    let editEnabled = CAN_ADMIN_EDIT && (PROFILE_QUERY.get('edit') === '1' || PROFILE_QUERY.get('mode') === 'edit');
-    let autoSaveTimer = null;
-    const profileCharts = {};
-
-    const PROFILE_SCHEMA = [
-        { key: 'fullName', label: 'Full Name', section: 'personal', type: 'text', required: true },
-        { key: 'dob', label: 'Date of Birth', section: 'personal', type: 'date', required: true },
-        { key: 'gender', label: 'Gender', section: 'personal', type: 'select', required: true,
-            options: ['Male', 'Female', 'Non-binary', 'Prefer not to say', 'Other'] },
-        { key: 'religion', label: 'Religion', section: 'personal', type: 'select', required: true,
-            options: ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Other'] },
-        { key: 'bloodGroup', label: 'Blood Group', section: 'personal', type: 'select', required: true,
-            options: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] },
-
-        { key: 'college', label: 'College', section: 'academic', type: 'text', required: true },
-        { key: 'course', label: 'Course', section: 'academic', type: 'select', required: true,
-            options: ['B.Tech', 'BBA', 'BCA', 'MBA', 'M.Tech', 'MCA', 'BA', 'B.Com'] },
-        { key: 'department', label: 'Department', section: 'academic', type: 'select', required: true,
-            options: ['Computer Science', 'IT', 'Mechanical', 'Civil', 'ECE', 'Management'] },
-        { key: 'semester', label: 'Semester', section: 'academic', type: 'select', required: true },
-        { key: 'section', label: 'Section', section: 'academic', type: 'select', required: true,
-            options: ['A', 'B', 'C', 'D'] },
-        { key: 'house', label: 'House', section: 'academic', type: 'text' },
-        { key: 'foundationClassroom', label: 'Foundation Classroom', section: 'academic', type: 'text' },
-        { key: 'teamNumber', label: 'Team Number', section: 'academic', type: 'number' },
-        { key: 'memberNumber', label: 'Member Number', section: 'academic', type: 'number' },
-        { key: 'admissionYear', label: 'Admission Year', section: 'academic', type: 'select', required: true },
-        { key: 'passingYear', label: 'Passing Year', section: 'academic', type: 'select', required: true },
-
-        { key: 'enrollmentNumber', label: 'Enrollment Number', section: 'identity', type: 'text', readonly: true },
-        { key: 'studentId', label: 'Student ID', section: 'identity', type: 'text', readonly: true },
-        { key: 'idCardNumber', label: 'ID Card Number', section: 'identity', type: 'text', required: true },
-        { key: 'validUpto', label: 'Valid Upto', section: 'identity', type: 'date', required: true },
-        { key: 'profileImage', label: 'Profile Image URL', section: 'identity', type: 'text' },
-
-        { key: 'phone', label: 'Phone', section: 'contact', type: 'text', required: true },
-    { key: 'universityEmail', label: 'University Email', section: 'contact', type: 'text', required: true },
-    { key: 'personalEmail', label: 'Personal Email', section: 'contact', type: 'text' },
-        { key: 'address', label: 'Address', section: 'contact', type: 'text', required: true, full: true },
-
-        { key: 'guardianName', label: 'Guardian Name', section: 'guardian', type: 'text', required: true },
-        { key: 'guardianPhone', label: 'Guardian Phone', section: 'guardian', type: 'text', required: true }
-    ];
-
-    const COURSE_DEPARTMENT_MAP = {
-        'B.Tech': ['Computer Science', 'IT', 'Mechanical', 'Civil', 'ECE'],
-        'M.Tech': ['Computer Science', 'IT', 'Mechanical', 'Civil', 'ECE'],
-        'BBA': ['Management'],
-        'MBA': ['Management'],
-        'BCA': ['Computer Science', 'IT'],
-        'MCA': ['Computer Science', 'IT'],
-        'BA': ['Management'],
-        'B.Com': ['Management']
-    };
-
-    const COURSE_DURATION_YEARS = {
-        'B.Tech': 4,
-        'M.Tech': 2,
-        'BBA': 3,
-        'MBA': 2,
-        'BCA': 3,
-        'MCA': 2,
-        'BA': 3,
-        'B.Com': 3
-    };
-
-    function buildSectionsFromSchema() {
-        const base = {
-            personal: [],
-            academic: [],
-            identity: [],
-            contact: [],
-            guardian: []
+        const COURSE_DEPARTMENT_MAP = {
+            'B.Tech': ['Computer Science', 'IT', 'Mechanical', 'Civil', 'ECE'],
+            'M.Tech': ['Computer Science', 'IT', 'Mechanical', 'Civil', 'ECE'],
+            'BBA': ['Management'],
+            'MBA': ['Management'],
+            'BCA': ['Computer Science', 'IT'],
+            'MCA': ['Computer Science', 'IT'],
+            'BA': ['Management'],
+            'B.Com': ['Management']
         };
-        PROFILE_SCHEMA.forEach((field) => {
-            if (base[field.section]) {
-                base[field.section].push(field);
+
+        const COURSE_DURATION_YEARS = {
+            'B.Tech': 4,
+            'M.Tech': 2,
+            'BBA': 3,
+            'MBA': 2,
+            'BCA': 3,
+            'MCA': 2,
+            'BA': 3,
+            'B.Com': 3
+        };
+
+        function buildSectionsFromSchema() {
+            const base = {
+                personal: [],
+                academic: [],
+                identity: [],
+                contact: [],
+                guardian: []
+            };
+            PROFILE_SCHEMA.forEach((field) => {
+                if (base[field.section]) {
+                    base[field.section].push(field);
+                }
+            });
+            return base;
+        }
+
+        const sections = buildSectionsFromSchema();
+
+        const adminLockedFields = new Set(['enrollmentNumber', 'studentId']);
+
+        function dynamicAdmissionYears() {
+            const now = new Date().getFullYear();
+            const years = [];
+            for (let y = now; y >= now - 14; y--) {
+                years.push(String(y));
             }
-        });
-        return base;
-    }
-
-    const sections = buildSectionsFromSchema();
-
-    const adminLockedFields = new Set(['enrollmentNumber', 'studentId']);
-
-    function dynamicAdmissionYears() {
-        const now = new Date().getFullYear();
-        const years = [];
-        for (let y = now; y >= now - 14; y--) {
-            years.push(String(y));
+            return years;
         }
-        return years;
-    }
 
-    function maxSemesterForCourse(courseName) {
-        const years = COURSE_DURATION_YEARS[courseName] || 4;
-        return years * 2;
-    }
+        function maxSemesterForCourse(courseName) {
+            const years = COURSE_DURATION_YEARS[courseName] || 4;
+            return years * 2;
+        }
 
-    function dynamicSemesters(courseName) {
-        const maxSem = maxSemesterForCourse(courseName);
-        const list = [];
-        for (let i = 1; i <= maxSem; i++) {
-            list.push(`Semester ${i}`);
+        function dynamicSemesters(courseName) {
+            const maxSem = maxSemesterForCourse(courseName);
+            const list = [];
+            for (let i = 1; i <= maxSem; i++) {
+                list.push(`Semester ${i}`);
+            }
+            return list;
         }
-        return list;
-    }
 
-    function getFieldOptions(fieldKey) {
-        const profileCourse = normalize(currentProfile && currentProfile.course);
-        if (fieldKey === 'admissionYear') {
-            return dynamicAdmissionYears();
+        function getFieldOptions(fieldKey) {
+            const profileCourse = normalize(currentProfile && currentProfile.course);
+            if (fieldKey === 'admissionYear') {
+                return dynamicAdmissionYears();
+            }
+            if (fieldKey === 'passingYear') {
+                return dynamicAdmissionYears().map((year) => String(Number(year) + 6));
+            }
+            if (fieldKey === 'semester') {
+                return dynamicSemesters(profileCourse || 'B.Tech');
+            }
+            if (fieldKey === 'department') {
+                return COURSE_DEPARTMENT_MAP[profileCourse] || ['Computer Science', 'IT', 'Mechanical', 'Civil', 'ECE', 'Management'];
+            }
+            const schemaField = PROFILE_SCHEMA.find((f) => f.key === fieldKey);
+            return schemaField && schemaField.options ? schemaField.options : [];
         }
-        if (fieldKey === 'passingYear') {
-            return dynamicAdmissionYears().map((year) => String(Number(year) + 6));
-        }
-        if (fieldKey === 'semester') {
-            return dynamicSemesters(profileCourse || 'B.Tech');
-        }
-        if (fieldKey === 'department') {
-            return COURSE_DEPARTMENT_MAP[profileCourse] || ['Computer Science', 'IT', 'Mechanical', 'Civil', 'ECE', 'Management'];
-        }
-        const schemaField = PROFILE_SCHEMA.find((f) => f.key === fieldKey);
-        return schemaField && schemaField.options ? schemaField.options : [];
-    }
 
-    function normalize(value) {
-        if (value === null || value === undefined) {
-            return '';
+        function normalize(value) {
+            if (value === null || value === undefined) {
+                return '';
+            }
+            return String(value);
         }
-        return String(value);
-    }
 
-    function apiBase() {
-        if (PROFILE_MODE === 'ADMIN' && TARGET_STUDENT_ID) {
-            return `/api/admin/student/${encodeURIComponent(TARGET_STUDENT_ID)}/profile`;
+        function apiBase() {
+            if (PROFILE_MODE === 'ADMIN' && TARGET_STUDENT_ID) {
+                return `/api/admin/student/${encodeURIComponent(TARGET_STUDENT_ID)}/profile`;
+            }
+            return '/api/student/profile';
         }
-        return '/api/student/profile';
-    }
 
-    function showToast(message) {
-        const toast = document.getElementById('saveToast');
-        toast.textContent = message;
-        toast.classList.add('show');
-        window.setTimeout(() => toast.classList.remove('show'), 2200);
-    }
-
-    function themedColor(token, fallback) {
-        const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
-        return value || fallback;
-    }
-
-    function formatDate(value) {
-        if (!value) {
-            return '-';
+        function showToast(message) {
+            const toast = document.getElementById('saveToast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            window.setTimeout(() => toast.classList.remove('show'), 2200);
         }
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) {
-            return value;
-        }
-        return date.toLocaleDateString();
-    }
 
-    function fieldCanEdit(field) {
-        if (!editEnabled || !CAN_ADMIN_EDIT) {
-            return false;
+        function themedColor(token, fallback) {
+            const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+            return value || fallback;
         }
-        return !adminLockedFields.has(field);
-    }
 
-    function fieldIsRequired(fieldKey) {
-        const schemaField = PROFILE_SCHEMA.find((f) => f.key === fieldKey);
-        return Boolean(schemaField && schemaField.required);
-    }
-
-    function getValidationMessage(fieldKey, value) {
-        if (!fieldIsRequired(fieldKey)) {
-            return '';
-        }
-        if (value === null || value === undefined || String(value).trim() === '') {
-            return 'This field is required.';
-        }
-        if (fieldKey === 'dob' || fieldKey === 'validUpto') {
+        function formatDate(value) {
+            if (!value) {
+                return '-';
+            }
             const date = new Date(value);
             if (Number.isNaN(date.getTime())) {
-                return 'Use a valid date format.';
+                return value;
             }
+            return date.toLocaleDateString();
         }
-        return '';
-    }
 
-    function computeCompletionFromSchema() {
-        const required = PROFILE_SCHEMA.filter((f) => f.required);
-        if (!required.length || !currentProfile) {
-            return 0;
+        function fieldCanEdit(field) {
+            if (!editEnabled || !CAN_ADMIN_EDIT) {
+                return false;
+            }
+            return !adminLockedFields.has(field);
         }
-        const filled = required.filter((f) => {
-            const value = currentProfile[f.key];
-            return value !== null && value !== undefined && String(value).trim() !== '';
-        }).length;
-        return Math.round((filled * 100) / required.length);
-    }
 
-    function profileStrengthLabel(percentage) {
-        if (percentage < 45) {
-            return 'Weak';
+        function fieldIsRequired(fieldKey) {
+            const schemaField = PROFILE_SCHEMA.find((f) => f.key === fieldKey);
+            return Boolean(schemaField && schemaField.required);
         }
-        if (percentage < 80) {
-            return 'Moderate';
-        }
-        return 'Strong';
-    }
 
-    function buildMissingFieldSuggestions() {
-        if (!currentProfile) {
-            return [];
+        function getValidationMessage(fieldKey, value) {
+            if (!fieldIsRequired(fieldKey)) {
+                return '';
+            }
+            if (value === null || value === undefined || String(value).trim() === '') {
+                return 'This field is required.';
+            }
+            if (fieldKey === 'dob' || fieldKey === 'validUpto') {
+                const date = new Date(value);
+                if (Number.isNaN(date.getTime())) {
+                    return 'Use a valid date format.';
+                }
+            }
+            return '';
         }
-        return PROFILE_SCHEMA
-            .filter((f) => f.required)
-            .filter((f) => {
+
+        function computeCompletionFromSchema() {
+            const required = PROFILE_SCHEMA.filter((f) => f.required);
+            if (!required.length || !currentProfile) {
+                return 0;
+            }
+            const filled = required.filter((f) => {
                 const value = currentProfile[f.key];
-                return value === null || value === undefined || String(value).trim() === '';
-            })
-            .map((f) => f.label);
-    }
-
-    function updateSmartMetrics() {
-        const completion = computeCompletionFromSchema();
-        currentProfile.completionPercentage = completion;
-        document.getElementById('completionText').textContent = `${completion}%`;
-        document.getElementById('completionFill').style.width = `${completion}%`;
-
-        const strength = profileStrengthLabel(completion);
-        const strengthPill = document.getElementById('strengthPill');
-        strengthPill.textContent = `Strength: ${strength}`;
-
-        const missing = buildMissingFieldSuggestions();
-        const suggestionBox = document.getElementById('suggestionBox');
-        if (!missing.length) {
-            suggestionBox.textContent = 'All key fields are complete. Great profile quality.';
-        } else {
-            suggestionBox.textContent = `Suggested next fields: ${missing.slice(0, 4).join(', ')}${missing.length > 4 ? '...' : ''}`;
-        }
-    }
-
-    function applyDependentFieldRules(changedField, changedValue) {
-        if (!currentProfile) {
-            return;
-        }
-        if (changedField === 'course') {
-            const allowedDepartments = COURSE_DEPARTMENT_MAP[changedValue] || [];
-            if (allowedDepartments.length && !allowedDepartments.includes(currentProfile.department)) {
-                currentProfile.department = allowedDepartments[0];
-            }
-            const maxSem = maxSemesterForCourse(changedValue);
-            const currentSemNumber = Number(String(currentProfile.semester || '').replace(/[^0-9]/g, ''));
-            if (!currentSemNumber || currentSemNumber > maxSem) {
-                currentProfile.semester = `Semester 1`;
-            }
+                return value !== null && value !== undefined && String(value).trim() !== '';
+            }).length;
+            return Math.round((filled * 100) / required.length);
         }
 
-        if (changedField === 'admissionYear' || changedField === 'course') {
-            const admission = Number(currentProfile.admissionYear);
-            const duration = COURSE_DURATION_YEARS[currentProfile.course] || 4;
-            if (!Number.isNaN(admission) && admission > 0) {
-                currentProfile.passingYear = admission + duration;
+        function profileStrengthLabel(percentage) {
+            if (percentage < 45) {
+                return 'Weak';
             }
+            if (percentage < 80) {
+                return 'Moderate';
+            }
+            return 'Strong';
         }
-    }
 
-    function debounceAutoSave() {
-        if (!editEnabled) {
-            return;
+        function buildMissingFieldSuggestions() {
+            if (!currentProfile) {
+                return [];
+            }
+            return PROFILE_SCHEMA
+                .filter((f) => f.required)
+                .filter((f) => {
+                    const value = currentProfile[f.key];
+                    return value === null || value === undefined || String(value).trim() === '';
+                })
+                .map((f) => f.label);
         }
-        if (autoSaveTimer) {
-            window.clearTimeout(autoSaveTimer);
-        }
-        autoSaveTimer = window.setTimeout(async () => {
-            const hasErrors = validateCurrentForm();
-            if (hasErrors) {
-                return;
-            }
-            try {
-                await saveProfile(true);
-            } catch (error) {
-                console.debug('Auto-save skipped:', error);
-            }
-        }, 1200);
-    }
 
-    function validateCurrentForm() {
-        let hasErrors = false;
-        document.querySelectorAll('.field-input').forEach((input) => {
-            const key = input.dataset.field;
-            const errorEl = document.querySelector(`.field-error[data-error-for="${key}"]`);
-            if (!errorEl) {
-                return;
-            }
+        function updateSmartMetrics() {
+            const completion = computeCompletionFromSchema();
+            currentProfile.completionPercentage = completion;
+            document.getElementById('completionText').textContent = `${completion}%`;
+            document.getElementById('completionFill').style.width = `${completion}%`;
 
-            const editable = !input.disabled;
-            if (!editable || !isFieldDirty(key, input.value)) {
-                errorEl.textContent = '';
-                errorEl.classList.remove('show');
-                return;
-            }
+            const strength = profileStrengthLabel(completion);
+            const strengthPill = document.getElementById('strengthPill');
+            strengthPill.textContent = `Strength: ${strength}`;
 
-            const message = getValidationMessage(key, input.value);
-            if (message) {
-                hasErrors = true;
-                errorEl.textContent = message;
-                errorEl.classList.add('show');
+            const missing = buildMissingFieldSuggestions();
+            const suggestionBox = document.getElementById('suggestionBox');
+            if (!missing.length) {
+                suggestionBox.textContent = 'All key fields are complete. Great profile quality.';
             } else {
-                errorEl.textContent = '';
-                errorEl.classList.remove('show');
+                suggestionBox.textContent = `Suggested next fields: ${missing.slice(0, 4).join(', ')}${missing.length > 4 ? '...' : ''}`;
             }
-        });
-        return hasErrors;
-    }
-
-    function isFieldDirty(fieldKey, currentValue) {
-        if (!originalProfileSnapshot) {
-            return true;
         }
 
-        const originalValue = originalProfileSnapshot[fieldKey];
-        return normalize(currentValue) !== normalize(originalValue);
-    }
-
-    function buildFieldCard(field, value) {
-        const canEdit = fieldCanEdit(field.key) && !field.readonly;
-        const type = field.type || 'text';
-        const inputValue = type === 'date' && value ? normalize(value).substring(0, 10) : normalize(value);
-        if (type === 'select') {
-            const options = getFieldOptions(field.key);
-            const normalizedValue = normalize(inputValue);
-            const safeOptions = options.slice();
-            if (normalizedValue && !safeOptions.includes(normalizedValue)) {
-                // Keep legacy values selectable to prevent false validation failures on save.
-                safeOptions.unshift(normalizedValue);
+        function applyDependentFieldRules(changedField, changedValue) {
+            if (!currentProfile) {
+                return;
+            }
+            if (changedField === 'course') {
+                const allowedDepartments = COURSE_DEPARTMENT_MAP[changedValue] || [];
+                if (allowedDepartments.length && !allowedDepartments.includes(currentProfile.department)) {
+                    currentProfile.department = allowedDepartments[0];
+                }
+                const maxSem = maxSemesterForCourse(changedValue);
+                const currentSemNumber = Number(String(currentProfile.semester || '').replace(/[^0-9]/g, ''));
+                if (!currentSemNumber || currentSemNumber > maxSem) {
+                    currentProfile.semester = `Semester 1`;
+                }
             }
 
-            const renderedOptions = safeOptions.map((optionValue) => {
-                const selected = normalizedValue === optionValue ? 'selected' : '';
-                return `<option value="${optionValue}" ${selected}>${optionValue}</option>`;
-            }).join('');
-            return `
+            if (changedField === 'admissionYear' || changedField === 'course') {
+                const admission = Number(currentProfile.admissionYear);
+                const duration = COURSE_DURATION_YEARS[currentProfile.course] || 4;
+                if (!Number.isNaN(admission) && admission > 0) {
+                    currentProfile.passingYear = admission + duration;
+                }
+            }
+        }
+
+        function debounceAutoSave() {
+            if (!editEnabled) {
+                return;
+            }
+            if (autoSaveTimer) {
+                window.clearTimeout(autoSaveTimer);
+            }
+            autoSaveTimer = window.setTimeout(async () => {
+                const hasErrors = validateCurrentForm();
+                if (hasErrors) {
+                    return;
+                }
+                try {
+                    await saveProfile(true);
+                } catch (error) {
+                    console.debug('Auto-save skipped:', error);
+                }
+            }, 1200);
+        }
+
+        function validateCurrentForm() {
+            let hasErrors = false;
+            document.querySelectorAll('.field-input').forEach((input) => {
+                const key = input.dataset.field;
+                const errorEl = document.querySelector(`.field-error[data-error-for="${key}"]`);
+                if (!errorEl) {
+                    return;
+                }
+
+                const editable = !input.disabled;
+                if (!editable || !isFieldDirty(key, input.value)) {
+                    errorEl.textContent = '';
+                    errorEl.classList.remove('show');
+                    return;
+                }
+
+                const message = getValidationMessage(key, input.value);
+                if (message) {
+                    hasErrors = true;
+                    errorEl.textContent = message;
+                    errorEl.classList.add('show');
+                } else {
+                    errorEl.textContent = '';
+                    errorEl.classList.remove('show');
+                }
+            });
+            return hasErrors;
+        }
+
+        function isFieldDirty(fieldKey, currentValue) {
+            if (!originalProfileSnapshot) {
+                return true;
+            }
+
+            const originalValue = originalProfileSnapshot[fieldKey];
+            return normalize(currentValue) !== normalize(originalValue);
+        }
+
+        function buildFieldCard(field, value) {
+            const canEdit = fieldCanEdit(field.key) && !field.readonly;
+            const type = field.type || 'text';
+            const inputValue = type === 'date' && value ? normalize(value).substring(0, 10) : normalize(value);
+            if (type === 'select') {
+                const options = getFieldOptions(field.key);
+                const normalizedValue = normalize(inputValue);
+                const safeOptions = options.slice();
+                if (normalizedValue && !safeOptions.includes(normalizedValue)) {
+                    // Keep legacy values selectable to prevent false validation failures on save.
+                    safeOptions.unshift(normalizedValue);
+                }
+
+                const renderedOptions = safeOptions.map((optionValue) => {
+                    const selected = normalizedValue === optionValue ? 'selected' : '';
+                    return `<option value="${optionValue}" ${selected}>${optionValue}</option>`;
+                }).join('');
+                return `
                 <div class="field-card ${field.full ? 'full' : ''}">
                     <label class="field-label">${field.label}</label>
                     <select class="field-input ${canEdit ? 'editable' : ''}" data-field="${field.key}" ${canEdit ? '' : 'disabled'}>
@@ -1456,816 +1506,776 @@
                     <small class="field-error" data-error-for="${field.key}"></small>
                 </div>
             `;
-        }
+            }
 
-        return `
+            return `
             <div class="field-card ${field.full ? 'full' : ''}">
                 <label class="field-label">${field.label}</label>
                 <input class="field-input ${canEdit ? 'editable' : ''}" data-field="${field.key}" type="${type}" value="${inputValue}" ${canEdit ? '' : 'disabled'} />
                 <small class="field-error" data-error-for="${field.key}"></small>
             </div>
         `;
-    }
-
-    function renderSection(containerId, sectionFields) {
-        const container = document.getElementById(containerId);
-        container.innerHTML = sectionFields.map((field) => buildFieldCard(field, currentProfile[field.key])).join('');
-    }
-
-    function renderDocuments() {
-        const tbody = document.querySelector('#documentsTable tbody');
-        const docs = currentProfile.documents || [];
-        if (!docs.length) {
-            tbody.innerHTML = '<tr><td colspan="3">No documents uploaded yet.</td></tr>';
-            return;
         }
 
-        tbody.innerHTML = docs.map((doc) => `
+        function renderSection(containerId, sectionFields) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = sectionFields.map((field) => buildFieldCard(field, currentProfile[field.key])).join('');
+        }
+
+        function renderDocuments() {
+            const tbody = document.querySelector('#documentsTable tbody');
+            const docs = currentProfile.documents || [];
+            if (!docs.length) {
+                tbody.innerHTML = '<tr><td colspan="3">No documents uploaded yet.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = docs.map((doc) => `
             <tr>
                 <td>${normalize(doc.documentType) || '-'}</td>
                 <td><a href="${normalize(doc.fileUrl)}" target="_blank" rel="noopener">Open</a></td>
                 <td>${formatDate(doc.uploadedAt)}</td>
             </tr>
         `).join('');
-    }
+        }
 
-    function renderAnalytics() {
-        const avgGrade = (currentProfile.academicRecords || []).reduce((sum, item) => sum + (item.grade || 0), 0) /
-            Math.max((currentProfile.academicRecords || []).length, 1);
-        const avgAttendance = (currentProfile.academicRecords || []).reduce((sum, item) => sum + (item.attendance || 0), 0) /
-            Math.max((currentProfile.academicRecords || []).length, 1);
+        function renderAnalytics() {
+            const avgGrade = (currentProfile.academicRecords || []).reduce((sum, item) => sum + (item.grade || 0), 0) /
+                Math.max((currentProfile.academicRecords || []).length, 1);
+            const avgAttendance = (currentProfile.academicRecords || []).reduce((sum, item) => sum + (item.attendance || 0), 0) /
+                Math.max((currentProfile.academicRecords || []).length, 1);
 
-        document.getElementById('analyticsGrid').innerHTML = [
-            { label: 'Profile Completion', value: `${currentProfile.completionPercentage || 0}%` },
-            { label: 'Subjects Recorded', value: String((currentProfile.academicRecords || []).length) },
-            { label: 'Average Grade', value: avgGrade.toFixed(2) },
-            { label: 'Average Attendance', value: `${avgAttendance.toFixed(1)}%` },
-            { label: 'QR Linked URL', value: currentProfile.profileQrUrl || '-' , full: true }
-        ].map((item) => `
+            document.getElementById('analyticsGrid').innerHTML = [
+                { label: 'Profile Completion', value: `${currentProfile.completionPercentage || 0}%` },
+                { label: 'Subjects Recorded', value: String((currentProfile.academicRecords || []).length) },
+                { label: 'Average Grade', value: avgGrade.toFixed(2) },
+                { label: 'Average Attendance', value: `${avgAttendance.toFixed(1)}%` },
+                { label: 'QR Linked URL', value: currentProfile.profileQrUrl || '-', full: true }
+            ].map((item) => `
             <div class="field-card ${item.full ? 'full' : ''}">
                 <span class="field-label">${item.label}</span>
                 <div class="field-value">${item.value}</div>
             </div>
         `).join('');
-    }
+        }
 
-    function renderMetadata() {
-        document.getElementById('metadataGrid').innerHTML = [
-            { label: 'Created At', value: formatDate(currentProfile.createdAt) },
-            { label: 'Updated At', value: formatDate(currentProfile.updatedAt) },
-            { label: 'Updated By', value: normalize(currentProfile.updatedBy) || 'System' },
-            { label: 'Viewer Role', value: normalize(currentProfile.viewerRole) || PROFILE_MODE },
-            { label: 'Activity Log', value: `Last updated by ${normalize(currentProfile.updatedBy) || 'System'} at ${formatDate(currentProfile.updatedAt)}`, full: true }
-        ].map((item) => `
+        function renderMetadata() {
+            document.getElementById('metadataGrid').innerHTML = [
+                { label: 'Created At', value: formatDate(currentProfile.createdAt) },
+                { label: 'Updated At', value: formatDate(currentProfile.updatedAt) },
+                { label: 'Updated By', value: normalize(currentProfile.updatedBy) || 'System' },
+                { label: 'Viewer Role', value: normalize(currentProfile.viewerRole) || PROFILE_MODE },
+                { label: 'Activity Log', value: `Last updated by ${normalize(currentProfile.updatedBy) || 'System'} at ${formatDate(currentProfile.updatedAt)}`, full: true }
+            ].map((item) => `
             <div class="field-card ${item.full ? 'full' : ''}">
                 <span class="field-label">${item.label}</span>
                 <div class="field-value">${item.value}</div>
             </div>
         `).join('');
-    }
-
-    function renderIdCard() {
-        document.getElementById('idName').textContent = normalize(currentProfile.fullName) || 'Student';
-        document.getElementById('idEnrollment').textContent = `Enrollment No: ${normalize(currentProfile.enrollmentNumber) || '-'}`;
-        document.getElementById('idCourse').textContent = `Course: ${normalize(currentProfile.course) || '-'}`;
-        document.getElementById('idValidity').textContent = `Valid Upto: ${formatDate(currentProfile.validUpto)}`;
-        document.getElementById('idRoleBadge').textContent = normalize(currentProfile.viewerRole) || PROFILE_MODE;
-        document.getElementById('idCardCode').textContent = `Card: ${normalize(currentProfile.idCardNumber) || '-'}`;
-
-        const avatar = document.getElementById('idAvatar');
-        const fallback = document.getElementById('idFallback');
-        if (currentProfile.profileImage) {
-            avatar.src = currentProfile.profileImage;
-            avatar.style.display = 'block';
-            fallback.style.display = 'none';
-        } else {
-            avatar.style.display = 'none';
-            fallback.style.display = 'flex';
-            fallback.textContent = (normalize(currentProfile.fullName) || 'ID')
-                .split(' ')
-                .map((part) => part.charAt(0))
-                .slice(0, 2)
-                .join('')
-                .toUpperCase();
         }
 
-        const qrValue = `${window.location.origin}${currentProfile.profileQrUrl || '/student/profile'}`;
-        new QRious({ element: document.getElementById('idQrCanvas'), value: qrValue, size: 96, level: 'H' });
-    }
+        function renderIdCard() {
+            document.getElementById('idName').textContent = normalize(currentProfile.fullName) || 'Student';
+            document.getElementById('idEnrollment').textContent = `Enrollment No: ${normalize(currentProfile.enrollmentNumber) || '-'}`;
+            document.getElementById('idCourse').textContent = `Course: ${normalize(currentProfile.course) || '-'}`;
+            document.getElementById('idValidity').textContent = `Valid Upto: ${formatDate(currentProfile.validUpto)}`;
+            document.getElementById('idRoleBadge').textContent = normalize(currentProfile.viewerRole) || PROFILE_MODE;
+            document.getElementById('idCardCode').textContent = `Card: ${normalize(currentProfile.idCardNumber) || '-'}`;
 
-    function renderProfile() {
-        document.getElementById('skeletonLoader').style.display = 'none';
-        document.getElementById('profileBody').style.display = 'block';
-
-        renderIdCard();
-        renderSection('personalGrid', sections.personal);
-        renderSection('academicGrid', sections.academic);
-        renderSection('identityGrid', sections.identity);
-        renderSection('contactGrid', sections.contact);
-        renderSection('guardianGrid', sections.guardian);
-        renderDemographicConsentPane();
-        renderDocuments();
-        renderAnalytics();
-        renderMetadata();
-        updateSmartMetrics();
-        document.getElementById('activityLine').textContent =
-            `Last updated by ${normalize(currentProfile.updatedBy) || 'System'} on ${formatDate(currentProfile.updatedAt)}`;
-        document.getElementById('viewerRolePill').textContent = `Viewer: ${normalize(currentProfile.viewerRole) || PROFILE_MODE}`;
-
-        const editButton = document.getElementById('editModeBtn');
-        const cancelButton = document.getElementById('cancelBtn');
-        const avatarPlus = document.getElementById('avatarPlus');
-        editButton.style.display = CAN_ADMIN_EDIT ? 'inline-flex' : 'none';
-        editButton.textContent = editEnabled
-            ? (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: ON' : 'Contact Edit: ON')
-            : (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: OFF' : 'Contact Edit: OFF');
-        document.getElementById('saveBtn').style.display = CAN_ADMIN_EDIT && editEnabled ? 'inline-flex' : 'none';
-        cancelButton.style.display = CAN_ADMIN_EDIT && editEnabled ? 'inline-flex' : 'none';
-        avatarPlus.style.display = CAN_ADMIN_EDIT ? 'inline-flex' : 'none';
-
-        bindFieldEvents();
-    }
-
-    function setSelectIfPresent(elementId, value) {
-        const select = document.getElementById(elementId);
-        if (!select) {
-            return;
-        }
-        const normalizedValue = normalize(value);
-        const hasExactOption = Array.from(select.options).some((option) => option.value === normalizedValue);
-        if (normalizedValue && !hasExactOption) {
-            const extraOption = document.createElement('option');
-            extraOption.value = normalizedValue;
-            extraOption.textContent = normalizedValue;
-            select.appendChild(extraOption);
-        }
-        select.value = normalizedValue;
-    }
-
-    function renderDemographicConsentPane() {
-        const statusEl = document.getElementById('demographicsStatus');
-        const metaEl = document.getElementById('demographicsMeta');
-        const specificCasteInput = document.getElementById('demoSpecificCaste');
-        const consentCheck = document.getElementById('demoConsentGiven');
-        if (!statusEl || !metaEl || !specificCasteInput || !consentCheck || !currentProfile) {
-            return;
-        }
-
-        setSelectIfPresent('demoGender', currentProfile.gender);
-        setSelectIfPresent('demoReligion', currentProfile.religion);
-        setSelectIfPresent('demoCategory', currentProfile.casteCategory);
-        specificCasteInput.value = normalize(currentProfile.caste || '');
-        consentCheck.checked = false;
-
-        if (currentProfile.demographicConsentGiven) {
-            statusEl.textContent = 'Consent recorded.';
-            const consentDate = formatDate(currentProfile.demographicConsentAt);
-            const version = normalize(currentProfile.demographicConsentVersion) || '1.0';
-            const genderSource = normalize(currentProfile.genderSource) || 'N/A';
-            const religionSource = normalize(currentProfile.religionSource) || 'N/A';
-            const categorySource = normalize(currentProfile.casteSource) || 'N/A';
-            metaEl.textContent = `Last consent at ${consentDate} (v${version}) | Sources: gender=${genderSource}, religion=${religionSource}, category=${categorySource}`;
-        } else {
-            statusEl.textContent = 'No consent submission yet.';
-            metaEl.textContent = 'Data source is system default until you submit this form with consent.';
-        }
-    }
-
-    async function submitDemographicsConsent() {
-        const gender = normalize(document.getElementById('demoGender')?.value).trim();
-        const religion = normalize(document.getElementById('demoReligion')?.value).trim();
-        const category = normalize(document.getElementById('demoCategory')?.value).trim();
-        const specificCaste = normalize(document.getElementById('demoSpecificCaste')?.value).trim();
-        const consentGiven = Boolean(document.getElementById('demoConsentGiven')?.checked);
-        const statusEl = document.getElementById('demographicsStatus');
-
-        if (!gender || !religion || !category) {
-            statusEl.textContent = 'Gender, religion, and category are required.';
-            return;
-        }
-
-        if (!consentGiven) {
-            statusEl.textContent = 'Please confirm consent before submission.';
-            return;
-        }
-
-        const payload = {
-            consentGiven: true,
-            gender,
-            religion,
-            category,
-            specificCaste
-        };
-
-        const submitBtn = document.getElementById('submitDemographicsBtn');
-        submitBtn.disabled = true;
-        statusEl.textContent = 'Submitting...';
-
-        try {
-            currentProfile = await window.smsApi.put('/api/student/profile/demographics', payload);
-            originalProfileSnapshot = JSON.parse(JSON.stringify(currentProfile));
-            renderProfile();
-            showToast('Demographics submitted with consent');
-        } catch (error) {
-            statusEl.textContent = error.message || 'Unable to submit demographics.';
-        } finally {
-            submitBtn.disabled = false;
-        }
-    }
-
-    function destroyProfileChart(id) {
-        if (profileCharts[id]) {
-            profileCharts[id].destroy();
-            delete profileCharts[id];
-        }
-    }
-
-    function renderProfileMiniLine(canvasId, values, label, color) {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas || !window.Chart) {
-            return;
-        }
-
-        if (!values.length) {
-            destroyProfileChart(canvasId);
-            toggleProfileMiniEmpty(canvasId, true);
-            return;
-        }
-
-        toggleProfileMiniEmpty(canvasId, false);
-        destroyProfileChart(canvasId);
-        profileCharts[canvasId] = new Chart(canvas, {
-            type: 'line',
-            data: {
-                labels: values.map((_, idx) => idx + 1),
-                datasets: [{
-                    label,
-                    data: values,
-                    borderColor: color,
-                    backgroundColor: color + '22',
-                    tension: 0.35,
-                    fill: true,
-                    pointRadius: 0
-                }]
-            },
-            options: {
-                plugins: { legend: { display: false } },
-                responsive: true,
-                maintainAspectRatio: true,
-                scales: {
-                    x: { display: false },
-                    y: { display: false }
-                }
+            const avatar = document.getElementById('idAvatar');
+            const fallback = document.getElementById('idFallback');
+            if (currentProfile.profileImage) {
+                avatar.src = currentProfile.profileImage;
+                avatar.style.display = 'block';
+                fallback.style.display = 'none';
+            } else {
+                avatar.style.display = 'none';
+                fallback.style.display = 'flex';
+                fallback.textContent = (normalize(currentProfile.fullName) || 'ID')
+                    .split(' ')
+                    .map((part) => part.charAt(0))
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase();
             }
-        });
-    }
 
-    function renderProfileMiniBars(canvasId, values, color) {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas || !window.Chart) {
-            return;
+            const qrValue = `${window.location.origin}${currentProfile.profileQrUrl || '/student/profile'}`;
+            new QRious({ element: document.getElementById('idQrCanvas'), value: qrValue, size: 96, level: 'H' });
         }
 
-        if (!values.length) {
-            destroyProfileChart(canvasId);
-            toggleProfileMiniEmpty(canvasId, true);
-            return;
+        function renderProfile() {
+            document.getElementById('skeletonLoader').style.display = 'none';
+            document.getElementById('profileBody').style.display = 'block';
+
+            renderIdCard();
+            renderSection('personalGrid', sections.personal);
+            renderSection('academicGrid', sections.academic);
+            renderSection('identityGrid', sections.identity);
+            renderSection('contactGrid', sections.contact);
+            renderSection('guardianGrid', sections.guardian);
+            renderDemographicConsentPane();
+            renderDocuments();
+            renderAnalytics();
+            renderMetadata();
+            updateSmartMetrics();
+            document.getElementById('activityLine').textContent =
+                `Last updated by ${normalize(currentProfile.updatedBy) || 'System'} on ${formatDate(currentProfile.updatedAt)}`;
+            document.getElementById('viewerRolePill').textContent = `Viewer: ${normalize(currentProfile.viewerRole) || PROFILE_MODE}`;
+
+            const editButton = document.getElementById('editModeBtn');
+            const cancelButton = document.getElementById('cancelBtn');
+            const avatarPlus = document.getElementById('avatarPlus');
+            editButton.style.display = CAN_ADMIN_EDIT ? 'inline-flex' : 'none';
+            editButton.textContent = editEnabled
+                ? (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: ON' : 'Contact Edit: ON')
+                : (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: OFF' : 'Contact Edit: OFF');
+            document.getElementById('saveBtn').style.display = CAN_ADMIN_EDIT && editEnabled ? 'inline-flex' : 'none';
+            cancelButton.style.display = CAN_ADMIN_EDIT && editEnabled ? 'inline-flex' : 'none';
+            avatarPlus.style.display = CAN_ADMIN_EDIT ? 'inline-flex' : 'none';
+
+            bindFieldEvents();
         }
 
-        toggleProfileMiniEmpty(canvasId, false);
-        destroyProfileChart(canvasId);
-        profileCharts[canvasId] = new Chart(canvas, {
-            type: 'bar',
-            data: {
-                labels: values.map((_, idx) => idx + 1),
-                datasets: [{ data: values, backgroundColor: color }]
-            },
-            options: {
-                plugins: { legend: { display: false } },
-                responsive: true,
-                maintainAspectRatio: true,
-                scales: {
-                    x: { display: false },
-                    y: { display: false }
-                }
+        function setSelectIfPresent(elementId, value) {
+            const select = document.getElementById(elementId);
+            if (!select) {
+                return;
             }
-        });
-    }
-
-    function toggleProfileMiniEmpty(canvasId, show) {
-        const empty = document.getElementById(`${canvasId}Empty`);
-        const canvas = document.getElementById(canvasId);
-        if (!empty || !canvas) {
-            return;
-        }
-        empty.classList.toggle('show', show);
-        canvas.style.visibility = show ? 'hidden' : 'visible';
-    }
-
-    async function loadAiSummary() {
-        if (!currentProfile) {
-            return;
+            const normalizedValue = normalize(value);
+            const hasExactOption = Array.from(select.options).some((option) => option.value === normalizedValue);
+            if (normalizedValue && !hasExactOption) {
+                const extraOption = document.createElement('option');
+                extraOption.value = normalizedValue;
+                extraOption.textContent = normalizedValue;
+                select.appendChild(extraOption);
+            }
+            select.value = normalizedValue;
         }
 
-        const sid = normalize(currentProfile.studentId || currentProfile.enrollmentNumber || TARGET_STUDENT_ID);
-        if (!sid) {
-            return;
+        function renderDemographicConsentPane() {
+            const statusEl = document.getElementById('demographicsStatus');
+            const metaEl = document.getElementById('demographicsMeta');
+            const specificCasteInput = document.getElementById('demoSpecificCaste');
+            const consentCheck = document.getElementById('demoConsentGiven');
+            if (!statusEl || !metaEl || !specificCasteInput || !consentCheck || !currentProfile) {
+                return;
+            }
+
+            setSelectIfPresent('demoGender', currentProfile.gender);
+            setSelectIfPresent('demoReligion', currentProfile.religion);
+            setSelectIfPresent('demoCategory', currentProfile.casteCategory);
+            specificCasteInput.value = normalize(currentProfile.caste || '');
+            consentCheck.checked = false;
+
+            if (currentProfile.demographicConsentGiven) {
+                statusEl.textContent = 'Consent recorded.';
+                const consentDate = formatDate(currentProfile.demographicConsentAt);
+                const version = normalize(currentProfile.demographicConsentVersion) || '1.0';
+                const genderSource = normalize(currentProfile.genderSource) || 'N/A';
+                const religionSource = normalize(currentProfile.religionSource) || 'N/A';
+                const categorySource = normalize(currentProfile.casteSource) || 'N/A';
+                metaEl.textContent = `Last consent at ${consentDate} (v${version}) | Sources: gender=${genderSource}, religion=${religionSource}, category=${categorySource}`;
+            } else {
+                statusEl.textContent = 'No consent submission yet.';
+                metaEl.textContent = 'Data source is system default until you submit this form with consent.';
+            }
         }
 
-        try {
-            const summary = await window.smsApi.analytics.studentSummary(sid);
-            document.getElementById('profileAiSummaryText').textContent = summary.aiSummary || 'AI summary generated.';
+        async function submitDemographicsConsent() {
+            const gender = normalize(document.getElementById('demoGender')?.value).trim();
+            const religion = normalize(document.getElementById('demoReligion')?.value).trim();
+            const category = normalize(document.getElementById('demoCategory')?.value).trim();
+            const specificCaste = normalize(document.getElementById('demoSpecificCaste')?.value).trim();
+            const consentGiven = Boolean(document.getElementById('demoConsentGiven')?.checked);
+            const statusEl = document.getElementById('demographicsStatus');
 
-            const performance = (summary.performanceSeries || []).map((x) => Number(x.performance || 0)).slice(-16);
-            const heatmap = (summary.attendanceHeatmap || []).map((x) => Number(x.count || 0)).slice(-16);
-            const behavior = (summary.behaviorTrend || []).map((x) => Number(x.value || 0)).slice(-16);
+            if (!gender || !religion || !category) {
+                statusEl.textContent = 'Gender, religion, and category are required.';
+                return;
+            }
 
-            renderProfileMiniLine('profilePerformanceCanvas', performance, 'Performance', themedColor('--chart-accent-1', '#2563eb'));
-            renderProfileMiniBars('profileHeatmapCanvas', heatmap, themedColor('--chart-accent-2', '#60a5fa'));
-            renderProfileMiniLine('profileBehaviorCanvas', behavior, 'Behavior', themedColor('--chart-accent-4', '#f59e0b'));
-        } catch (_error) {
-            document.getElementById('profileAiSummaryText').textContent = 'AI summary could not be loaded right now.';
-            toggleProfileMiniEmpty('profilePerformanceCanvas', true);
-            toggleProfileMiniEmpty('profileHeatmapCanvas', true);
-            toggleProfileMiniEmpty('profileBehaviorCanvas', true);
-        }
-    }
+            if (!consentGiven) {
+                statusEl.textContent = 'Please confirm consent before submission.';
+                return;
+            }
 
-    function bindFieldEvents() {
-        document.querySelectorAll('.field-input').forEach((input) => {
-            input.addEventListener('change', () => {
-                const key = input.dataset.field;
-                const value = input.value;
-                currentProfile[key] = value;
-                applyDependentFieldRules(key, value);
+            const payload = {
+                consentGiven: true,
+                gender,
+                religion,
+                category,
+                specificCaste
+            };
+
+            const submitBtn = document.getElementById('submitDemographicsBtn');
+            submitBtn.disabled = true;
+            statusEl.textContent = 'Submitting...';
+
+            try {
+                currentProfile = await window.smsApi.put('/api/student/profile/demographics', payload);
+                originalProfileSnapshot = JSON.parse(JSON.stringify(currentProfile));
                 renderProfile();
-                debounceAutoSave();
+                showToast('Demographics submitted with consent');
+            } catch (error) {
+                statusEl.textContent = error.message || 'Unable to submit demographics.';
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+
+        function destroyProfileChart(id) {
+            if (profileCharts[id]) {
+                profileCharts[id].destroy();
+                delete profileCharts[id];
+            }
+        }
+
+        function renderProfileMiniLine(canvasId, values, label, color) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || !window.Chart) {
+                return;
+            }
+
+            if (!values.length) {
+                destroyProfileChart(canvasId);
+                toggleProfileMiniEmpty(canvasId, true);
+                return;
+            }
+
+            toggleProfileMiniEmpty(canvasId, false);
+            destroyProfileChart(canvasId);
+            profileCharts[canvasId] = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: values.map((_, idx) => idx + 1),
+                    datasets: [{
+                        label,
+                        data: values,
+                        borderColor: color,
+                        backgroundColor: color + '22',
+                        tension: 0.35,
+                        fill: true,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    }
+                }
             });
-            input.addEventListener('input', () => {
-                const key = input.dataset.field;
-                currentProfile[key] = input.value;
-                updateSmartMetrics();
-                validateCurrentForm();
-                debounceAutoSave();
+        }
+
+        function renderProfileMiniBars(canvasId, values, color) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || !window.Chart) {
+                return;
+            }
+
+            if (!values.length) {
+                destroyProfileChart(canvasId);
+                toggleProfileMiniEmpty(canvasId, true);
+                return;
+            }
+
+            toggleProfileMiniEmpty(canvasId, false);
+            destroyProfileChart(canvasId);
+            profileCharts[canvasId] = new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: values.map((_, idx) => idx + 1),
+                    datasets: [{ data: values, backgroundColor: color }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    }
+                }
             });
-        });
-    }
+        }
 
-    function collectPayload() {
-        const inputs = document.querySelectorAll('.field-input');
-        const allValues = {};
-        inputs.forEach((input) => {
-            allValues[input.dataset.field] = input.value;
-        });
+        function toggleProfileMiniEmpty(canvasId, show) {
+            const empty = document.getElementById(`${canvasId}Empty`);
+            const canvas = document.getElementById(canvasId);
+            if (!empty || !canvas) {
+                return;
+            }
+            empty.classList.toggle('show', show);
+            canvas.style.visibility = show ? 'hidden' : 'visible';
+        }
 
-        const nestedData = {
-            personal: {
-                fullName: allValues.fullName,
-                dob: allValues.dob,
-                gender: allValues.gender,
-                religion: allValues.religion,
-                bloodGroup: allValues.bloodGroup
-            },
-            academic: {
-                college: allValues.college,
-                course: allValues.course,
-                department: allValues.department,
-                semester: allValues.semester,
-                section: allValues.section,
-                house: allValues.house,
-                foundationClassroom: allValues.foundationClassroom,
-                teamNumber: allValues.teamNumber,
-                memberNumber: allValues.memberNumber,
-                admissionYear: allValues.admissionYear,
-                passingYear: allValues.passingYear
-            },
-            identity: {
-                enrollmentNumber: allValues.enrollmentNumber,
-                studentId: allValues.studentId,
-                idCardNumber: allValues.idCardNumber,
-                validUpto: allValues.validUpto,
-                profileImage: allValues.profileImage
-            },
-            contact: {
-                phone: allValues.phone,
-                universityEmail: allValues.universityEmail,
-                personalEmail: allValues.personalEmail,
-                address: allValues.address
-            },
-            guardian: {
-                guardianName: allValues.guardianName,
-                guardianPhone: allValues.guardianPhone
-            },
-            documents: {}
-        };
+        async function loadAiSummary() {
+            if (!currentProfile) {
+                return;
+            }
 
-        if (PROFILE_MODE === 'ADMIN') {
+            const sid = normalize(currentProfile.studentId || currentProfile.enrollmentNumber || TARGET_STUDENT_ID);
+            if (!sid) {
+                return;
+            }
+
+            try {
+                const summary = await window.smsApi.analytics.studentSummary(sid);
+                document.getElementById('profileAiSummaryText').textContent = summary.aiSummary || 'AI summary generated.';
+
+                const performance = (summary.performanceSeries || []).map((x) => Number(x.performance || 0)).slice(-16);
+                const heatmap = (summary.attendanceHeatmap || []).map((x) => Number(x.count || 0)).slice(-16);
+                const behavior = (summary.behaviorTrend || []).map((x) => Number(x.value || 0)).slice(-16);
+
+                renderProfileMiniLine('profilePerformanceCanvas', performance, 'Performance', themedColor('--chart-accent-1', '#2563eb'));
+                renderProfileMiniBars('profileHeatmapCanvas', heatmap, themedColor('--chart-accent-2', '#60a5fa'));
+                renderProfileMiniLine('profileBehaviorCanvas', behavior, 'Behavior', themedColor('--chart-accent-4', '#f59e0b'));
+            } catch (_error) {
+                document.getElementById('profileAiSummaryText').textContent = 'AI summary could not be loaded right now.';
+                toggleProfileMiniEmpty('profilePerformanceCanvas', true);
+                toggleProfileMiniEmpty('profileHeatmapCanvas', true);
+                toggleProfileMiniEmpty('profileBehaviorCanvas', true);
+            }
+        }
+
+        function bindFieldEvents() {
+            document.querySelectorAll('.field-input').forEach((input) => {
+                input.addEventListener('change', () => {
+                    const key = input.dataset.field;
+                    const value = input.value;
+                    currentProfile[key] = value;
+                    applyDependentFieldRules(key, value);
+                    renderProfile();
+                    debounceAutoSave();
+                });
+                input.addEventListener('input', () => {
+                    const key = input.dataset.field;
+                    currentProfile[key] = input.value;
+                    updateSmartMetrics();
+                    validateCurrentForm();
+                    debounceAutoSave();
+                });
+            });
+        }
+
+        function collectPayload() {
+            const inputs = document.querySelectorAll('.field-input');
+            const allValues = {};
+            inputs.forEach((input) => {
+                allValues[input.dataset.field] = input.value;
+            });
+
+            const nestedData = {
+                personal: {
+                    fullName: allValues.fullName,
+                    dob: allValues.dob,
+                    gender: allValues.gender,
+                    religion: allValues.religion,
+                    bloodGroup: allValues.bloodGroup
+                },
+                academic: {
+                    college: allValues.college,
+                    course: allValues.course,
+                    department: allValues.department,
+                    semester: allValues.semester,
+                    section: allValues.section,
+                    house: allValues.house,
+                    foundationClassroom: allValues.foundationClassroom,
+                    teamNumber: allValues.teamNumber,
+                    memberNumber: allValues.memberNumber,
+                    admissionYear: allValues.admissionYear,
+                    passingYear: allValues.passingYear
+                },
+                identity: {
+                    enrollmentNumber: allValues.enrollmentNumber,
+                    studentId: allValues.studentId,
+                    idCardNumber: allValues.idCardNumber,
+                    validUpto: allValues.validUpto,
+                    profileImage: allValues.profileImage
+                },
+                contact: {
+                    phone: allValues.phone,
+                    universityEmail: allValues.universityEmail,
+                    personalEmail: allValues.personalEmail,
+                    address: allValues.address
+                },
+                guardian: {
+                    guardianName: allValues.guardianName,
+                    guardianPhone: allValues.guardianPhone
+                },
+                documents: {}
+            };
+
+            if (PROFILE_MODE === 'ADMIN') {
+                return {
+                    fullName: allValues.fullName,
+                    profileImage: allValues.profileImage,
+                    dob: allValues.dob || null,
+                    gender: allValues.gender,
+                    religion: allValues.religion,
+                    bloodGroup: allValues.bloodGroup,
+                    phone: allValues.phone,
+                    email: allValues.universityEmail,
+                    universityEmail: allValues.universityEmail,
+                    personalEmail: allValues.personalEmail,
+                    address: allValues.address,
+                    guardianName: allValues.guardianName,
+                    guardianPhone: allValues.guardianPhone,
+                    college: allValues.college,
+                    course: allValues.course,
+                    department: allValues.department,
+                    semester: allValues.semester,
+                    section: allValues.section,
+                    house: allValues.house,
+                    foundationClassroom: allValues.foundationClassroom,
+                    teamNumber: allValues.teamNumber ? Number(allValues.teamNumber) : null,
+                    memberNumber: allValues.memberNumber ? Number(allValues.memberNumber) : null,
+                    admissionYear: allValues.admissionYear ? Number(allValues.admissionYear) : null,
+                    passingYear: allValues.passingYear ? Number(allValues.passingYear) : null,
+                    validUpto: allValues.validUpto || null,
+                    idCardNumber: allValues.idCardNumber,
+                    profileSections: nestedData
+                };
+            }
+
             return {
-                fullName: allValues.fullName,
-                profileImage: allValues.profileImage,
-                dob: allValues.dob || null,
-                gender: allValues.gender,
-                religion: allValues.religion,
-                bloodGroup: allValues.bloodGroup,
                 phone: allValues.phone,
-                email: allValues.universityEmail,
-                universityEmail: allValues.universityEmail,
-                personalEmail: allValues.personalEmail,
                 address: allValues.address,
-                guardianName: allValues.guardianName,
-                guardianPhone: allValues.guardianPhone,
-                college: allValues.college,
-                course: allValues.course,
-                department: allValues.department,
-                semester: allValues.semester,
-                section: allValues.section,
-                house: allValues.house,
-                foundationClassroom: allValues.foundationClassroom,
-                teamNumber: allValues.teamNumber ? Number(allValues.teamNumber) : null,
-                memberNumber: allValues.memberNumber ? Number(allValues.memberNumber) : null,
-                admissionYear: allValues.admissionYear ? Number(allValues.admissionYear) : null,
-                passingYear: allValues.passingYear ? Number(allValues.passingYear) : null,
-                validUpto: allValues.validUpto || null,
-                idCardNumber: allValues.idCardNumber,
+                profileImage: allValues.profileImage,
                 profileSections: nestedData
             };
         }
 
-        return {
-            phone: allValues.phone,
-            address: allValues.address,
-            profileImage: allValues.profileImage,
-            profileSections: nestedData
-        };
-    }
-
-    async function saveProfile(isAuto = false) {
-        if (validateCurrentForm()) {
-            if (!isAuto) {
-                showToast('Please fix highlighted fields');
-            }
-            throw new Error('Validation failed');
-        }
-
-        const payload = collectPayload();
-
-        currentProfile = await window.smsApi.student.profile.update(apiBase(), payload);
-        if (!isAuto) {
-            editEnabled = false;
-            document.getElementById('editModeBtn').textContent = 'Edit Mode: OFF';
-            document.getElementById('saveBtn').style.display = 'none';
-            originalProfileSnapshot = JSON.parse(JSON.stringify(currentProfile));
-        }
-        renderProfile();
-        showToast(isAuto ? 'Auto-saved' : 'Changes saved');
-    }
-
-    async function loadProfile() {
-        currentProfile = await window.smsApi.student.profile.get(apiBase());
-        originalProfileSnapshot = JSON.parse(JSON.stringify(currentProfile));
-        renderProfile();
-        await loadAiSummary();
-    }
-
-    function bindTabs() {
-        document.querySelectorAll('.tab-btn').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.tab-btn').forEach((other) => other.classList.remove('active'));
-                document.querySelectorAll('.tab-pane').forEach((pane) => pane.classList.remove('active'));
-                btn.classList.add('active');
-                document.querySelector(`.tab-pane[data-pane="${btn.dataset.tab}"]`).classList.add('active');
-            });
-        });
-    }
-
-    function bindActions() {
-        const imagePicker = document.getElementById('profileImageFile');
-        const avatarShell = document.getElementById('avatarShell');
-        const avatarMenu = document.getElementById('avatarMenu');
-        const avatarUploadAction = document.getElementById('avatarUploadAction');
-        const avatarRemoveAction = document.getElementById('avatarRemoveAction');
-
-        async function compressProfileImageForStorage(file) {
-            const attempts = [
-                { maxDim: 192, quality: 0.72 },
-                { maxDim: 160, quality: 0.62 },
-                { maxDim: 128, quality: 0.52 },
-                { maxDim: 96, quality: 0.45 }
-            ];
-            const maxDataUriLength = 3000;
-
-            const fileToDataUri = (inputFile) => new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(String(reader.result || ''));
-                reader.onerror = () => reject(new Error('Unable to read selected image.'));
-                reader.readAsDataURL(inputFile);
-            });
-
-            const compress = (dataUri, maxDim, quality) => new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = () => {
-                    const ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
-                    const width = Math.max(1, Math.round(img.width * ratio));
-                    const height = Math.max(1, Math.round(img.height * ratio));
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    if (!ctx) {
-                        reject(new Error('Image processor unavailable.'));
-                        return;
-                    }
-                    ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', quality));
-                };
-                img.onerror = () => reject(new Error('Unable to process selected image.'));
-                img.src = dataUri;
-            });
-
-            let dataUri = await fileToDataUri(file);
-            for (const attempt of attempts) {
-                dataUri = await compress(dataUri, attempt.maxDim, attempt.quality);
-                if (dataUri.length <= maxDataUriLength) {
-                    return dataUri;
+        async function saveProfile(isAuto = false) {
+            if (validateCurrentForm()) {
+                if (!isAuto) {
+                    showToast('Please fix highlighted fields');
                 }
+                throw new Error('Validation failed');
             }
-            if (dataUri.length > maxDataUriLength) {
-                throw new Error('Image is too large for profile storage. Please choose a smaller photo.');
+
+            const payload = collectPayload();
+
+            currentProfile = await window.smsApi.student.profile.update(apiBase(), payload);
+            if (!isAuto) {
+                editEnabled = false;
+                document.getElementById('editModeBtn').textContent = 'Edit Mode: OFF';
+                document.getElementById('saveBtn').style.display = 'none';
+                originalProfileSnapshot = JSON.parse(JSON.stringify(currentProfile));
             }
-            return dataUri;
+            renderProfile();
+            showToast(isAuto ? 'Auto-saved' : 'Changes saved');
         }
 
-        avatarShell.addEventListener('click', (event) => {
-            if (!CAN_ADMIN_EDIT) {
-                return;
-            }
-            event.stopPropagation();
-            avatarMenu.classList.toggle('show');
-        });
+        async function loadProfile() {
+            currentProfile = await window.smsApi.student.profile.get(apiBase());
+            originalProfileSnapshot = JSON.parse(JSON.stringify(currentProfile));
+            renderProfile();
+            await loadAiSummary();
+        }
 
-        document.addEventListener('click', () => avatarMenu.classList.remove('show'));
+        function bindTabs() {
+            document.querySelectorAll('.tab-btn').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach((other) => other.classList.remove('active'));
+                    document.querySelectorAll('.tab-pane').forEach((pane) => pane.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.querySelector(`.tab-pane[data-pane="${btn.dataset.tab}"]`).classList.add('active');
+                });
+            });
+        }
 
-        avatarUploadAction.addEventListener('click', (event) => {
-            event.stopPropagation();
-            avatarMenu.classList.remove('show');
-            if (!CAN_ADMIN_EDIT) {
-                showToast('Only admin can upload profile picture here.');
-                return;
-            }
-            imagePicker.click();
-        });
+        function bindActions() {
+            const imagePicker = document.getElementById('profileImageFile');
+            const avatarShell = document.getElementById('avatarShell');
+            const avatarMenu = document.getElementById('avatarMenu');
+            const avatarUploadAction = document.getElementById('avatarUploadAction');
+            const avatarRemoveAction = document.getElementById('avatarRemoveAction');
 
-        avatarRemoveAction.addEventListener('click', (event) => {
-            event.stopPropagation();
-            avatarMenu.classList.remove('show');
-            if (!CAN_ADMIN_EDIT) {
-                return;
-            }
-            currentProfile.profileImage = '';
-            const profileImageInput = document.querySelector('[data-field="profileImage"]');
-            if (profileImageInput) {
-                profileImageInput.value = '';
-            }
-            renderIdCard();
-            updateSmartMetrics();
-            debounceAutoSave();
-            showToast('Photo removed. Click Save Changes to persist.');
-        });
-
-        imagePicker.addEventListener('change', (event) => {
-            const [file] = event.target.files || [];
-            if (!file) {
-                return;
+            async function imageFileToDataUri(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(String(reader.result || ''));
+                    reader.onerror = () => reject(new Error('Unable to read selected image.'));
+                    reader.readAsDataURL(file);
+                });
             }
 
-            if (!file.type.startsWith('image/')) {
-                showToast('Please select a valid image file.');
-                imagePicker.value = '';
-                return;
-            }
+            avatarShell.addEventListener('click', (event) => {
+                if (!CAN_ADMIN_EDIT) {
+                    return;
+                }
+                event.stopPropagation();
+                avatarMenu.classList.toggle('show');
+            });
 
-            if (file.size > 2 * 1024 * 1024) {
-                showToast('Image must be 2MB or smaller.');
-                imagePicker.value = '';
-                return;
-            }
+            document.addEventListener('click', () => avatarMenu.classList.remove('show'));
 
-            compressProfileImageForStorage(file).then((compressedDataUri) => {
-                currentProfile.profileImage = compressedDataUri;
+            avatarUploadAction.addEventListener('click', (event) => {
+                event.stopPropagation();
+                avatarMenu.classList.remove('show');
+                if (!CAN_ADMIN_EDIT) {
+                    showToast('Only admin can upload profile picture here.');
+                    return;
+                }
+                imagePicker.click();
+            });
+
+            avatarRemoveAction.addEventListener('click', (event) => {
+                event.stopPropagation();
+                avatarMenu.classList.remove('show');
+                if (!CAN_ADMIN_EDIT) {
+                    return;
+                }
+                currentProfile.profileImage = '';
                 const profileImageInput = document.querySelector('[data-field="profileImage"]');
                 if (profileImageInput) {
-                    profileImageInput.value = currentProfile.profileImage;
+                    profileImageInput.value = '';
                 }
                 renderIdCard();
+                updateSmartMetrics();
                 debounceAutoSave();
-                showToast('Profile image selected. Click Save Changes to persist.');
-            }).catch((error) => {
-                showToast(error.message || 'Unable to process selected image.');
+                showToast('Photo removed. Click Save Changes to persist.');
             });
-            imagePicker.value = '';
-        });
 
-        // Image Viewer Modal Initialization
-        const imageViewerModal = document.getElementById('imageViewerModal');
-        const imageViewerImg = document.getElementById('imageViewerImg');
-        const imageViewerClose = document.getElementById('imageViewerClose');
-        const imageViewerZoomIn = document.getElementById('imageViewerZoomIn');
-        const imageViewerZoomOut = document.getElementById('imageViewerZoomOut');
-        const imageViewerReset = document.getElementById('imageViewerReset');
-        const imageViewerZoomLevel = document.getElementById('imageViewerZoomLevel');
-        const imageViewerBackdrop = document.querySelector('.image-viewer-backdrop');
-
-        let currentZoom = 100;
-        const minZoom = 50;
-        const maxZoom = 300;
-        const zoomStep = 10;
-
-        function updateZoomLevel() {
-            imageViewerZoomLevel.textContent = currentZoom + '%';
-            imageViewerImg.style.transform = `scale(${currentZoom / 100})`;
-        }
-
-        function openImageViewer() {
-            if (currentProfile.profileImage) {
-                imageViewerImg.src = currentProfile.profileImage;
-                imageViewerModal.style.display = 'flex';
-                currentZoom = 100;
-                updateZoomLevel();
-                document.body.style.overflow = 'hidden';
-            }
-        }
-
-        function closeImageViewer() {
-            imageViewerModal.style.display = 'none';
-            document.body.style.overflow = '';
-        }
-
-        // Open viewer when clicking on the image
-        const idAvatar = document.getElementById('idAvatar');
-        idAvatar.addEventListener('click', openImageViewer);
-
-        // Close viewer
-        imageViewerClose.addEventListener('click', closeImageViewer);
-        imageViewerBackdrop.addEventListener('click', closeImageViewer);
-
-        // Zoom controls
-        imageViewerZoomIn.addEventListener('click', () => {
-            if (currentZoom < maxZoom) {
-                currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
-                updateZoomLevel();
-            }
-        });
-
-        imageViewerZoomOut.addEventListener('click', () => {
-            if (currentZoom > minZoom) {
-                currentZoom = Math.max(currentZoom - zoomStep, minZoom);
-                updateZoomLevel();
-            }
-        });
-
-        imageViewerReset.addEventListener('click', () => {
-            currentZoom = 100;
-            updateZoomLevel();
-        });
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            if (imageViewerModal.style.display === 'flex') {
-                if (e.key === 'Escape') {
-                    closeImageViewer();
-                } else if (e.key === '+' || e.key === '=') {
-                    currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
-                    updateZoomLevel();
-                } else if (e.key === '-') {
-                    currentZoom = Math.max(currentZoom - zoomStep, minZoom);
-                    updateZoomLevel();
-                } else if (e.key === '0') {
-                    currentZoom = 100;
-                    updateZoomLevel();
-                }
-            }
-        });
-
-        // Mouse wheel zoom
-        imageViewerImg.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            if (e.deltaY < 0) {
-                currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
-            } else {
-                currentZoom = Math.max(currentZoom - zoomStep, minZoom);
-            }
-            updateZoomLevel();
-        });
-
-        document.getElementById('editModeBtn').addEventListener('click', () => {
-            if (!CAN_ADMIN_EDIT) {
-                return;
-            }
-            editEnabled = !editEnabled;
-            document.getElementById('editModeBtn').textContent = editEnabled
-                ? (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: ON' : 'Contact Edit: ON')
-                : (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: OFF' : 'Contact Edit: OFF');
-            document.getElementById('saveBtn').style.display = editEnabled ? 'inline-flex' : 'none';
-            document.getElementById('cancelBtn').style.display = editEnabled ? 'inline-flex' : 'none';
-            renderProfile();
-        });
-
-        document.getElementById('cancelBtn').addEventListener('click', () => {
-            if (originalProfileSnapshot) {
-                currentProfile = JSON.parse(JSON.stringify(originalProfileSnapshot));
-            }
-            editEnabled = false;
-            renderProfile();
-            showToast('Changes reverted');
-        });
-
-        document.getElementById('saveBtn').addEventListener('click', async () => {
-            try {
-                await saveProfile(false);
-            } catch (error) {
-                showToast(error.message || 'Unable to save changes');
-            }
-        });
-
-        document.getElementById('downloadBtn').addEventListener('click', () => {
-            window.print();
-        });
-
-        const changePasswordBtn = document.getElementById('changePasswordBtn');
-        if (changePasswordBtn) {
-            changePasswordBtn.addEventListener('click', async () => {
-                const currentPassword = document.getElementById('currentPassword').value;
-                const newPassword = document.getElementById('newPassword').value;
-                const confirmPassword = document.getElementById('confirmPassword').value;
-                const statusEl = document.getElementById('changePasswordStatus');
-
-                if (!currentPassword || !newPassword || !confirmPassword) {
-                    statusEl.textContent = 'Please fill all password fields.';
+            imagePicker.addEventListener('change', (event) => {
+                const [file] = event.target.files || [];
+                if (!file) {
                     return;
                 }
 
-                try {
-                    const payload = { currentPassword, newPassword, confirmPassword };
+                if (!file.type.startsWith('image/')) {
+                    showToast('Please select a valid image file.');
+                    imagePicker.value = '';
+                    return;
+                }
 
-                    if (window.smsApi && window.smsApi.auth && typeof window.smsApi.auth.changePassword === 'function') {
-                        await window.smsApi.auth.changePassword(payload);
-                    } else {
-                        const response = await fetch('/api/auth/change-password', {
-                            method: 'POST',
-                            credentials: 'same-origin',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Accept: 'application/json'
-                            },
-                            body: JSON.stringify(payload)
-                        });
+                if (file.size > 10 * 1024 * 1024) {
+                    showToast('Image must be 10MB or smaller.');
+                    imagePicker.value = '';
+                    return;
+                }
 
-                        if (!response.ok) {
-                            const message = await response.text();
-                            throw new Error(message || ('Request failed (' + response.status + ')'));
-                        }
+                imageFileToDataUri(file).then((dataUri) => {
+                    currentProfile.profileImage = dataUri;
+                    const profileImageInput = document.querySelector('[data-field="profileImage"]');
+                    if (profileImageInput) {
+                        profileImageInput.value = currentProfile.profileImage;
                     }
+                    renderIdCard();
+                    debounceAutoSave();
+                    showToast('Original-quality photo selected. Click Save Changes to persist.');
+                }).catch((error) => {
+                    showToast(error.message || 'Unable to process selected image.');
+                });
+                imagePicker.value = '';
+            });
 
-                    document.getElementById('currentPassword').value = '';
-                    document.getElementById('newPassword').value = '';
-                    document.getElementById('confirmPassword').value = '';
-                    statusEl.textContent = 'Password changed successfully.';
-                    if (FORCE_PASSWORD_CHANGE) {
-                        window.location.href = '/student/dashboard';
-                    }
-                } catch (error) {
-                    statusEl.textContent = error.message || 'Unable to change password.';
+            // Image Viewer Modal Initialization
+            const imageViewerModal = document.getElementById('imageViewerModal');
+            const imageViewerImg = document.getElementById('imageViewerImg');
+            const imageViewerClose = document.getElementById('imageViewerClose');
+            const imageViewerZoomIn = document.getElementById('imageViewerZoomIn');
+            const imageViewerZoomOut = document.getElementById('imageViewerZoomOut');
+            const imageViewerReset = document.getElementById('imageViewerReset');
+            const imageViewerZoomLevel = document.getElementById('imageViewerZoomLevel');
+            const imageViewerBackdrop = document.querySelector('.image-viewer-backdrop');
+
+            let currentZoom = 100;
+            const minZoom = 50;
+            const maxZoom = 300;
+            const zoomStep = 10;
+
+            function updateZoomLevel() {
+                imageViewerZoomLevel.textContent = currentZoom + '%';
+                imageViewerImg.style.transform = `scale(${currentZoom / 100})`;
+            }
+
+            function openImageViewer() {
+                if (currentProfile.profileImage) {
+                    imageViewerImg.src = currentProfile.profileImage;
+                    imageViewerModal.style.display = 'flex';
+                    currentZoom = 100;
+                    updateZoomLevel();
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+
+            function closeImageViewer() {
+                imageViewerModal.style.display = 'none';
+                document.body.style.overflow = '';
+            }
+
+            // Open viewer when clicking on the image
+            const idAvatar = document.getElementById('idAvatar');
+            idAvatar.addEventListener('click', openImageViewer);
+
+            // Close viewer
+            imageViewerClose.addEventListener('click', closeImageViewer);
+            imageViewerBackdrop.addEventListener('click', closeImageViewer);
+
+            // Zoom controls
+            imageViewerZoomIn.addEventListener('click', () => {
+                if (currentZoom < maxZoom) {
+                    currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
+                    updateZoomLevel();
                 }
             });
-        }
 
-        if (FORCE_PASSWORD_CHANGE) {
-            const statusEl = document.getElementById('changePasswordStatus');
-            if (statusEl) {
-                statusEl.textContent = 'First login detected. Please change your default password to continue.';
+            imageViewerZoomOut.addEventListener('click', () => {
+                if (currentZoom > minZoom) {
+                    currentZoom = Math.max(currentZoom - zoomStep, minZoom);
+                    updateZoomLevel();
+                }
+            });
+
+            imageViewerReset.addEventListener('click', () => {
+                currentZoom = 100;
+                updateZoomLevel();
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (imageViewerModal.style.display === 'flex') {
+                    if (e.key === 'Escape') {
+                        closeImageViewer();
+                    } else if (e.key === '+' || e.key === '=') {
+                        currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
+                        updateZoomLevel();
+                    } else if (e.key === '-') {
+                        currentZoom = Math.max(currentZoom - zoomStep, minZoom);
+                        updateZoomLevel();
+                    } else if (e.key === '0') {
+                        currentZoom = 100;
+                        updateZoomLevel();
+                    }
+                }
+            });
+
+            // Mouse wheel zoom
+            imageViewerImg.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                if (e.deltaY < 0) {
+                    currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
+                } else {
+                    currentZoom = Math.max(currentZoom - zoomStep, minZoom);
+                }
+                updateZoomLevel();
+            });
+
+            document.getElementById('editModeBtn').addEventListener('click', () => {
+                if (!CAN_ADMIN_EDIT) {
+                    return;
+                }
+                editEnabled = !editEnabled;
+                document.getElementById('editModeBtn').textContent = editEnabled
+                    ? (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: ON' : 'Contact Edit: ON')
+                    : (PROFILE_MODE === 'ADMIN' ? 'Edit Mode: OFF' : 'Contact Edit: OFF');
+                document.getElementById('saveBtn').style.display = editEnabled ? 'inline-flex' : 'none';
+                document.getElementById('cancelBtn').style.display = editEnabled ? 'inline-flex' : 'none';
+                renderProfile();
+            });
+
+            document.getElementById('cancelBtn').addEventListener('click', () => {
+                if (originalProfileSnapshot) {
+                    currentProfile = JSON.parse(JSON.stringify(originalProfileSnapshot));
+                }
+                editEnabled = false;
+                renderProfile();
+                showToast('Changes reverted');
+            });
+
+            document.getElementById('saveBtn').addEventListener('click', async () => {
+                try {
+                    await saveProfile(false);
+                } catch (error) {
+                    showToast(error.message || 'Unable to save changes');
+                }
+            });
+
+            document.getElementById('downloadBtn').addEventListener('click', () => {
+                window.print();
+            });
+
+            const changePasswordBtn = document.getElementById('changePasswordBtn');
+            if (changePasswordBtn) {
+                changePasswordBtn.addEventListener('click', async () => {
+                    const currentPassword = document.getElementById('currentPassword').value;
+                    const newPassword = document.getElementById('newPassword').value;
+                    const confirmPassword = document.getElementById('confirmPassword').value;
+                    const statusEl = document.getElementById('changePasswordStatus');
+
+                    if (!currentPassword || !newPassword || !confirmPassword) {
+                        statusEl.textContent = 'Please fill all password fields.';
+                        return;
+                    }
+
+                    try {
+                        const payload = { currentPassword, newPassword, confirmPassword };
+
+                        if (window.smsApi && window.smsApi.auth && typeof window.smsApi.auth.changePassword === 'function') {
+                            await window.smsApi.auth.changePassword(payload);
+                        } else {
+                            const response = await fetch('/api/auth/change-password', {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    Accept: 'application/json'
+                                },
+                                body: JSON.stringify(payload)
+                            });
+
+                            if (!response.ok) {
+                                const message = await response.text();
+                                throw new Error(message || ('Request failed (' + response.status + ')'));
+                            }
+                        }
+
+                        document.getElementById('currentPassword').value = '';
+                        document.getElementById('newPassword').value = '';
+                        document.getElementById('confirmPassword').value = '';
+                        statusEl.textContent = 'Password changed successfully.';
+                        if (FORCE_PASSWORD_CHANGE) {
+                            window.location.href = '/student/dashboard';
+                        }
+                    } catch (error) {
+                        statusEl.textContent = error.message || 'Unable to change password.';
+                    }
+                });
+            }
+
+            if (FORCE_PASSWORD_CHANGE) {
+                const statusEl = document.getElementById('changePasswordStatus');
+                if (statusEl) {
+                    statusEl.textContent = 'First login detected. Please change your default password to continue.';
+                }
+            }
+
+            const submitDemographicsBtn = document.getElementById('submitDemographicsBtn');
+            if (submitDemographicsBtn) {
+                submitDemographicsBtn.addEventListener('click', async () => {
+                    await submitDemographicsConsent();
+                });
             }
         }
 
-        const submitDemographicsBtn = document.getElementById('submitDemographicsBtn');
-        if (submitDemographicsBtn) {
-            submitDemographicsBtn.addEventListener('click', async () => {
-                await submitDemographicsConsent();
+        document.addEventListener('DOMContentLoaded', async () => {
+            bindTabs();
+            bindActions();
+            window.addEventListener('theme:changed', () => {
+                loadAiSummary();
             });
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', async () => {
-        bindTabs();
-        bindActions();
-        window.addEventListener('theme:changed', () => {
-            loadAiSummary();
+            try {
+                await loadProfile();
+            } catch (error) {
+                document.getElementById('skeletonLoader').innerHTML = '<div class="status-pill">Failed to load profile.</div>';
+            }
         });
-        try {
-            await loadProfile();
-        } catch (error) {
-            document.getElementById('skeletonLoader').innerHTML = '<div class="status-pill">Failed to load profile.</div>';
-        }
-    });
-</script>
+    </script>
 </body>
+
 </html>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -58,7 +59,8 @@
             box-shadow: 0 0 0 3px rgba(42, 82, 152, 0.1);
         }
 
-        .form-input, select {
+        .form-input,
+        select {
             font-family: 'Outfit', sans-serif;
         }
 
@@ -154,8 +156,15 @@
         }
 
         @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
         }
 
         .status-badge {
@@ -269,8 +278,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .error-message {
@@ -295,462 +309,553 @@
         }
     </style>
 </head>
+
 <body>
 
-<div th:replace="~{fragments/sidebar :: sidebar(activeTab='attendance')}"></div>
+    <div th:replace="~{fragments/sidebar :: sidebar(activeTab='attendance')}"></div>
 
-<main class="content-area" id="maincontent" tabindex="-1">
-    <div class="content-wrapper">
-        <header class="page-header">
-            <div>
-                <h1 class="page-title">🎓 Attendance Management</h1>
-                <p class="dashboard-subtitle">Generate QR codes or mark attendance manually</p>
-            </div>
-        </header>
-
-        <!-- Main Container -->
-        <div class="qr-generator-container">
-            
-            <!-- Left Panel: QR Generator -->
-            <div class="qr-panel">
-                <h2>🔐 Generate QR Code</h2>
-                
-                <div class="info-box">
-                    👉 Generate a QR code for students to scan and mark attendance automatically.
+    <main class="content-area" id="maincontent" tabindex="-1">
+        <div class="content-wrapper">
+            <header class="page-header">
+                <div>
+                    <h1 class="page-title">🎓 Attendance Management</h1>
+                    <p class="dashboard-subtitle">Generate QR codes or mark attendance manually</p>
                 </div>
+            </header>
 
-                <form id="qrForm">
-                    <!-- Subject Selection -->
-                    <div class="form-group">
-                        <label class="form-label">📚 Select Subject</label>
-                        <select id="subjectId" required>
-                            <option value="">-- Loading Subjects... --</option>
-                        </select>
+            <!-- Main Container -->
+            <div class="qr-generator-container">
+
+                <!-- Left Panel: QR Generator -->
+                <div class="qr-panel">
+                    <h2>🔐 Generate QR Code</h2>
+
+                    <div class="info-box">
+                        👉 Generate a QR code for students to scan and mark attendance automatically.
                     </div>
 
-                    <!-- Subject Name (auto-filled) -->
-                    <div class="form-group">
-                        <label class="form-label">📖 Subject Name</label>
-                        <input type="text" id="subjectName" class="form-input" readonly value="Subject Name">
-                    </div>
-
-                    <!-- QR Expiry Duration -->
-                    <div class="form-group">
-                        <label class="form-label">⏱️ QR Validity (minutes)</label>
-                        <select id="expiryMinutes" required>
-                            <option value="2">2 minutes (Quick class)</option>
-                            <option value="5" selected>5 minutes (Recommended)</option>
-                            <option value="10">10 minutes (Standard class)</option>
-                            <option value="15">15 minutes (Lab session)</option>
-                            <option value="30">30 minutes (Long session)</option>
-                        </select>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div class="button-group">
-                        <button class="btn btn-primary" id="generateBtn" type="button" onclick="generateQR()">
-                            ✓ Generate QR
-                        </button>
-                        <button class="btn btn-secondary" type="button" onclick="stopQR()">
-                            ⏹️ Stop Session
-                        </button>
-                    </div>
-                </form>
-
-                <div class="attention-box" id="attentionBox" style="display: none;">
-                    ⚠️ <strong>Active QR Found:</strong> Click "Stop Session" to end the current attendance session before generating a new one.
-                </div>
-            </div>
-
-            <!-- Right Panel: QR Display & Stats -->
-            <div class="qr-panel">
-                <h2>🎯 Active Session</h2>
-
-                <div id="errorMessage" class="error-message"></div>
-
-                <div id="qrPlaceholder" style="text-align: center; color: #999; padding: 2rem;">
-                    <p style="font-size: 2rem; margin: 0;">📱</p>
-                    <p>No active QR session</p>
-                    <p style="font-size: 0.9rem;">Generate a QR code to start</p>
-                </div>
-
-                <div id="qrContent" style="display: none;">
-                    <!-- QR Code Image -->
-                    <div class="qr-display">
-                        <div id="loader" class="loader">
-                            <div class="spinner"></div>
-                            <p>Generating QR Code...</p>
-                        </div>
-                        
-                        <img id="qrImage" class="qr-image" src="" alt="QR Code" />
-                        
-                        <!-- Timer -->
-                        <div class="timer" id="timer">5:00</div>
-                        
-                        <div class="status-badge status-active" id="statusBadge">● ACTIVE</div>
-                        
-                        <p style="font-size: 0.9rem; color: #666; margin: 0.5rem 0;">
-                            Students can scan this code to mark attendance
-                        </p>
-                    </div>
-
-                    <!-- Session Stats -->
-                    <div class="stats-grid">
-                        <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                            <div class="stat-label">Present</div>
-                            <div class="stat-value" id="presentCount">0</div>
-                        </div>
-                        <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                            <div class="stat-label">Scanned</div>
-                            <div class="stat-value" id="totalScanned">0</div>
-                        </div>
-                    </div>
-
-                    <!-- Recent Attendance -->
-                    <h3 style="margin-top: 1.5rem; font-size: 1rem; color: #333;">Recent Attendance</h3>
-                    <div class="attendance-list" id="attendanceList">
-                        <div style="padding: 1rem; text-align: center; color: #999;">
-                            Waiting for attendance...
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Manual Attendance Section -->
-        <div style="max-width: 900px; margin: 3rem auto; padding: 0 1rem;">
-            <div class="qr-panel">
-                <h2>✍️ Mark Attendance Manually</h2>
-                
-                <div class="info-box">
-                    Use this as a fallback when QR code is not available.
-                </div>
-
-                <form id="manualForm">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <form id="qrForm">
                         <div class="form-group">
-                            <label class="form-label">📚 Subject</label>
-                            <select id="manualSubjectId" required>
+                            <label class="form-label">QR Mode</label>
+                            <select id="qrMode" required>
+                                <option value="dynamic" selected>Dynamic QR (refreshes every 10s)</option>
+                                <option value="static">Static QR (fixed duration)</option>
+                            </select>
+                        </div>
+                        <!-- Subject Selection -->
+                        <div class="form-group">
+                            <label class="form-label">📚 Select Subject</label>
+                            <select id="subjectId" required>
                                 <option value="">-- Loading Subjects... --</option>
                             </select>
                         </div>
+
+                        <!-- Subject Name (auto-filled) -->
                         <div class="form-group">
-                            <label class="form-label">📅 Date</label>
-                            <input type="date" id="attendanceDate" class="form-input" />
+                            <label class="form-label">📖 Subject Name</label>
+                            <input type="text" id="subjectName" class="form-input" readonly value="Subject Name">
                         </div>
+
+                        <!-- QR Expiry Duration -->
+                        <div class="form-group">
+                            <label class="form-label">⏱️ QR Validity (seconds)</label>
+                            <select id="expirySeconds" required>
+                                <option value="10" selected>10 seconds (Anti-proxy recommended)</option>
+                                <option value="15">15 seconds</option>
+                                <option value="20">20 seconds</option>
+                                <option value="30">30 seconds</option>
+                                <option value="60">60 seconds</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" id="staticDurationGroup" style="display:none;">
+                            <label class="form-label">⏱️ Static QR Duration (minutes)</label>
+                            <select id="staticDurationMinutes">
+                                <option value="1">1 minute</option>
+                                <option value="2">2 minutes</option>
+                                <option value="5" selected>5 minutes</option>
+                                <option value="10">10 minutes</option>
+                                <option value="15">15 minutes</option>
+                                <option value="30">30 minutes</option>
+                            </select>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="button-group">
+                            <button class="btn btn-primary" id="generateBtn" type="button" onclick="generateQR()">
+                                ✓ Generate QR
+                            </button>
+                            <button class="btn btn-secondary" type="button" onclick="stopQR()">
+                                ⏹️ Stop Session
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="attention-box" id="attentionBox" style="display: none;">
+                        ⚠️ <strong>Active QR Found:</strong> Click "Stop Session" to end the current attendance session
+                        before generating a new one.
+                    </div>
+                </div>
+
+                <!-- Right Panel: QR Display & Stats -->
+                <div class="qr-panel">
+                    <h2>🎯 Active Session</h2>
+
+                    <div id="errorMessage" class="error-message"></div>
+
+                    <div id="qrPlaceholder" style="text-align: center; color: #999; padding: 2rem;">
+                        <p style="font-size: 2rem; margin: 0;">📱</p>
+                        <p>No active QR session</p>
+                        <p style="font-size: 0.9rem;">Generate a QR code to start</p>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label">📝 Student List</label>
-                        <div style="border: 1px solid #ddd; border-radius: 6px; padding: 1rem; max-height: 400px; overflow-y: auto;">
-                            <div id="studentList"></div>
+                    <div id="qrContent" style="display: none;">
+                        <!-- QR Code Image -->
+                        <div class="qr-display">
+                            <div id="loader" class="loader">
+                                <div class="spinner"></div>
+                                <p>Generating QR Code...</p>
+                            </div>
+
+                            <img id="qrImage" class="qr-image" src="" alt="QR Code" />
+
+                            <!-- Timer -->
+                            <div class="timer" id="timer">5:00</div>
+
+                            <div class="status-badge status-active" id="statusBadge">● ACTIVE</div>
+
+                            <p style="font-size: 0.9rem; color: #666; margin: 0.5rem 0;">
+                                Students can scan this code to mark attendance
+                            </p>
+                        </div>
+
+                        <!-- Session Stats -->
+                        <div class="stats-grid">
+                            <div class="stat-card"
+                                style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                <div class="stat-label">Present</div>
+                                <div class="stat-value" id="presentCount">0</div>
+                            </div>
+                            <div class="stat-card"
+                                style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                                <div class="stat-label">Scanned</div>
+                                <div class="stat-value" id="totalScanned">0</div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Attendance -->
+                        <h3 style="margin-top: 1.5rem; font-size: 1rem; color: #333;">Recent Attendance</h3>
+                        <div class="attendance-list" id="attendanceList">
+                            <div style="padding: 1rem; text-align: center; color: #999;">
+                                Waiting for attendance...
+                            </div>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <button class="btn btn-primary" type="button" onclick="submitManualAttendance()" style="width: 100%;">
-                        ✓ Submit Manual Attendance
-                    </button>
-                </form>
+            <!-- Manual Attendance Section -->
+            <div style="max-width: 900px; margin: 3rem auto; padding: 0 1rem;">
+                <div class="qr-panel">
+                    <h2>✍️ Mark Attendance Manually</h2>
+
+                    <div class="info-box">
+                        Use this as a fallback when QR code is not available.
+                    </div>
+
+                    <form id="manualForm">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label class="form-label">📚 Subject</label>
+                                <select id="manualSubjectId" required>
+                                    <option value="">-- Loading Subjects... --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">📅 Date</label>
+                                <input type="date" id="attendanceDate" class="form-input" />
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">📝 Student List</label>
+                            <div
+                                style="border: 1px solid #ddd; border-radius: 6px; padding: 1rem; max-height: 400px; overflow-y: auto;">
+                                <div id="studentList"></div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary" type="button" onclick="submitManualAttendance()"
+                            style="width: 100%;">
+                            ✓ Submit Manual Attendance
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
-    </div>
-</main>
+    </main>
 
-<script>
-    let activeQRSession = null;
-    let timerInterval = null;
-    let statsInterval = null;
-    let teacherSubjects = [];
+    <script>
+        let activeQRSession = null;
+        let timerInterval = null;
+        let statsInterval = null;
+        let qrAutoRefreshInterval = null;
+        let teacherSubjects = [];
+        let lastTeacherPosition = null;
+        let lastTeacherPositionAt = 0;
 
-    function getSelectedSubjectName() {
-        const selected = teacherSubjects.find(subject => String(subject.subjectId) === String(document.getElementById('subjectId').value));
-        return selected ? `${selected.subjectCode} - ${selected.subjectName}` : '';
-    }
-
-    function renderSubjectOptions() {
-        const subjectSelect = document.getElementById('subjectId');
-        const manualSubjectSelect = document.getElementById('manualSubjectId');
-
-        const baseOption = '<option value="">-- Choose Subject --</option>';
-        const options = teacherSubjects.map(subject =>
-            `<option value="${subject.subjectId}">${subject.subjectCode} (${subject.subjectName})</option>`
-        ).join('');
-
-        subjectSelect.innerHTML = baseOption + options;
-        manualSubjectSelect.innerHTML = baseOption + options;
-    }
-
-    function renderStudentList(students) {
-        const list = document.getElementById('studentList');
-        if (!students || !students.length) {
-            list.innerHTML = '<div style="color:#64748b;">No enrolled students found for this subject.</div>';
-            return;
+        function getSelectedSubjectName() {
+            const selected = teacherSubjects.find(subject => String(subject.subjectId) === String(document.getElementById('subjectId').value));
+            return selected ? `${selected.subjectCode} - ${selected.subjectName}` : '';
         }
 
-        list.innerHTML = students.map((student) => `
+        function renderSubjectOptions() {
+            const subjectSelect = document.getElementById('subjectId');
+            const manualSubjectSelect = document.getElementById('manualSubjectId');
+
+            const baseOption = '<option value="">-- Choose Subject --</option>';
+            const options = teacherSubjects.map(subject =>
+                `<option value="${subject.subjectId}">${subject.subjectCode} (${subject.subjectName})</option>`
+            ).join('');
+
+            subjectSelect.innerHTML = baseOption + options;
+            manualSubjectSelect.innerHTML = baseOption + options;
+        }
+
+        function renderStudentList(students) {
+            const list = document.getElementById('studentList');
+            if (!students || !students.length) {
+                list.innerHTML = '<div style="color:#64748b;">No enrolled students found for this subject.</div>';
+                return;
+            }
+
+            list.innerHTML = students.map((student) => `
             <label style="display:block; margin-bottom:8px;">
                 <input type="checkbox" class="student-checkbox" data-student-id="${student.studentId}" checked>
                 ${student.studentName} <span style="color:#64748b;">(${student.studentId})</span>
             </label>
         `).join('');
-    }
-
-    function loadSubjectStudents(subjectId) {
-        if (!subjectId) {
-            renderStudentList([]);
-            return;
         }
 
-        window.smsApi.teacher.attendance.subjectStudents(subjectId, getAuthToken())
-        .then(data => renderStudentList(Array.isArray(data) ? data : []))
-        .catch(error => {
-            console.error('Error loading subject students:', error);
-            renderStudentList([]);
-        });
-    }
-
-    function loadTeacherSubjects() {
-        window.smsApi.teacher.attendance.subjects(getAuthToken())
-        .then(data => {
-            teacherSubjects = Array.isArray(data) ? data : [];
-            renderSubjectOptions();
-
-            if (teacherSubjects.length > 0) {
-                const firstId = String(teacherSubjects[0].subjectId);
-                document.getElementById('subjectId').value = firstId;
-                document.getElementById('manualSubjectId').value = firstId;
-                document.getElementById('subjectName').value = getSelectedSubjectName();
-                loadSubjectStudents(firstId);
-            } else {
-                document.getElementById('subjectName').value = '';
+        function loadSubjectStudents(subjectId) {
+            if (!subjectId) {
                 renderStudentList([]);
-            }
-        })
-        .catch(error => {
-            console.error('Error loading teacher subjects:', error);
-            teacherSubjects = [];
-            renderSubjectOptions();
-            renderStudentList([]);
-        });
-    }
-
-    /**
-     * Generate QR code
-     */
-    function generateQR() {
-        const subjectId = document.getElementById('subjectId').value;
-        const expiryMinutes = document.getElementById('expiryMinutes').value;
-
-        if (!subjectId) {
-            showError('Please select a subject');
-            return;
-        }
-
-        showLoader(true);
-
-        const request = {
-            subjectId: parseInt(subjectId),
-            subjectName: getSelectedSubjectName(),
-            expiryMinutes: parseInt(expiryMinutes)
-        };
-
-        window.smsApi.teacher.attendance.generateQr(request, getAuthToken())
-        .then(data => {
-            showLoader(false);
-            
-            activeQRSession = {
-                token: data.qrToken,
-                sessionId: data.sessionId,
-                expiresAt: data.expiresAt,
-                subjectId: subjectId
-            };
-
-            document.getElementById('qrImage').src = data.qrImage;
-            document.getElementById('qrPlaceholder').style.display = 'none';
-            document.getElementById('qrContent').style.display = 'block';
-            document.getElementById('attentionBox').style.display = 'block';
-
-            // Start countdown timer
-            startTimer(data.expirySeconds);
-            
-            // Start stats polling
-            startStatsPoll(subjectId);
-        })
-        .catch(error => {
-            showLoader(false);
-            console.error('Error:', error);
-            showError('Error generating QR: ' + error.message);
-        });
-    }
-
-    /**
-     * Stop QR session
-     */
-    function stopQR() {
-        if (timerInterval) clearInterval(timerInterval);
-        if (statsInterval) clearInterval(statsInterval);
-
-        activeQRSession = null;
-        document.getElementById('qrContent').style.display = 'none';
-        document.getElementById('qrPlaceholder').style.display = 'block';
-        document.getElementById('attentionBox').style.display = 'none';
-    }
-
-    /**
-     * Start countdown timer
-     */
-    function startTimer(seconds) {
-        let remaining = seconds;
-
-        if (timerInterval) clearInterval(timerInterval);
-
-        timerInterval = setInterval(() => {
-            const mins = Math.floor(remaining / 60);
-            const secs = remaining % 60;
-            document.getElementById('timer').textContent = 
-                `${mins}:${String(secs).padStart(2, '0')}`;
-
-            if (remaining <= 60) {
-                document.getElementById('timer').classList.add('warning');
-            }
-
-            if (remaining === 0) {
-                clearInterval(timerInterval);
-                document.getElementById('statusBadge').textContent = '● EXPIRED';
-                document.getElementById('statusBadge').classList.remove('status-active');
-                document.getElementById('statusBadge').classList.add('status-inactive');
-                showError('QR Code has expired');
-            }
-
-            remaining--;
-        }, 1000);
-    }
-
-    /**
-     * Poll attendance stats every 2 seconds
-     */
-    function startStatsPoll(subjectId) {
-        if (statsInterval) clearInterval(statsInterval);
-
-        statsInterval = setInterval(() => {
-            if (!activeQRSession) {
-                clearInterval(statsInterval);
                 return;
             }
 
-            window.smsApi.teacher.attendance.sessionStats(subjectId)
-            .then(data => {
-                document.getElementById('presentCount').textContent = data.presentCount;
-                document.getElementById('totalScanned').textContent = data.totalExpected;
+            window.smsApi.teacher.attendance.subjectStudents(subjectId, getAuthToken())
+                .then(data => renderStudentList(Array.isArray(data) ? data : []))
+                .catch(error => {
+                    console.error('Error loading subject students:', error);
+                    renderStudentList([]);
+                });
+        }
 
-                // Update attendance list
-                updateAttendanceList(subjectId);
-            })
-            .catch(error => console.error('Error polling stats:', error));
-        }, 2000); // Poll every 2 seconds
-    }
+        function loadTeacherSubjects() {
+            window.smsApi.teacher.attendance.subjects(getAuthToken())
+                .then(data => {
+                    teacherSubjects = Array.isArray(data) ? data : [];
+                    renderSubjectOptions();
 
-    /**
-     * Update attendance list
-     */
-    function updateAttendanceList(subjectId) {
-        window.smsApi.teacher.attendance.records(subjectId, getAuthToken())
-        .then(records => {
-            const list = document.getElementById('attendanceList');
-            
-            if (records.length === 0) {
-                list.innerHTML = '<div style="padding: 1rem; text-align: center; color: #999;">Waiting for attendance...</div>';
-            } else {
-                list.innerHTML = records.slice(0, 5).map(r => `
+                    if (teacherSubjects.length > 0) {
+                        const firstId = String(teacherSubjects[0].subjectId);
+                        document.getElementById('subjectId').value = firstId;
+                        document.getElementById('manualSubjectId').value = firstId;
+                        document.getElementById('subjectName').value = getSelectedSubjectName();
+                        loadSubjectStudents(firstId);
+                    } else {
+                        document.getElementById('subjectName').value = '';
+                        renderStudentList([]);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading teacher subjects:', error);
+                    teacherSubjects = [];
+                    renderSubjectOptions();
+                    renderStudentList([]);
+                });
+        }
+
+        /**
+         * Generate QR code
+         */
+        function generateQR() {
+            const subjectId = document.getElementById('subjectId').value;
+            const qrMode = document.getElementById('qrMode').value;
+            const expirySeconds = document.getElementById('expirySeconds').value;
+            const staticDurationMinutes = document.getElementById('staticDurationMinutes').value;
+
+            if (!subjectId) {
+                showError('Please select a subject');
+                return;
+            }
+
+            showLoader(true);
+
+            resolveTeacherPosition()
+                .then(position => {
+                    const dynamicQr = qrMode === 'dynamic';
+                    const resolvedExpirySeconds = dynamicQr
+                        ? 10
+                        : Math.max(8, parseInt(staticDurationMinutes || '5', 10) * 60);
+                    const request = {
+                        subjectId: parseInt(subjectId),
+                        subjectName: getSelectedSubjectName(),
+                        expirySeconds: dynamicQr ? parseInt(expirySeconds, 10) : resolvedExpirySeconds,
+                        teacherLatitude: position.coords.latitude,
+                        teacherLongitude: position.coords.longitude,
+                        maxDistanceMeters: 150,
+                        dynamicQr: dynamicQr,
+                        qrMode: qrMode
+                    };
+                    return window.smsApi.teacher.attendance.generateQr(request, getAuthToken());
+                })
+                .then(data => {
+                    showLoader(false);
+
+                    activeQRSession = {
+                        token: data.qrToken,
+                        sessionId: data.sessionId,
+                        expiresAt: data.expiresAt,
+                        subjectId: subjectId
+                    };
+
+                    document.getElementById('qrImage').src = data.qrImage;
+                    document.getElementById('qrPlaceholder').style.display = 'none';
+                    document.getElementById('qrContent').style.display = 'block';
+                    document.getElementById('attentionBox').style.display = 'block';
+
+                    // Start countdown timer
+                    startTimer(data.expirySeconds);
+
+                    // Start stats polling
+                    startStatsPoll(subjectId);
+                    if (qrMode === 'dynamic') {
+                        startQrAutoRefresh();
+                    } else if (qrAutoRefreshInterval) {
+                        clearInterval(qrAutoRefreshInterval);
+                        qrAutoRefreshInterval = null;
+                    }
+                })
+                .catch(error => {
+                    showLoader(false);
+                    console.error('Error:', error);
+                    showError('Error generating QR: ' + error.message);
+                });
+        }
+
+        /**
+         * Stop QR session
+         */
+        function stopQR() {
+            if (timerInterval) clearInterval(timerInterval);
+            if (statsInterval) clearInterval(statsInterval);
+            if (qrAutoRefreshInterval) clearInterval(qrAutoRefreshInterval);
+
+            activeQRSession = null;
+            document.getElementById('qrContent').style.display = 'none';
+            document.getElementById('qrPlaceholder').style.display = 'block';
+            document.getElementById('attentionBox').style.display = 'none';
+        }
+
+        function startQrAutoRefresh() {
+            if (qrAutoRefreshInterval) clearInterval(qrAutoRefreshInterval);
+            qrAutoRefreshInterval = setInterval(() => {
+                if (!activeQRSession) return;
+                generateQR();
+            }, 10000);
+        }
+
+        function resolveTeacherPosition() {
+            if (lastTeacherPosition && (Date.now() - lastTeacherPositionAt) <= 30000) {
+                return Promise.resolve(lastTeacherPosition);
+            }
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Geolocation not supported on this device'));
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        lastTeacherPosition = position;
+                        lastTeacherPositionAt = Date.now();
+                        resolve(position);
+                    },
+                    () => reject(new Error('Teacher location is required to generate secure QR')),
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 20000 }
+                );
+            });
+        }
+
+        /**
+         * Start countdown timer
+         */
+        function startTimer(seconds) {
+            let remaining = seconds;
+
+            if (timerInterval) clearInterval(timerInterval);
+
+            timerInterval = setInterval(() => {
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                document.getElementById('timer').textContent =
+                    `${mins}:${String(secs).padStart(2, '0')}`;
+
+                if (remaining <= 60) {
+                    document.getElementById('timer').classList.add('warning');
+                }
+
+                if (remaining === 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById('statusBadge').textContent = '● EXPIRED';
+                    document.getElementById('statusBadge').classList.remove('status-active');
+                    document.getElementById('statusBadge').classList.add('status-inactive');
+                    showError('QR Code has expired');
+                }
+
+                remaining--;
+            }, 1000);
+        }
+
+        /**
+         * Poll attendance stats every 2 seconds
+         */
+        function startStatsPoll(subjectId) {
+            if (statsInterval) clearInterval(statsInterval);
+
+            statsInterval = setInterval(() => {
+                if (!activeQRSession) {
+                    clearInterval(statsInterval);
+                    return;
+                }
+
+                window.smsApi.teacher.attendance.sessionStats(subjectId)
+                    .then(data => {
+                        document.getElementById('presentCount').textContent = data.presentCount;
+                        document.getElementById('totalScanned').textContent = data.totalExpected;
+
+                        // Update attendance list
+                        updateAttendanceList(subjectId);
+                    })
+                    .catch(error => console.error('Error polling stats:', error));
+            }, 2000); // Poll every 2 seconds
+        }
+
+        /**
+         * Update attendance list
+         */
+        function updateAttendanceList(subjectId) {
+            window.smsApi.teacher.attendance.records(subjectId, getAuthToken())
+                .then(records => {
+                    const list = document.getElementById('attendanceList');
+
+                    if (records.length === 0) {
+                        list.innerHTML = '<div style="padding: 1rem; text-align: center; color: #999;">Waiting for attendance...</div>';
+                    } else {
+                        list.innerHTML = records.slice(0, 5).map(r => `
                     <div class="attendance-item">
                         <span>${r.studentId}</span>
                         <span class="attendance-time">${r.markedTime}</span>
                     </div>
                 `).join('');
-            }
-        })
-        .catch(error => console.error('Error updating list:', error));
-    }
-
-    /**
-     * Submit manual attendance
-     */
-    function submitManualAttendance() {
-        const subjectId = document.getElementById('manualSubjectId').value;
-        const date = document.getElementById('attendanceDate').value;
-
-        if (!subjectId || !date) {
-            showError('Please select subject and date');
-            return;
+                    }
+                })
+                .catch(error => console.error('Error updating list:', error));
         }
 
-        const records = [];
-        document.querySelectorAll('.student-checkbox').forEach(checkbox => {
-            records.push({
-                studentId: checkbox.dataset.studentId,
-                status: checkbox.checked ? 'PRESENT' : 'ABSENT'
-            });
-        });
+        /**
+         * Submit manual attendance
+         */
+        function submitManualAttendance() {
+            const subjectId = document.getElementById('manualSubjectId').value;
+            const date = document.getElementById('attendanceDate').value;
 
-        const request = {
-            subjectId: parseInt(subjectId),
-            attendanceDate: date,
-            attendanceRecords: records
-        };
-
-        window.smsApi.teacher.attendance.manual(request, getAuthToken())
-        .then(data => {
-            if (data.success) {
-                alert('✅ ' + data.message);
-                document.getElementById('manualForm').reset();
-            } else {
-                showError(data.error);
+            if (!subjectId || !date) {
+                showError('Please select subject and date');
+                return;
             }
-        })
-        .catch(error => showError('Error: ' + error.message));
-    }
 
-    /**
-     * Show error message
-     */
-    function showError(message) {
-        const el = document.getElementById('errorMessage');
-        el.textContent = message;
-        el.style.display = 'block';
-    }
+            const records = [];
+            document.querySelectorAll('.student-checkbox').forEach(checkbox => {
+                records.push({
+                    studentId: checkbox.dataset.studentId,
+                    status: checkbox.checked ? 'PRESENT' : 'ABSENT'
+                });
+            });
 
-    /**
-     * Show/hide loader
-     */
-    function showLoader(show) {
-        document.getElementById('loader').style.display = show ? 'block' : 'none';
-    }
+            const request = {
+                subjectId: parseInt(subjectId),
+                attendanceDate: date,
+                attendanceRecords: records
+            };
 
-    /**
-     * Get auth token
-     */
-    function getAuthToken() {
-        return localStorage.getItem('authToken') || '';
-    }
+            window.smsApi.teacher.attendance.manual(request, getAuthToken())
+                .then(data => {
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                        document.getElementById('manualForm').reset();
+                    } else {
+                        showError(data.error);
+                    }
+                })
+                .catch(error => showError('Error: ' + error.message));
+        }
 
-    /**
-     * Update subject name when selected
-     */
-    document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('subjectId').addEventListener('change', function() {
-            document.getElementById('subjectName').value = getSelectedSubjectName();
+        /**
+         * Show error message
+         */
+        function showError(message) {
+            const el = document.getElementById('errorMessage');
+            el.textContent = message;
+            el.style.display = 'block';
+        }
+
+        /**
+         * Show/hide loader
+         */
+        function showLoader(show) {
+            document.getElementById('loader').style.display = show ? 'block' : 'none';
+        }
+
+        /**
+         * Get auth token
+         */
+        function getAuthToken() {
+            return localStorage.getItem('authToken') || '';
+        }
+
+        /**
+         * Update subject name when selected
+         */
+        document.addEventListener('DOMContentLoaded', function () {
+            const qrModeSelect = document.getElementById('qrMode');
+            const dynamicGroup = document.getElementById('expirySeconds')?.closest('.form-group');
+            const staticGroup = document.getElementById('staticDurationGroup');
+            function updateQrModeUi() {
+                const dynamicMode = qrModeSelect && qrModeSelect.value === 'dynamic';
+                if (dynamicGroup) dynamicGroup.style.display = dynamicMode ? 'block' : 'none';
+                if (staticGroup) staticGroup.style.display = dynamicMode ? 'none' : 'block';
+            }
+            if (qrModeSelect) {
+                qrModeSelect.addEventListener('change', updateQrModeUi);
+                updateQrModeUi();
+            }
+
+            document.getElementById('subjectId').addEventListener('change', function () {
+                document.getElementById('subjectName').value = getSelectedSubjectName();
+            });
+
+            document.getElementById('manualSubjectId').addEventListener('change', function () {
+                loadSubjectStudents(this.value);
+            });
+
+            // Set today's date
+            document.getElementById('attendanceDate').valueAsDate = new Date();
+
+            loadTeacherSubjects();
         });
-
-        document.getElementById('manualSubjectId').addEventListener('change', function() {
-            loadSubjectStudents(this.value);
-        });
-
-        // Set today's date
-        document.getElementById('attendanceDate').valueAsDate = new Date();
-
-        loadTeacherSubjects();
-    });
-</script>
+    </script>
 
 </body>
+
 </html>

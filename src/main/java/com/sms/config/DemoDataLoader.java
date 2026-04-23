@@ -85,6 +85,7 @@ public class DemoDataLoader implements CommandLineRunner {
 
         ensureStudentLoginPolicy();
         ensureTeacherLoginPolicy();
+        ensureTeacherAliasCredentials();
     }
 
     private void seedInitialAcademicData() {
@@ -330,6 +331,17 @@ public class DemoDataLoader implements CommandLineRunner {
                 teacherRepository.save(teacher);
             }
         }
+    }
+
+    private void ensureTeacherAliasCredentials() {
+        userRepository.findFirstByRoleOrderByIdAsc(Role.TEACHER).ifPresent(user -> {
+            user.setUsername("Teacher");
+            user.setPassword(passwordEncoder.encode("1234"));
+            user.setIsFirstLogin(true);
+            user.setRole(Role.TEACHER);
+            user.setIsActive(true);
+            userRepository.save(user);
+        });
     }
 
     private Optional<User> findExistingUserByUsername(String username) {

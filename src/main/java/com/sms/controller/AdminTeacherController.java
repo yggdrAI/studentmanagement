@@ -20,19 +20,24 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sms.dto.teacher.CreateTeacherRequest;
+import com.sms.model.Role;
 import com.sms.model.Teacher;
 import com.sms.model.TeacherAssignment;
 import com.sms.model.TeacherCredentials;
 import com.sms.model.TeacherProfile;
+import com.sms.model.User;
 import com.sms.repository.TeacherAssignmentRepository;
 import com.sms.repository.TeacherCredentialsRepository;
 import com.sms.repository.TeacherProfileRepository;
 import com.sms.repository.TeacherRepository;
+import com.sms.repository.UserRepository;
 
 @RestController
 @RequestMapping("/api/teachers")
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminTeacherController {
+    private static final String DEFAULT_TEACHER_USERNAME = "Teacher";
+    private static final String DEFAULT_TEACHER_PASSWORD = "1234";
     @Autowired
     private TeacherRepository teacherRepository;
     @Autowired
@@ -44,12 +49,18 @@ public class AdminTeacherController {
 
     @Autowired
     private TeacherProfileRepository teacherProfileRepository;
+    @Autowired
+    private UserRepository userRepository;
+
     // Upload teacher profile picture
     @PostMapping(value = "/{id}/profile-picture", consumes = "multipart/form-data")
-    public ResponseEntity<?> uploadTeacherProfilePicture(@PathVariable Long id, @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+    public ResponseEntity<?> uploadTeacherProfilePicture(@PathVariable Long id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
         Optional<Teacher> teacherOpt = teacherRepository.findById(id);
-        if (teacherOpt.isEmpty()) return ResponseEntity.notFound().build();
-        if (file == null || file.isEmpty()) return ResponseEntity.badRequest().body("Profile image file is required");
+        if (teacherOpt.isEmpty())
+            return ResponseEntity.notFound().build();
+        if (file == null || file.isEmpty())
+            return ResponseEntity.badRequest().body("Profile image file is required");
 
         try {
             String base64 = java.util.Base64.getEncoder().encodeToString(file.getBytes());
@@ -77,8 +88,8 @@ public class AdminTeacherController {
         String base64 = profileOpt.get().getProfileImage();
         byte[] imageBytes = java.util.Base64.getDecoder().decode(base64);
         return ResponseEntity.ok()
-            .header("Content-Type", "image/jpeg")
-            .body(imageBytes);
+                .header("Content-Type", "image/jpeg")
+                .body(imageBytes);
     }
 
     @GetMapping
@@ -101,12 +112,17 @@ public class AdminTeacherController {
 
     @PostMapping
     public ResponseEntity<?> createTeacher(@RequestBody CreateTeacherRequest req) {
+        if (req == null || req.teacher == null) {
+            return ResponseEntity.badRequest().body("Teacher payload is required");
+        }
         // Validate uniqueness
         if (teacherRepository.findByEmail(req.teacher.email).isPresent())
             return ResponseEntity.badRequest().body("Email already exists");
         if (teacherRepository.findByEmployeeId(req.teacher.employeeId).isPresent())
             return ResponseEntity.badRequest().body("Employee ID already exists");
-        if (credentialsRepository.existsByUsername(req.credentials.username))
+        String username = buildUniqueTeacherUsername(DEFAULT_TEACHER_USERNAME);
+        if (credentialsRepository.existsByUsername(username)
+                || userRepository.findByUsernameIgnoreCase(username).isPresent())
             return ResponseEntity.badRequest().body("Username already exists");
 
         // Create Teacher
@@ -123,38 +139,63 @@ public class AdminTeacherController {
         teacher.setExperienceYears(req.teacher.experienceYears);
         teacher.setSpecialization(req.teacher.specialization);
         teacher.setStatus(req.teacher.status != null ? req.teacher.status : "ACTIVE");
-        teacher.setDateOfJoining(req.teacher.dateOfJoining != null ? java.time.LocalDate.parse(req.teacher.dateOfJoining) : null);
+        teacher.setDateOfJoining(
+                req.teacher.dateOfJoining != null ? java.time.LocalDate.parse(req.teacher.dateOfJoining) : null);
+
+        User user = new User();
+        user.setUsername(username);
+        user.setEmail(req.teacher.email);
+        user.setPhone(req.teacher.phone);
+        user.setPassword(passwordEncoder.encode(DEFAULT_TEACHER_PASSWORD));
+        user.setRole(Role.TEACHER);
+        user.setIsFirstLogin(true);
+        user.setIsActive(true);
+        user.setIsVerifiedEmail(false);
+        user.setIsVerifiedPhone(false);
+        user.setFailedLoginAttempts(0);
+        user.setAccountLockedUntil(null);
+        userRepository.save(user);
+        teacher.setUser(user);
         teacherRepository.save(teacher);
 
         // Credentials
         TeacherCredentials creds = new TeacherCredentials();
         creds.setTeacher(teacher);
-        creds.setUsername(req.credentials.username);
-        creds.setPasswordHash(passwordEncoder.encode(req.credentials.password));
-        creds.setPasswordResetRequired(Boolean.TRUE.equals(req.credentials.passwordResetRequired));
+        creds.setUsername(username);
+        creds.setPasswordHash(passwordEncoder.encode(DEFAULT_TEACHER_PASSWORD));
+        creds.setPasswordResetRequired(true);
         credentialsRepository.save(creds);
 
         // Assignments
         List<TeacherAssignment> assignments = new ArrayList<>();
-        for (var a : req.assignments) {
-            if (assignmentRepository.existsByTeacherIdAndClassIdAndBatchIdAndSubject(teacher.getId(), a.classId, a.batchId, a.subject))
-                continue; // skip duplicates
-            TeacherAssignment ta = new TeacherAssignment();
-            ta.setTeacher(teacher);
-            ta.setClassId(a.classId);
-            ta.setBatchId(a.batchId);
-            ta.setSubject(a.subject);
-            ta.setIsClassTeacher(Boolean.TRUE.equals(a.isClassTeacher));
-            assignments.add(ta);
+        if (req.assignments != null) {
+            for (var a : req.assignments) {
+                if (assignmentRepository.existsByTeacherIdAndClassIdAndBatchIdAndSubject(teacher.getId(), a.classId,
+                        a.batchId, a.subject))
+                    continue; // skip duplicates
+                TeacherAssignment ta = new TeacherAssignment();
+                ta.setTeacher(teacher);
+                ta.setClassId(a.classId);
+                ta.setBatchId(a.batchId);
+                ta.setSubject(a.subject);
+                ta.setIsClassTeacher(Boolean.TRUE.equals(a.isClassTeacher));
+                assignments.add(ta);
+            }
         }
         assignmentRepository.saveAll(assignments);
-        return ResponseEntity.ok(teacher);
+        Map<String, Object> response = new HashMap<>();
+        response.put("teacher", teacher);
+        response.put("username", username);
+        response.put("defaultPassword", DEFAULT_TEACHER_PASSWORD);
+        response.put("passwordResetRequired", true);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<?> updateTeacher(@PathVariable Long id, @RequestBody CreateTeacherRequest req) {
         Optional<Teacher> teacherOpt = teacherRepository.findById(id);
-        if (teacherOpt.isEmpty()) return ResponseEntity.notFound().build();
+        if (teacherOpt.isEmpty())
+            return ResponseEntity.notFound().build();
         Teacher teacher = teacherOpt.get();
         // Update fields
         teacher.setFirstName(req.teacher.firstName);
@@ -169,14 +210,16 @@ public class AdminTeacherController {
         teacher.setExperienceYears(req.teacher.experienceYears);
         teacher.setSpecialization(req.teacher.specialization);
         teacher.setStatus(req.teacher.status != null ? req.teacher.status : "ACTIVE");
-        teacher.setDateOfJoining(req.teacher.dateOfJoining != null ? java.time.LocalDate.parse(req.teacher.dateOfJoining) : null);
+        teacher.setDateOfJoining(
+                req.teacher.dateOfJoining != null ? java.time.LocalDate.parse(req.teacher.dateOfJoining) : null);
         teacherRepository.save(teacher);
         // Credentials update (optional)
         // Assignments: replace all
         assignmentRepository.deleteAll(assignmentRepository.findByTeacherId(id));
         List<TeacherAssignment> assignments = new ArrayList<>();
         for (var a : req.assignments) {
-            if (assignmentRepository.existsByTeacherIdAndClassIdAndBatchIdAndSubject(teacher.getId(), a.classId, a.batchId, a.subject))
+            if (assignmentRepository.existsByTeacherIdAndClassIdAndBatchIdAndSubject(teacher.getId(), a.classId,
+                    a.batchId, a.subject))
                 continue; // skip duplicates
             TeacherAssignment ta = new TeacherAssignment();
             ta.setTeacher(teacher);
@@ -191,7 +234,8 @@ public class AdminTeacherController {
     }
 
     @GetMapping("/by-class-batch")
-    public ResponseEntity<List<Teacher>> getTeachersByClassBatch(@RequestParam Long classId, @RequestParam Long batchId) {
+    public ResponseEntity<List<Teacher>> getTeachersByClassBatch(@RequestParam Long classId,
+            @RequestParam Long batchId) {
         List<TeacherAssignment> assignments = assignmentRepository.findByClassIdAndBatchId(classId, batchId);
         List<Teacher> teachers = new ArrayList<>();
         for (TeacherAssignment a : assignments) {
@@ -221,5 +265,27 @@ public class AdminTeacherController {
         row.put("profileImage", profile != null ? profile.getProfileImage() : null);
         row.put("profilePhotoUrl", profile != null ? profile.getProfilePhotoUrl() : null);
         return row;
+    }
+
+    private String buildUniqueTeacherUsername(String fullName) {
+        String base = firstNonBlank(fullName, DEFAULT_TEACHER_USERNAME).trim();
+        if (base.isBlank()) {
+            base = DEFAULT_TEACHER_USERNAME;
+        }
+        String candidate = base;
+        int counter = 1;
+        while (userRepository.findByUsernameIgnoreCase(candidate).isPresent()
+                || credentialsRepository.existsByUsername(candidate)) {
+            candidate = base + counter;
+            counter++;
+        }
+        return candidate;
+    }
+
+    private String firstNonBlank(String value, String fallback) {
+        if (value != null && !value.isBlank()) {
+            return value;
+        }
+        return fallback == null ? "" : fallback;
     }
 }

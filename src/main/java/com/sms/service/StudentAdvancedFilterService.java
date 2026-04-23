@@ -41,19 +41,18 @@ public class StudentAdvancedFilterService {
 
     private static final Pattern CLASS_PATTERN = Pattern.compile("\\bclass\\s+(\\d+)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern BATCH_PATTERN = Pattern.compile("\\bbatch\\s+([\\w-]+)\\b", Pattern.CASE_INSENSITIVE);
-    private static final Pattern SEMESTER_PATTERN = Pattern.compile("\\bsemester\\s+(\\d+)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SEMESTER_PATTERN = Pattern.compile("\\bsemester\\s+(\\d+)\\b",
+            Pattern.CASE_INSENSITIVE);
 
     private static final Set<String> SENSITIVE_FIELDS = Set.of(
-        "religion", "caste", "castecategory", "disability", "healthstatus", "bloodgroup", "category"
-    );
+            "religion", "caste", "castecategory", "disability", "healthstatus", "bloodgroup", "category");
 
     private static final Set<String> SUPPORTED_FIELDS = Set.of(
-        "id", "name", "email", "phone", "course", "semester", "class", "classgroup", "batch", "batchgroup",
-        "enrollment", "enrollmentnumber", "gender", "age", "school", "degree", "house", "religion", "caste",
-        "castecategory", "placeoforigin", "bloodgroup", "guardianname", "guardiancontact", "attendance",
-        "attendancepct", "marks", "averagemarks", "rank", "percentile", "dropoutprobability", "needsintervention",
-        "atrisk", "topperformer", "irregularattendancepattern", "aitag", "aitags", "healthstatus"
-    );
+            "id", "name", "email", "phone", "course", "semester", "class", "classgroup", "batch", "batchgroup",
+            "enrollment", "enrollmentnumber", "gender", "age", "school", "degree", "house", "religion", "caste",
+            "castecategory", "placeoforigin", "bloodgroup", "guardianname", "guardiancontact", "attendance",
+            "attendancepct", "marks", "averagemarks", "rank", "percentile", "dropoutprobability", "needsintervention",
+            "atrisk", "topperformer", "irregularattendancepattern", "aitag", "aitags", "healthstatus");
 
     private final StudentRepository studentRepository;
     private final StudentProfileRepository studentProfileRepository;
@@ -62,10 +61,10 @@ public class StudentAdvancedFilterService {
     private final SecurityAuditRepository securityAuditRepository;
 
     public StudentAdvancedFilterService(StudentRepository studentRepository,
-                                        StudentProfileRepository studentProfileRepository,
-                                        EnrollmentRepository enrollmentRepository,
-                                        AttendanceRepository attendanceRepository,
-                                        SecurityAuditRepository securityAuditRepository) {
+            StudentProfileRepository studentProfileRepository,
+            EnrollmentRepository enrollmentRepository,
+            AttendanceRepository attendanceRepository,
+            SecurityAuditRepository securityAuditRepository) {
         this.studentRepository = studentRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.enrollmentRepository = enrollmentRepository;
@@ -86,7 +85,8 @@ public class StudentAdvancedFilterService {
 
         boolean sensitiveRequested = containsSensitiveFilter(root);
         if (sensitiveRequested && !Boolean.TRUE.equals(safeRequest.getIncludeSensitive())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sensitive filters require explicit includeSensitive=true");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Sensitive filters require explicit includeSensitive=true");
         }
         if (sensitiveRequested && !canUseSensitiveFilters(authentication)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Missing permission for sensitive filters");
@@ -103,13 +103,14 @@ public class StudentAdvancedFilterService {
         }
 
         Map<String, StudentProfile> profileById = studentProfileRepository.findAllById(
-            students.stream().map(Student::getId).collect(Collectors.toSet())
-        ).stream().collect(Collectors.toMap(StudentProfile::getStudentId, profile -> profile));
+                students.stream().map(Student::getId).collect(Collectors.toSet())).stream()
+                .collect(Collectors.toMap(StudentProfile::getStudentId, profile -> profile));
 
         List<String> studentIds = students.stream().map(Student::getId).toList();
-        Map<String, List<Enrollment>> enrollmentByStudentId = enrollmentRepository.findByStudentIdIn(studentIds).stream()
-            .filter(enrollment -> enrollment.getStudent() != null && enrollment.getStudent().getId() != null)
-            .collect(Collectors.groupingBy(enrollment -> enrollment.getStudent().getId()));
+        Map<String, List<Enrollment>> enrollmentByStudentId = enrollmentRepository.findByStudentIdIn(studentIds)
+                .stream()
+                .filter(enrollment -> enrollment.getStudent() != null && enrollment.getStudent().getId() != null)
+                .collect(Collectors.groupingBy(enrollment -> enrollment.getStudent().getId()));
 
         Map<String, AttendanceStats> attendanceByStudentId = buildAttendanceStats();
 
@@ -122,9 +123,9 @@ public class StudentAdvancedFilterService {
         }
 
         List<StudentSnapshot> filtered = snapshots.stream()
-            .filter(snapshot -> evaluate(root, snapshot))
-            .sorted(buildComparator(safeRequest.getSortBy(), safeRequest.getSortDir()))
-            .toList();
+                .filter(snapshot -> evaluate(root, snapshot))
+                .sorted(buildComparator(safeRequest.getSortBy(), safeRequest.getSortDir()))
+                .toList();
 
         int from = Math.min(page * size, filtered.size());
         int to = Math.min(from + size, filtered.size());
@@ -162,7 +163,8 @@ public class StudentAdvancedFilterService {
             if ("PRESENT".equalsIgnoreCase(attendance.getStatus())) {
                 current.present++;
             }
-            current.lastStatusWindow.add(attendance.getStatus() == null ? "" : attendance.getStatus().toUpperCase(Locale.ROOT));
+            current.lastStatusWindow
+                    .add(attendance.getStatus() == null ? "" : attendance.getStatus().toUpperCase(Locale.ROOT));
             if (current.lastStatusWindow.size() > 20) {
                 current.lastStatusWindow.remove(0);
             }
@@ -176,13 +178,18 @@ public class StudentAdvancedFilterService {
         boolean desc = "desc".equalsIgnoreCase(sortDir);
 
         Comparator<StudentSnapshot> comparator = switch (normalizedSort) {
-            case "name" -> Comparator.comparing(snapshot -> nullSafe(snapshot.student().getName()), String.CASE_INSENSITIVE_ORDER);
-            case "email" -> Comparator.comparing(snapshot -> nullSafe(snapshot.student().getEmail()), String.CASE_INSENSITIVE_ORDER);
-            case "course" -> Comparator.comparing(snapshot -> nullSafe(snapshot.student().getCourse()), String.CASE_INSENSITIVE_ORDER);
-            case "semester" -> Comparator.comparing(snapshot -> nullSafe(snapshot.student().getSemester()), String.CASE_INSENSITIVE_ORDER);
+            case "name" ->
+                Comparator.comparing(snapshot -> nullSafe(snapshot.student().getName()), String.CASE_INSENSITIVE_ORDER);
+            case "email" -> Comparator.comparing(snapshot -> nullSafe(snapshot.student().getEmail()),
+                    String.CASE_INSENSITIVE_ORDER);
+            case "course" -> Comparator.comparing(snapshot -> nullSafe(snapshot.student().getCourse()),
+                    String.CASE_INSENSITIVE_ORDER);
+            case "semester" -> Comparator.comparing(snapshot -> nullSafe(snapshot.student().getSemester()),
+                    String.CASE_INSENSITIVE_ORDER);
             case "averagemarks", "marks" -> Comparator.comparingDouble(StudentSnapshot::averageMarks);
             case "attendance", "attendancepct" -> Comparator.comparingDouble(StudentSnapshot::attendancePercent);
-            default -> Comparator.comparing(snapshot -> nullSafe(snapshot.student().getId()), String.CASE_INSENSITIVE_ORDER);
+            default ->
+                Comparator.comparing(snapshot -> nullSafe(snapshot.student().getId()), String.CASE_INSENSITIVE_ORDER);
         };
 
         return desc ? comparator.reversed() : comparator;
@@ -232,7 +239,8 @@ public class StudentAdvancedFilterService {
             case "semester" -> firstNonBlank(student.getSemester(), profile == null ? null : profile.getSemester());
             case "class", "classgroup" -> student.getClassGroup();
             case "batch", "batchgroup" -> firstNonBlank(student.getBatchGroup(), student.getEnrollmentYear());
-            case "enrollment", "enrollmentnumber" -> profile == null ? student.getId() : firstNonBlank(profile.getEnrollmentNumber(), student.getId());
+            case "enrollment", "enrollmentnumber" ->
+                profile == null ? student.getId() : firstNonBlank(profile.getEnrollmentNumber(), student.getId());
             case "gender" -> firstNonBlank(student.getGender(), profile == null ? null : profile.getGender());
             case "age" -> snapshot.age();
             case "school" -> profile == null ? null : profile.getCollege();
@@ -283,7 +291,8 @@ public class StudentAdvancedFilterService {
                     }
                 }
                 if (actual instanceof Collection<?> actualValues) {
-                    Set<String> expectedSet = values.stream().map(String::valueOf).map(this::normalize).collect(Collectors.toSet());
+                    Set<String> expectedSet = values.stream().map(String::valueOf).map(this::normalize)
+                            .collect(Collectors.toSet());
                     for (Object value : actualValues) {
                         if (expectedSet.contains(normalize(String.valueOf(value)))) {
                             return true;
@@ -432,16 +441,18 @@ public class StudentAdvancedFilterService {
         }
 
         if (node.getValue() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Empty filter value is not allowed for field " + node.getField());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Empty filter value is not allowed for field " + node.getField());
         }
 
         String signature = field + "|" + operator + "|" + normalize(String.valueOf(node.getValue()));
         if (!dedup.add(signature)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate filter detected for field " + node.getField());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Duplicate filter detected for field " + node.getField());
         }
 
         if ("age".equals(field) || "attendance".equals(field) || "attendancepct".equals(field)
-            || "marks".equals(field) || "averagemarks".equals(field)) {
+                || "marks".equals(field) || "averagemarks".equals(field)) {
             validateRangeIfNeeded(operator, node.getValue(), field);
         }
     }
@@ -454,7 +465,8 @@ public class StudentAdvancedFilterService {
             double min = map.containsKey("min") ? asDouble(map.get("min")) : Double.NEGATIVE_INFINITY;
             double max = map.containsKey("max") ? asDouble(map.get("max")) : Double.POSITIVE_INFINITY;
             if (min > max) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid range for field " + field + ": min cannot exceed max");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Invalid range for field " + field + ": min cannot exceed max");
             }
         }
     }
@@ -480,7 +492,8 @@ public class StudentAdvancedFilterService {
         audit.setSeverityLevel("LOW");
         audit.setViolationType("SENSITIVE_FILTER_ACCESS");
         String actor = authentication == null ? "unknown" : authentication.getName();
-        audit.setDescription("Sensitive student filters used by " + actor + ": " + String.join(", ", sensitiveFields(root)));
+        audit.setDescription(
+                "Sensitive student filters used by " + actor + ": " + String.join(", ", sensitiveFields(root)));
         securityAuditRepository.save(audit);
     }
 
@@ -513,8 +526,8 @@ public class StudentAdvancedFilterService {
         for (GrantedAuthority authority : authentication.getAuthorities()) {
             String value = authority == null ? "" : authority.getAuthority();
             if ("ROLE_ADMIN".equals(value)
-                || "VIEW_SENSITIVE_STUDENT_FILTERS".equals(value)
-                || "MANAGE_STUDENTS".equals(value)) {
+                    || "VIEW_SENSITIVE_STUDENT_FILTERS".equals(value)
+                    || "MANAGE_STUDENTS".equals(value)) {
                 return true;
             }
         }
@@ -533,13 +546,21 @@ public class StudentAdvancedFilterService {
         row.put("semester", firstNonBlank(student.getSemester(), profile == null ? null : profile.getSemester()));
         row.put("classGroup", student.getClassGroup());
         row.put("batchGroup", student.getBatchGroup());
-        row.put("enrollment", profile == null ? student.getId() : firstNonBlank(profile.getEnrollmentNumber(), student.getId()));
+        row.put("enrollment",
+                profile == null ? student.getId() : firstNonBlank(profile.getEnrollmentNumber(), student.getId()));
         row.put("averageMarks", snapshot.averageMarks());
         row.put("attendancePercent", snapshot.attendancePercent());
         row.put("dropoutProbability", snapshot.dropoutProbability());
         row.put("aiTags", snapshot.aiTags());
         row.put("healthStatus", snapshot.healthStatus());
         row.put("avatar", buildAvatar(student.getName()));
+        String profileImage = firstNonBlank(
+                profile == null ? null : profile.getProfilePhotoUrl(),
+                profile == null ? null : profile.getProfileImage(),
+                student.getProfileImageUrl());
+        row.put("profileImage", profileImage);
+        row.put("profilePhotoUrl", profileImage);
+        row.put("photoUrl", profileImage);
         return row;
     }
 
@@ -676,43 +697,42 @@ public class StudentAdvancedFilterService {
     }
 
     private record StudentSnapshot(
-        Student student,
-        StudentProfile profile,
-        double averageMarks,
-        double attendancePercent,
-        int age,
-        double rankScore,
-        double percentile,
-        double dropoutProbability,
-        boolean atRisk,
-        boolean needsIntervention,
-        boolean topPerformer,
-        boolean irregularAttendancePattern,
-        String healthStatus,
-        List<String> aiTags
-    ) {
+            Student student,
+            StudentProfile profile,
+            double averageMarks,
+            double attendancePercent,
+            int age,
+            double rankScore,
+            double percentile,
+            double dropoutProbability,
+            boolean atRisk,
+            boolean needsIntervention,
+            boolean topPerformer,
+            boolean irregularAttendancePattern,
+            String healthStatus,
+            List<String> aiTags) {
         private static StudentSnapshot of(Student student,
-                                          StudentProfile profile,
-                                          List<Enrollment> enrollments,
-                                          AttendanceStats attendanceStats) {
+                StudentProfile profile,
+                List<Enrollment> enrollments,
+                AttendanceStats attendanceStats) {
             double averageMarks = enrollments.stream()
-                .map(Enrollment::getMarks)
-                .filter(Objects::nonNull)
-                .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(0.0);
+                    .map(Enrollment::getMarks)
+                    .filter(Objects::nonNull)
+                    .mapToDouble(Double::doubleValue)
+                    .average()
+                    .orElse(0.0);
 
             double attendancePercent = attendanceStats.attendancePercent();
             int age = computeAge(profile == null ? null : profile.getDob());
             double rankScore = (averageMarks * 0.65) + (attendancePercent * 0.35);
             double percentile = Math.max(0, Math.min(100, rankScore));
             double dropoutProbability = Math.max(0, Math.min(1,
-                ((100 - attendancePercent) * 0.0065) + ((60 - averageMarks) * 0.004)
-            ));
+                    ((100 - attendancePercent) * 0.0065) + ((60 - averageMarks) * 0.004)));
 
             boolean atRisk = attendancePercent < 60 || averageMarks < 45 || dropoutProbability >= 0.7;
             boolean topPerformer = averageMarks >= 85 && attendancePercent >= 80;
-            boolean needsIntervention = !topPerformer && (attendancePercent < 70 || averageMarks < 55 || dropoutProbability >= 0.55);
+            boolean needsIntervention = !topPerformer
+                    && (attendancePercent < 70 || averageMarks < 55 || dropoutProbability >= 0.55);
             boolean irregularPattern = attendanceStats.irregularPattern();
 
             List<String> tags = new ArrayList<>();
@@ -732,21 +752,20 @@ public class StudentAdvancedFilterService {
             String healthStatus = atRisk ? "at-risk" : (needsIntervention ? "watch" : "fit");
 
             return new StudentSnapshot(
-                student,
-                profile,
-                averageMarks,
-                attendancePercent,
-                age,
-                rankScore,
-                percentile,
-                dropoutProbability,
-                atRisk,
-                needsIntervention,
-                topPerformer,
-                irregularPattern,
-                healthStatus,
-                tags
-            );
+                    student,
+                    profile,
+                    averageMarks,
+                    attendancePercent,
+                    age,
+                    rankScore,
+                    percentile,
+                    dropoutProbability,
+                    atRisk,
+                    needsIntervention,
+                    topPerformer,
+                    irregularPattern,
+                    healthStatus,
+                    tags);
         }
 
         private static int computeAge(LocalDate dob) {

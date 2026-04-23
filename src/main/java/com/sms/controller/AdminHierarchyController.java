@@ -60,11 +60,11 @@ public class AdminHierarchyController {
     private final StudentGroupingService studentGroupingService;
 
     public AdminHierarchyController(StudentRepository studentRepository,
-                                    StudentProfileRepository studentProfileRepository,
-                                    AttendanceRepository attendanceRepository,
-                                    StudentService studentService,
-                                    HierarchyCatalogService hierarchyCatalogService,
-                                    StudentGroupingService studentGroupingService) {
+            StudentProfileRepository studentProfileRepository,
+            AttendanceRepository attendanceRepository,
+            StudentService studentService,
+            HierarchyCatalogService hierarchyCatalogService,
+            StudentGroupingService studentGroupingService) {
         this.studentRepository = studentRepository;
         this.studentProfileRepository = studentProfileRepository;
         this.attendanceRepository = attendanceRepository;
@@ -112,8 +112,10 @@ public class AdminHierarchyController {
             @RequestParam(required = false) String performance,
             @RequestParam(required = false, defaultValue = "true") boolean includeStudents) {
 
-        // UI sends semester as "2" (from the dropdown), while we often persist "Semester 2".
-        // It also sends short course labels like "B.Tech", while we may store full names.
+        // UI sends semester as "2" (from the dropdown), while we often persist
+        // "Semester 2".
+        // It also sends short course labels like "B.Tech", while we may store full
+        // names.
         // Normalize common "all" sentinel values and tolerate numeric semester filters.
         final String normalizedCourse = normalizeAllSentinel(course);
         final String normalizedSemester = normalizeAllSentinel(semester);
@@ -127,12 +129,17 @@ public class AdminHierarchyController {
         Map<String, Double> attendanceMap = loadAttendanceRateMap();
 
         List<Student> filtered = students.stream()
-                .filter(student -> normalizedCourse == null || normalizedCourse.isBlank() || matchesCourse(student.getCourse(), normalizedCourse))
-                .filter(student -> normalizedSemester == null || normalizedSemester.isBlank() || matchesSemester(student.getSemester(), normalizedSemester))
-            .filter(student -> normalizedClassNumber == null || classGroupingKey(student, profileByStudentId.get(student.getId())) == normalizedClassNumber)
-            .filter(student -> normalizedBatchNumber == null || batchGroupingKey(student, profileByStudentId.get(student.getId())) == normalizedBatchNumber)
+                .filter(student -> normalizedCourse == null || normalizedCourse.isBlank()
+                        || matchesCourse(student.getCourse(), normalizedCourse))
+                .filter(student -> normalizedSemester == null || normalizedSemester.isBlank()
+                        || matchesSemester(student.getSemester(), normalizedSemester))
+                .filter(student -> normalizedClassNumber == null
+                        || classGroupingKey(student, profileByStudentId.get(student.getId())) == normalizedClassNumber)
+                .filter(student -> normalizedBatchNumber == null
+                        || batchGroupingKey(student, profileByStudentId.get(student.getId())) == normalizedBatchNumber)
                 .filter(student -> normalizedPerformance == null || normalizedPerformance.isBlank()
-                        || performanceBand(marksMap.getOrDefault(student.getId(), 0.0)).equalsIgnoreCase(normalizedPerformance))
+                        || performanceBand(marksMap.getOrDefault(student.getId(), 0.0))
+                                .equalsIgnoreCase(normalizedPerformance))
                 .collect(Collectors.toList());
 
         if (filtered.isEmpty()) {
@@ -140,21 +147,20 @@ public class AdminHierarchyController {
                     "summary", Map.of(
                             "totalClasses", 0,
                             "totalBatches", 0,
-                            "totalStudents", 0
-                    ),
-                    "classes", List.of()
-            ));
+                            "totalStudents", 0),
+                    "classes", List.of()));
         }
 
         Map<Integer, Map<Integer, List<Student>>> grouped = filtered.stream()
-            .collect(Collectors.groupingBy(
-                student -> classGroupingKey(student, profileByStudentId.get(student.getId())),
-                Collectors.groupingBy(student -> batchGroupingKey(student, profileByStudentId.get(student.getId())))
-            ));
+                .collect(Collectors.groupingBy(
+                        student -> classGroupingKey(student, profileByStudentId.get(student.getId())),
+                        Collectors.groupingBy(
+                                student -> batchGroupingKey(student, profileByStudentId.get(student.getId())))));
 
         List<Map<String, Object>> classes = grouped.keySet().stream()
                 .sorted()
-            .map(classKey -> buildClassNode(classKey, grouped.get(classKey), marksMap, attendanceMap, profileByStudentId, includeStudents))
+                .map(classKey -> buildClassNode(classKey, grouped.get(classKey), marksMap, attendanceMap,
+                        profileByStudentId, includeStudents))
                 .collect(Collectors.toList());
 
         int totalBatchCount = grouped.values().stream()
@@ -173,10 +179,8 @@ public class AdminHierarchyController {
                         "totalPrograms", totalProgramCount,
                         "totalClasses", grouped.size(),
                         "totalBatches", totalBatchCount,
-                        "totalStudents", filtered.size()
-                ),
-                "classes", classes
-        ));
+                        "totalStudents", filtered.size()),
+                "classes", classes));
     }
 
     @GetMapping("/class/{classNumber}/analytics")
@@ -230,15 +234,18 @@ public class AdminHierarchyController {
     }
 
     @PostMapping("/students-hierarchy/ai-grouping")
-    public ResponseEntity<Map<String, Object>> suggestAiGrouping(@RequestBody(required = false) AiGroupingRequest request) {
+    public ResponseEntity<Map<String, Object>> suggestAiGrouping(
+            @RequestBody(required = false) AiGroupingRequest request) {
         AiGroupingRequest req = request == null ? new AiGroupingRequest() : request;
         Integer requestedClusters = req.getClusters();
         int requestedClusterCount = requestedClusters == null ? DEFAULT_CLUSTER_COUNT : requestedClusters;
         int clusters = Math.max(2, Math.min(4, requestedClusterCount));
 
         List<Student> students = studentRepository.findAllWithFullHierarchy().stream()
-                .filter(student -> req.getCourse() == null || req.getCourse().isBlank() || matchesIgnoreCase(student.getCourse(), req.getCourse()))
-                .filter(student -> req.getSemester() == null || req.getSemester().isBlank() || matchesIgnoreCase(student.getSemester(), req.getSemester()))
+                .filter(student -> req.getCourse() == null || req.getCourse().isBlank()
+                        || matchesIgnoreCase(student.getCourse(), req.getCourse()))
+                .filter(student -> req.getSemester() == null || req.getSemester().isBlank()
+                        || matchesIgnoreCase(student.getSemester(), req.getSemester()))
                 .filter(student -> req.getClassNumber() == null || extractClassNumber(student) == req.getClassNumber())
                 .collect(Collectors.toList());
 
@@ -247,8 +254,7 @@ public class AdminHierarchyController {
                     "clusterCount", clusters,
                     "studentsConsidered", students.size(),
                     "suggestions", List.of(),
-                    "message", "Not enough students for clustering"
-            ));
+                    "message", "Not enough students for clustering"));
         }
 
         Map<String, Double> marksMap = studentService.getAverageMarksMap(students);
@@ -258,8 +264,7 @@ public class AdminHierarchyController {
                 .map(student -> new FeaturePoint(
                         student,
                         marksMap.getOrDefault(student.getId(), 0.0),
-                        attendanceMap.getOrDefault(student.getId(), 75.0)
-                ))
+                        attendanceMap.getOrDefault(student.getId(), 75.0)))
                 .collect(Collectors.toList());
 
         Map<String, Integer> labels = runKMeans(points, clusters, 20);
@@ -268,7 +273,8 @@ public class AdminHierarchyController {
                 .map(point -> {
                     int clusterLabel = labels.getOrDefault(point.student().getId(), 0);
                     int currentClass = extractClassNumber(point.student());
-                    int suggestedBatch = ((currentClass - 1) * DEFAULT_CLUSTER_COUNT) + ((clusterLabel % DEFAULT_CLUSTER_COUNT) + 1);
+                    int suggestedBatch = ((currentClass - 1) * DEFAULT_CLUSTER_COUNT)
+                            + ((clusterLabel % DEFAULT_CLUSTER_COUNT) + 1);
                     int currentBatch = extractBatchNumber(point.student());
 
                     Map<String, Object> row = new HashMap<>();
@@ -287,26 +293,28 @@ public class AdminHierarchyController {
         return ResponseEntity.ok(Map.of(
                 "clusterCount", clusters,
                 "studentsConsidered", students.size(),
-                "suggestions", suggestions
-        ));
+                "suggestions", suggestions));
     }
 
     private Map<String, Object> buildClassNode(Integer classNumber,
-                                               Map<Integer, List<Student>> classBatches,
-                                               Map<String, Double> marksMap,
-                               Map<String, Double> attendanceMap,
-                               Map<String, StudentProfile> profileByStudentId,
-                               boolean includeStudents) {
+            Map<Integer, List<Student>> classBatches,
+            Map<String, Double> marksMap,
+            Map<String, Double> attendanceMap,
+            Map<String, StudentProfile> profileByStudentId,
+            boolean includeStudents) {
         if (isUnassignedClassKey(classNumber)) {
             List<Map<String, Object>> batches = new ArrayList<>();
             List<Integer> batchKeys = new ArrayList<>(classBatches.keySet());
             batchKeys.sort(Integer::compareTo);
             for (int batchNumber : batchKeys) {
-                batches.add(buildBatchNode(classNumber, batchNumber, classBatches.getOrDefault(batchNumber, List.of()), marksMap, attendanceMap, profileByStudentId, includeStudents));
+                batches.add(buildBatchNode(classNumber, batchNumber, classBatches.getOrDefault(batchNumber, List.of()),
+                        marksMap, attendanceMap, profileByStudentId, includeStudents));
             }
 
-            List<Student> allClassStudents = classBatches.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
-            Map<String, Object> classAnalytics = buildClassAnalytics(allClassStudents, marksMap, attendanceMap, profileByStudentId);
+            List<Student> allClassStudents = classBatches.values().stream().flatMap(Collection::stream)
+                    .collect(Collectors.toList());
+            Map<String, Object> classAnalytics = buildClassAnalytics(allClassStudents, marksMap, attendanceMap,
+                    profileByStudentId);
 
             Map<String, Object> node = new HashMap<>();
             node.put("id", UNASSIGNED_CLASS_NUMBER);
@@ -324,13 +332,15 @@ public class AdminHierarchyController {
         // Determine program code from the first student in this class
         String programCode = "";
         int localClassNum = classNumber;
-        List<Student> allClassStudents = classBatches.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+        List<Student> allClassStudents = classBatches.values().stream().flatMap(Collection::stream)
+                .collect(Collectors.toList());
         if (!allClassStudents.isEmpty()) {
             Student firstStudent = allClassStudents.get(0);
             if (firstStudent.getAcademicProgram() != null && firstStudent.getAcademicProgram().getCode() != null) {
                 programCode = firstStudent.getAcademicProgram().getCode();
             }
-            if (firstStudent.getAcademicClass() != null && firstStudent.getAcademicClass().getLocalClassNumber() != null) {
+            if (firstStudent.getAcademicClass() != null
+                    && firstStudent.getAcademicClass().getLocalClassNumber() != null) {
                 localClassNum = firstStudent.getAcademicClass().getLocalClassNumber();
             }
         }
@@ -342,11 +352,13 @@ public class AdminHierarchyController {
         List<Integer> batchKeys = new ArrayList<>(classBatches.keySet());
         batchKeys.sort(Integer::compareTo);
         for (int batchNumber : batchKeys) {
-            batches.add(buildBatchNode(classNumber, batchNumber, classBatches.getOrDefault(batchNumber, List.of()), marksMap, attendanceMap, profileByStudentId, includeStudents));
+            batches.add(buildBatchNode(classNumber, batchNumber, classBatches.getOrDefault(batchNumber, List.of()),
+                    marksMap, attendanceMap, profileByStudentId, includeStudents));
         }
 
         List<Student> classStudents = allClassStudents;
-        Map<String, Object> classAnalytics = buildClassAnalytics(classStudents, marksMap, attendanceMap, profileByStudentId);
+        Map<String, Object> classAnalytics = buildClassAnalytics(classStudents, marksMap, attendanceMap,
+                profileByStudentId);
 
         Map<String, Object> node = new HashMap<>();
         node.put("id", classNumber);
@@ -362,23 +374,28 @@ public class AdminHierarchyController {
     }
 
     private Map<String, Object> buildBatchNode(Integer classNumber,
-                                               Integer batchNumber,
-                                               List<Student> batchStudents,
-                                               Map<String, Double> marksMap,
-                               Map<String, Double> attendanceMap,
-                       Map<String, StudentProfile> profileByStudentId,
-                       boolean includeStudents) {
+            Integer batchNumber,
+            List<Student> batchStudents,
+            Map<String, Double> marksMap,
+            Map<String, Double> attendanceMap,
+            Map<String, StudentProfile> profileByStudentId,
+            boolean includeStudents) {
         if (isUnassignedBatchKey(batchNumber)) {
             List<Map<String, Object>> students = includeStudents
                     ? batchStudents.stream()
-                    .sorted(Comparator.comparingInt(student -> extractBatchMemberOrder(student, profileByStudentId.get(student.getId()))))
-                    .map(student -> buildStudentNode(student, marksMap, attendanceMap, profileByStudentId.get(student.getId())))
-                    .collect(Collectors.toList())
+                            .sorted(Comparator.comparingInt(student -> extractBatchMemberOrder(student,
+                                    profileByStudentId.get(student.getId()))))
+                            .map(student -> buildStudentNode(student, marksMap, attendanceMap,
+                                    profileByStudentId.get(student.getId())))
+                            .collect(Collectors.toList())
                     : List.of();
 
-            double avgMarks = average(batchStudents.stream().map(student -> marksMap.getOrDefault(student.getId(), 0.0)).collect(Collectors.toList()));
-            double avgAttendance = average(batchStudents.stream().map(student -> attendanceMap.getOrDefault(student.getId(), 75.0)).collect(Collectors.toList()));
-            long risk = batchStudents.stream().filter(student -> marksMap.getOrDefault(student.getId(), 0.0) < 50.0).count();
+            double avgMarks = average(batchStudents.stream().map(student -> marksMap.getOrDefault(student.getId(), 0.0))
+                    .collect(Collectors.toList()));
+            double avgAttendance = average(batchStudents.stream()
+                    .map(student -> attendanceMap.getOrDefault(student.getId(), 75.0)).collect(Collectors.toList()));
+            long risk = batchStudents.stream().filter(student -> marksMap.getOrDefault(student.getId(), 0.0) < 50.0)
+                    .count();
 
             Map<String, Object> analytics = new HashMap<>();
             analytics.put("avgMarks", round(avgMarks));
@@ -408,15 +425,20 @@ public class AdminHierarchyController {
         }
 
         List<Map<String, Object>> students = includeStudents
-            ? batchStudents.stream()
-                .sorted(Comparator.comparingInt(student -> extractBatchMemberOrder(student, profileByStudentId.get(student.getId()))))
-                .map(student -> buildStudentNode(student, marksMap, attendanceMap, profileByStudentId.get(student.getId())))
-                .collect(Collectors.toList())
-            : List.of();
+                ? batchStudents.stream()
+                        .sorted(Comparator.comparingInt(
+                                student -> extractBatchMemberOrder(student, profileByStudentId.get(student.getId()))))
+                        .map(student -> buildStudentNode(student, marksMap, attendanceMap,
+                                profileByStudentId.get(student.getId())))
+                        .collect(Collectors.toList())
+                : List.of();
 
-        double avgMarks = average(batchStudents.stream().map(student -> marksMap.getOrDefault(student.getId(), 0.0)).collect(Collectors.toList()));
-        double avgAttendance = average(batchStudents.stream().map(student -> attendanceMap.getOrDefault(student.getId(), 75.0)).collect(Collectors.toList()));
-        long risk = batchStudents.stream().filter(student -> marksMap.getOrDefault(student.getId(), 0.0) < 50.0).count();
+        double avgMarks = average(batchStudents.stream().map(student -> marksMap.getOrDefault(student.getId(), 0.0))
+                .collect(Collectors.toList()));
+        double avgAttendance = average(batchStudents.stream()
+                .map(student -> attendanceMap.getOrDefault(student.getId(), 75.0)).collect(Collectors.toList()));
+        long risk = batchStudents.stream().filter(student -> marksMap.getOrDefault(student.getId(), 0.0) < 50.0)
+                .count();
 
         Map<String, Object> analytics = new HashMap<>();
         analytics.put("avgMarks", round(avgMarks));
@@ -437,17 +459,24 @@ public class AdminHierarchyController {
     }
 
     private Map<String, Object> buildStudentNode(Student student,
-                                                 Map<String, Double> marksMap,
-                             Map<String, Double> attendanceMap,
-                             StudentProfile profile) {
-        String enrollment = profile != null && profile.getEnrollmentNumber() != null && !profile.getEnrollmentNumber().isBlank()
-                ? profile.getEnrollmentNumber()
-                : student.getId();
+            Map<String, Double> marksMap,
+            Map<String, Double> attendanceMap,
+            StudentProfile profile) {
+        String enrollment = profile != null && profile.getEnrollmentNumber() != null
+                && !profile.getEnrollmentNumber().isBlank()
+                        ? profile.getEnrollmentNumber()
+                        : student.getId();
 
         double marks = marksMap.getOrDefault(student.getId(), 0.0);
         double attendance = attendanceMap.getOrDefault(student.getId(), 75.0);
 
         Map<String, Object> node = new HashMap<>();
+        String profileImage = profile != null && profile.getProfilePhotoUrl() != null
+                && !profile.getProfilePhotoUrl().isBlank()
+                        ? profile.getProfilePhotoUrl()
+                        : (profile != null && profile.getProfileImage() != null && !profile.getProfileImage().isBlank()
+                                ? profile.getProfileImage()
+                                : (student.getProfileImageUrl() == null ? "" : student.getProfileImageUrl()));
         node.put("id", student.getId());
         node.put("name", student.getName());
         node.put("enrollmentNumber", enrollment);
@@ -459,14 +488,18 @@ public class AdminHierarchyController {
         node.put("performanceBand", performanceBand(marks));
         node.put("classNumber", extractClassNumber(student));
         node.put("batchNumber", extractBatchNumber(student));
+        node.put("profileImage", profileImage);
+        node.put("profilePhotoUrl", profileImage);
+        node.put("photoUrl", profileImage);
         return node;
     }
 
     private Map<String, Object> buildClassAnalytics(List<Student> students,
-                                                    Map<String, Double> marksMap,
-                                                    Map<String, Double> attendanceMap,
-                                                    Map<String, StudentProfile> profileByStudentId) {
-        Map<Integer, List<Student>> byBatch = students.stream().collect(Collectors.groupingBy(student -> extractBatchNumber(student, profileByStudentId.get(student.getId()))));
+            Map<String, Double> marksMap,
+            Map<String, Double> attendanceMap,
+            Map<String, StudentProfile> profileByStudentId) {
+        Map<Integer, List<Student>> byBatch = students.stream().collect(
+                Collectors.groupingBy(student -> extractBatchNumber(student, profileByStudentId.get(student.getId()))));
 
         int topBatch = 1;
         double topBatchMarks = -1;
@@ -480,8 +513,10 @@ public class AdminHierarchyController {
             int batch = entry.getKey();
             List<Student> list = entry.getValue();
 
-            double batchMarks = average(list.stream().map(student -> marksMap.getOrDefault(student.getId(), 0.0)).collect(Collectors.toList()));
-            double batchAttendance = average(list.stream().map(student -> attendanceMap.getOrDefault(student.getId(), 75.0)).collect(Collectors.toList()));
+            double batchMarks = average(list.stream().map(student -> marksMap.getOrDefault(student.getId(), 0.0))
+                    .collect(Collectors.toList()));
+            double batchAttendance = average(list.stream()
+                    .map(student -> attendanceMap.getOrDefault(student.getId(), 75.0)).collect(Collectors.toList()));
 
             if (batchMarks > topBatchMarks) {
                 topBatchMarks = batchMarks;
@@ -504,8 +539,10 @@ public class AdminHierarchyController {
         trend.sort(Comparator.comparingInt(point -> Integer.parseInt(String.valueOf(point.get("batch")).substring(1))));
 
         Map<String, Object> analytics = new HashMap<>();
-        analytics.put("avgMarks", round(average(students.stream().map(student -> marksMap.getOrDefault(student.getId(), 0.0)).collect(Collectors.toList()))));
-        analytics.put("attendance", round(average(students.stream().map(student -> attendanceMap.getOrDefault(student.getId(), 75.0)).collect(Collectors.toList()))));
+        analytics.put("avgMarks", round(average(students.stream()
+                .map(student -> marksMap.getOrDefault(student.getId(), 0.0)).collect(Collectors.toList()))));
+        analytics.put("attendance", round(average(students.stream()
+                .map(student -> attendanceMap.getOrDefault(student.getId(), 75.0)).collect(Collectors.toList()))));
         analytics.put("topPerformingBatch", topBatch);
         analytics.put("lowestAttendanceBatch", lowAttendanceBatch);
         analytics.put("riskStudents", riskStudents);
@@ -529,7 +566,8 @@ public class AdminHierarchyController {
     private Map<String, StudentProfile> loadProfilesByStudentId(Collection<Student> students) {
         List<String> studentIds = students.stream().map(Student::getId).collect(Collectors.toList());
         Map<String, StudentProfile> result = new HashMap<>();
-        studentProfileRepository.findAllById(studentIds).forEach(profile -> result.put(profile.getStudentId(), profile));
+        studentProfileRepository.findAllById(studentIds)
+                .forEach(profile -> result.put(profile.getStudentId(), profile));
         return result;
     }
 
@@ -545,9 +583,11 @@ public class AdminHierarchyController {
     }
 
     private String normalizeAllSentinel(String value) {
-        if (value == null) return null;
+        if (value == null)
+            return null;
         String trimmed = value.trim();
-        if (trimmed.isEmpty()) return "";
+        if (trimmed.isEmpty())
+            return "";
         if ("all".equalsIgnoreCase(trimmed)
                 || "all courses".equalsIgnoreCase(trimmed)
                 || "all semesters".equalsIgnoreCase(trimmed)
@@ -559,29 +599,36 @@ public class AdminHierarchyController {
     }
 
     private Integer normalizeNonPositiveToNull(Integer value) {
-        if (value == null) return null;
+        if (value == null)
+            return null;
         return value <= 0 ? null : value;
     }
 
     private boolean matchesCourse(String actualCourse, String filterCourse) {
-        if (actualCourse == null) return false;
-        if (filterCourse == null || filterCourse.isBlank()) return true;
+        if (actualCourse == null)
+            return false;
+        if (filterCourse == null || filterCourse.isBlank())
+            return true;
 
         if (matchesIgnoreCase(actualCourse, filterCourse)) {
             return true;
         }
 
-        // Loose matching to support dropdown values like "B.Tech" against stored strings like
+        // Loose matching to support dropdown values like "B.Tech" against stored
+        // strings like
         // "Bachelor of Technology (Computer Science and Engineering)".
         String normActual = normalizeLoose(actualCourse);
         String normFilter = normalizeLoose(filterCourse);
-        if (normActual.isEmpty() || normFilter.isEmpty()) return false;
+        if (normActual.isEmpty() || normFilter.isEmpty())
+            return false;
         return normActual.contains(normFilter) || normFilter.contains(normActual);
     }
 
     private boolean matchesSemester(String actualSemester, String filterSemester) {
-        if (actualSemester == null) return false;
-        if (filterSemester == null || filterSemester.isBlank()) return true;
+        if (actualSemester == null)
+            return false;
+        if (filterSemester == null || filterSemester.isBlank())
+            return true;
 
         if (matchesIgnoreCase(actualSemester, filterSemester)) {
             return true;
@@ -594,9 +641,11 @@ public class AdminHierarchyController {
     }
 
     private Integer parseTrailingInt(String value) {
-        if (value == null || value.isBlank()) return null;
+        if (value == null || value.isBlank())
+            return null;
         Matcher matcher = TRAILING_NUMBER_PATTERN.matcher(value.trim());
-        if (!matcher.find()) return null;
+        if (!matcher.find())
+            return null;
         try {
             return Integer.valueOf(matcher.group(1));
         } catch (NumberFormatException ignored) {
@@ -605,7 +654,8 @@ public class AdminHierarchyController {
     }
 
     private String normalizeLoose(String value) {
-        if (value == null) return "";
+        if (value == null)
+            return "";
         return value.toLowerCase()
                 .replace('&', ' ')
                 .replaceAll("[^a-z0-9]+", " ")
@@ -666,9 +716,11 @@ public class AdminHierarchyController {
         // merge together in the flat hierarchy view.
         if (student != null && student.getAcademicClass() != null) {
             Integer global = student.getAcademicClass().getClassNumber();
-            if (global != null && global > 0) return global;
+            if (global != null && global > 0)
+                return global;
             Integer local = student.getAcademicClass().getLocalClassNumber();
-            if (local != null && local > 0) return local;
+            if (local != null && local > 0)
+                return local;
         }
 
         Integer profileClassNumber = extractTrailingInteger(profile == null ? null : profile.getFoundationClassroom());
@@ -694,9 +746,11 @@ public class AdminHierarchyController {
         // get unique numbers and don't collide.
         if (student != null && student.getAcademicBatch() != null) {
             Integer global = student.getAcademicBatch().getBatchNumber();
-            if (global != null && global > 0) return global;
+            if (global != null && global > 0)
+                return global;
             Integer local = student.getAcademicBatch().getLocalBatchNumber();
-            if (local != null && local > 0) return local;
+            if (local != null && local > 0)
+                return local;
         }
 
         if (profile != null && profile.getTeamNumber() != null && profile.getTeamNumber() > 0) {
@@ -716,9 +770,10 @@ public class AdminHierarchyController {
     }
 
     private int extractSerialNumber(Student student, StudentProfile profile) {
-        String enrollment = profile != null && profile.getEnrollmentNumber() != null && !profile.getEnrollmentNumber().isBlank()
-                ? profile.getEnrollmentNumber().trim()
-                : student.getId();
+        String enrollment = profile != null && profile.getEnrollmentNumber() != null
+                && !profile.getEnrollmentNumber().isBlank()
+                        ? profile.getEnrollmentNumber().trim()
+                        : student.getId();
 
         Matcher matcher = TRAILING_NUMBER_PATTERN.matcher(enrollment);
         if (!matcher.find()) {
@@ -799,7 +854,7 @@ public class AdminHierarchyController {
 
         for (int i = 0; i < clusters; i++) {
             FeaturePoint selected = shuffled.get(i % shuffled.size());
-            centroids.add(new double[]{selected.marks(), selected.attendance()});
+            centroids.add(new double[] { selected.marks(), selected.attendance() });
         }
         return centroids;
     }
@@ -820,9 +875,9 @@ public class AdminHierarchyController {
     }
 
     private List<double[]> recomputeCentroids(List<FeaturePoint> points,
-                                              Map<String, Integer> labels,
-                                              int clusters,
-                                              List<double[]> previous) {
+            Map<String, Integer> labels,
+            int clusters,
+            List<double[]> previous) {
         List<double[]> updated = new ArrayList<>();
 
         for (int cluster = 0; cluster < clusters; cluster++) {
@@ -833,13 +888,15 @@ public class AdminHierarchyController {
 
             if (assigned.isEmpty()) {
                 FeaturePoint random = points.get(ThreadLocalRandom.current().nextInt(points.size()));
-                updated.add(new double[]{random.marks(), random.attendance()});
+                updated.add(new double[] { random.marks(), random.attendance() });
                 continue;
             }
 
-            double meanMarks = assigned.stream().mapToDouble(FeaturePoint::marks).average().orElse(previous.get(cluster)[0]);
-            double meanAttendance = assigned.stream().mapToDouble(FeaturePoint::attendance).average().orElse(previous.get(cluster)[1]);
-            updated.add(new double[]{meanMarks, meanAttendance});
+            double meanMarks = assigned.stream().mapToDouble(FeaturePoint::marks).average()
+                    .orElse(previous.get(cluster)[0]);
+            double meanAttendance = assigned.stream().mapToDouble(FeaturePoint::attendance).average()
+                    .orElse(previous.get(cluster)[1]);
+            updated.add(new double[] { meanMarks, meanAttendance });
         }
 
         return updated;
@@ -851,7 +908,8 @@ public class AdminHierarchyController {
         return (dx * dx) + (dy * dy);
     }
 
-    private record FeaturePoint(Student student, double marks, double attendance) {}
+    private record FeaturePoint(Student student, double marks, double attendance) {
+    }
 
     public static class ReassignRequest {
         private String studentId;

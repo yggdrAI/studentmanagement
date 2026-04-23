@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -50,6 +51,15 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleForbidden(AccessDeniedException ex,
                                                                 HttpServletRequest request) {
         return build(HttpStatus.FORBIDDEN, ex.getMessage(), request.getRequestURI(), null);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<Map<String, Object>> handleAuthentication(AuthenticationException ex,
+                                                                     HttpServletRequest request) {
+        String message = ex.getMessage() == null || ex.getMessage().isBlank()
+                ? "Invalid username or password"
+                : ex.getMessage();
+        return build(HttpStatus.UNAUTHORIZED, message, request.getRequestURI(), null);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
