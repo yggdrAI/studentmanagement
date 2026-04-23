@@ -71,6 +71,8 @@ F:\Coding\studentmanagement\src\main\java\com\sms\controller\ApiExceptionHandler
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\FraudAlertDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\ClassDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\CampusLocationWebSocketController.java
+F:\Coding\studentmanagement\src\main\java\com\sms\service\SchemaUpgradeService.java
+F:\Coding\studentmanagement\src\main\java\com\sms\service\IpGeolocationService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\TeacherFraudController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminPublicationController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\util\GradeUtil.java

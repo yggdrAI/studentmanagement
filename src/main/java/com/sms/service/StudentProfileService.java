@@ -8,6 +8,7 @@ import java.util.List;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -88,7 +89,7 @@ public class StudentProfileService {
         
         // Handle base64 image upload — only process if it's a NEW upload from the request
         String requestedImage = request.getProfileImage();
-        if (requestedImage != null && requestedImage.startsWith("data:image")) {
+        if (isDataImageUri(requestedImage)) {
             try {
                 profileImage = imageUploadService.uploadBase64Image(requestedImage, normalizedStudentId);
             } catch (Exception e) {
@@ -159,7 +160,11 @@ public class StudentProfileService {
             profile.setEnrollmentNumber(student.getId());
         }
 
-        studentProfileRepository.save(profile);
+        try {
+            studentProfileRepository.saveAndFlush(profile);
+        } catch (DataIntegrityViolationException ex) {
+            throw profileImageTooLargeException(ex);
+        }
 
         student.setName(fullName);
         student.setEmail(universityEmail);
@@ -171,7 +176,7 @@ public class StudentProfileService {
         student.setDepartment(department);
         student.setSemester(semester);
         // Student.profileImageUrl is @Lob — store data URI directly
-        if (profileImage != null && profileImage.startsWith("data:image")) {
+        if (isDataImageUri(profileImage)) {
             student.setProfileImageUrl(profileImage);
         } else {
             student.setProfileImageUrl(normalizePhotoUrl(profileImage, student.getProfileImageUrl()));
@@ -179,7 +184,11 @@ public class StudentProfileService {
         if (admissionYear != null) {
             student.setEnrollmentYear(String.valueOf(admissionYear));
         }
-        studentRepository.save(student);
+        try {
+            studentRepository.saveAndFlush(student);
+        } catch (DataIntegrityViolationException ex) {
+            throw profileImageTooLargeException(ex);
+        }
 
         return mapProfile(normalizedStudentId, "ADMIN");
     }
@@ -197,7 +206,7 @@ public class StudentProfileService {
         String profileImage = request.getProfileImage();
         
         // Handle base64 image upload
-        if (profileImage != null && profileImage.startsWith("data:image")) {
+        if (isDataImageUri(profileImage)) {
             try {
                 profileImage = imageUploadService.uploadBase64Image(profileImage, student.getId());
             } catch (Exception e) {
@@ -217,13 +226,25 @@ public class StudentProfileService {
             profile.setUserId(student.getUser().getId());
         }
         profile.setUpdatedBy(normalizedUsername);
-        studentProfileRepository.save(profile);
+        try {
+            studentProfileRepository.saveAndFlush(profile);
+        } catch (DataIntegrityViolationException ex) {
+            throw profileImageTooLargeException(ex);
+        }
 
         student.setPhone(request.getPhone());
         student.setAddress(request.getAddress());
-        student.setProfileImageUrl(normalizePhotoUrl(profileImage, student.getProfileImageUrl()));
+        if (isDataImageUri(profileImage)) {
+            student.setProfileImageUrl(profileImage);
+        } else {
+            student.setProfileImageUrl(normalizePhotoUrl(profileImage, student.getProfileImageUrl()));
+        }
         student.setEmail(universityEmail);
-        studentRepository.save(student);
+        try {
+            studentRepository.saveAndFlush(student);
+        } catch (DataIntegrityViolationException ex) {
+            throw profileImageTooLargeException(ex);
+        }
 
         return mapProfile(student.getId(), "STUDENT");
     }
@@ -338,7 +359,6 @@ public class StudentProfileService {
         }
         profile.setFullName(student.getName());
         profile.setEnrollmentNumber(student.getId());
-        profile.setProfileImage(student.getProfileImageUrl());
         profile.setProfilePhotoUrl(normalizePhotoUrl(student.getProfileImageUrl(), null));
         profile.setDob(student.getDob());
         profile.setGender(StudentFieldDerivationUtils.inferGender(student.getName(), student.getGender()));
@@ -361,6 +381,7 @@ public class StudentProfileService {
         profile.setPassingYear(StudentFieldDerivationUtils.derivePassingYear(student.getCourse(), profile.getAdmissionYear(), null));
         profile.setValidUpto(StudentFieldDerivationUtils.deriveValidUpto(student.getCourse(), profile.getAdmissionYear(), profile.getPassingYear(), null));
         profile.setIdCardNumber("BU-" + student.getId());
+        profile.setProfileImage(student.getProfileImageUrl());
         profile.setUpdatedBy("System");
         profile.setDemographicConsentGiven(Boolean.FALSE);
         profile.setDemographicConsentVersion(DEMOGRAPHIC_CONSENT_VERSION);
@@ -478,10 +499,26 @@ public class StudentProfileService {
         if (profileImage == null || profileImage.isBlank()) {
             return existingPhotoUrl;
         }
-        if (profileImage.startsWith("data:image")) {
+        String normalized = profileImage.trim();
+        if (isDataImageUri(normalized) || looksLikeRawBase64Payload(normalized) || normalized.length() > 2048) {
             return existingPhotoUrl;
         }
-        return profileImage;
+        return normalized;
+    }
+
+    private boolean isDataImageUri(String value) {
+        if (value == null) {
+            return false;
+        }
+        String normalized = value.trim().toLowerCase();
+        return normalized.startsWith("data:image");
+    }
+
+    private boolean looksLikeRawBase64Payload(String value) {
+        if (value == null || value.length() < 256 || value.contains("://") || value.contains("/")) {
+            return false;
+        }
+        return value.matches("^[A-Za-z0-9+/=\\s]+$");
     }
 
     private String safeMessage(Exception ex, String fallback) {
@@ -489,5 +526,11 @@ public class StudentProfileService {
             return fallback;
         }
         return ex.getMessage();
+    }
+
+    private ResponseStatusException profileImageTooLargeException(DataIntegrityViolationException ex) {
+        String message = "Profile image is too large for current storage limits. "
+                + "Please upload a smaller image.";
+        return new ResponseStatusException(HttpStatus.BAD_REQUEST, message, ex);
     }
 }

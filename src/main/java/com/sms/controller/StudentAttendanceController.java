@@ -305,6 +305,8 @@ public class StudentAttendanceController {
 
             int confidenceScore = geolocationService.getConfidenceScore(latitude, longitude, closestLocation);
 
+            boolean deviceSharingDetected = antiCheatingService.detectDeviceSharing(deviceFingerprint, studentId);
+
             FraudDetectionService.FraudAssessment fraudAssessment = fraudDetectionService.assess(
                 studentId,
                 claims.getSubjectId(),
@@ -321,6 +323,7 @@ public class StudentAttendanceController {
                 true,
                 faceResult.getSimilarity(),
                 locationVerified,
+                deviceSharingDetected,
                 vpnResult,
                 movementResult
             );

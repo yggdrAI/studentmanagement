@@ -65,6 +65,7 @@ public class FraudDetectionService {
                                   boolean faceVerified,
                                   double faceSimilarity,
                                   boolean locationVerified,
+                                  boolean deviceSharingDetected,
                                   AntiCheatingService.VPNDetectionResult vpnResult,
                                   AntiCheatingService.ImpossibleMovementResult movementResult) {
 
@@ -92,6 +93,11 @@ public class FraudDetectionService {
         if (movementResult != null && movementResult.isImpossible) {
             fraudScore += 20.0;
             reasons.add(movementResult.reason);
+        }
+
+        if (deviceSharingDetected) {
+            fraudScore += 30.0;
+            reasons.add("Device sharing suspected");
         }
 
         if (qrDetectedAtEpochMs != null) {

@@ -19,12 +19,13 @@ public class ImageUploadService {
         if (!StringUtils.hasText(base64Data)) {
             return null;
         }
+        String normalizedInput = base64Data.trim();
 
         // Preserve the declared MIME type from the data URI header (if present)
-        String declaredMimeType = extractDeclaredMimeType(base64Data);
+        String declaredMimeType = extractDeclaredMimeType(normalizedInput);
 
         // Extract base64 content (remove data URI prefix if present)
-        String base64Content = extractBase64Content(base64Data);
+        String base64Content = extractBase64Content(normalizedInput);
 
         // Normalise base64 – strip whitespace and fix missing padding
         base64Content = base64Content.replaceAll("\\s+", "");
@@ -70,10 +71,10 @@ public class ImageUploadService {
      * e.g. "data:image/jpeg;base64,..." → "image/jpeg"
      */
     private String extractDeclaredMimeType(String base64Data) {
-        if (base64Data != null && base64Data.startsWith("data:")) {
+        if (base64Data != null && base64Data.regionMatches(true, 0, "data:", 0, 5)) {
             int semicolonIndex = base64Data.indexOf(";");
             if (semicolonIndex > 5) {
-                return base64Data.substring(5, semicolonIndex);
+                return base64Data.substring(5, semicolonIndex).toLowerCase();
             }
         }
         return null;
@@ -83,7 +84,7 @@ public class ImageUploadService {
      * Extract base64 content from data URI (e.g., "data:image/jpeg;base64,/9j/...")
      */
     private String extractBase64Content(String base64Data) {
-        if (base64Data.startsWith("data:")) {
+        if (base64Data.regionMatches(true, 0, "data:", 0, 5)) {
             int commaIndex = base64Data.indexOf(",");
             if (commaIndex > 0) {
                 return base64Data.substring(commaIndex + 1);

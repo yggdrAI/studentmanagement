@@ -1945,6 +1945,56 @@
         const avatarUploadAction = document.getElementById('avatarUploadAction');
         const avatarRemoveAction = document.getElementById('avatarRemoveAction');
 
+        async function compressProfileImageForStorage(file) {
+            const attempts = [
+                { maxDim: 192, quality: 0.72 },
+                { maxDim: 160, quality: 0.62 },
+                { maxDim: 128, quality: 0.52 },
+                { maxDim: 96, quality: 0.45 }
+            ];
+            const maxDataUriLength = 3000;
+
+            const fileToDataUri = (inputFile) => new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result || ''));
+                reader.onerror = () => reject(new Error('Unable to read selected image.'));
+                reader.readAsDataURL(inputFile);
+            });
+
+            const compress = (dataUri, maxDim, quality) => new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    const ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
+                    const width = Math.max(1, Math.round(img.width * ratio));
+                    const height = Math.max(1, Math.round(img.height * ratio));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        reject(new Error('Image processor unavailable.'));
+                        return;
+                    }
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = () => reject(new Error('Unable to process selected image.'));
+                img.src = dataUri;
+            });
+
+            let dataUri = await fileToDataUri(file);
+            for (const attempt of attempts) {
+                dataUri = await compress(dataUri, attempt.maxDim, attempt.quality);
+                if (dataUri.length <= maxDataUriLength) {
+                    return dataUri;
+                }
+            }
+            if (dataUri.length > maxDataUriLength) {
+                throw new Error('Image is too large for profile storage. Please choose a smaller photo.');
+            }
+            return dataUri;
+        }
+
         avatarShell.addEventListener('click', (event) => {
             if (!CAN_ADMIN_EDIT) {
                 return;
@@ -2000,9 +2050,8 @@
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = () => {
-                currentProfile.profileImage = String(reader.result || '');
+            compressProfileImageForStorage(file).then((compressedDataUri) => {
+                currentProfile.profileImage = compressedDataUri;
                 const profileImageInput = document.querySelector('[data-field="profileImage"]');
                 if (profileImageInput) {
                     profileImageInput.value = currentProfile.profileImage;
@@ -2010,9 +2059,9 @@
                 renderIdCard();
                 debounceAutoSave();
                 showToast('Profile image selected. Click Save Changes to persist.');
-            };
-            reader.onerror = () => showToast('Unable to read selected image.');
-            reader.readAsDataURL(file);
+            }).catch((error) => {
+                showToast(error.message || 'Unable to process selected image.');
+            });
             imagePicker.value = '';
         });
 

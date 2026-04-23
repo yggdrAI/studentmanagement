@@ -20,16 +20,23 @@ public class AntiCheatingService {
     @Autowired
     private SecurityAuditRepository securityAuditRepository;
 
+    @Autowired
+    private IpGeolocationService ipGeolocationService;
+
     // Track recent locations per device (in-memory cache)
     private Map<String, List<LocationTimestamp>> deviceLocationHistory = Collections.synchronizedMap(new HashMap<>());
 
     // Track attendance attempts per time window
     private Map<String, List<Long>> attendanceAttempts = Collections.synchronizedMap(new HashMap<>());
 
+    // Track device sharing: deviceFingerprint -> (studentId -> lastSeenMs)
+    private final Map<String, Map<String, Long>> deviceStudentLastSeen = Collections.synchronizedMap(new HashMap<>());
+
     private static final int LOCATION_HISTORY_SIZE = 10;
     private static final double IMPOSSIBLE_SPEED_KMH = 100.0; // Detect teleporting
     private static final long IMPOSSIBLE_TIME_SECS = 60; // 1 minute between distant locations
     private static final int VIOLATION_THRESHOLD = 3; // Block after 3 violations
+    private static final long DEVICE_SHARING_WINDOW_MS = 10 * 60_000L; // 10 minutes
 
     /**
      * Generate device fingerprint from user agent and IP
@@ -66,29 +73,33 @@ public class AntiCheatingService {
      * High mismatch = likely VPN/proxy
      */
     public VPNDetectionResult detectVPN(double studentLat, double studentLon, String ipAddress, GeolocationService geoService) {
-        // Simple heuristic: check if IP location differs significantly from GPS
-        // In production, use MaxMind GeoIP2 or similar API
-        
         VPNDetectionResult result = new VPNDetectionResult();
-        
-        // Mock IP geolocation (replace with real API)
-        double mockIPLat = 28.4535;  // Near Bennett University
-        double mockIPLng = 77.5880;
-        
-        double distanceKm = geoService.calculateDistanceKm(studentLat, studentLon, mockIPLat, mockIPLng);
-        
-        // If IP location is > 5km away from GPS, likely VPN
-        if (distanceKm > 5.0) {
+
+        double[] ipCoords = ipGeolocationService != null ? ipGeolocationService.resolve(ipAddress) : null;
+        if (ipCoords == null) {
+            result.isVPNDetected = false;
+            result.suspicionScore = 0;
+            result.reason = ipGeolocationService != null && ipGeolocationService.isEnabled()
+                    ? "IP geolocation unavailable"
+                    : "IP geolocation disabled";
+            return result;
+        }
+
+        double distanceKm = geoService.calculateDistanceKm(studentLat, studentLon, ipCoords[0], ipCoords[1]);
+
+        // If IP location is wildly different from GPS, likely VPN/proxy.
+        // We keep this generous (>= 200km) to avoid false positives from mobile carrier routing.
+        if (distanceKm > 200.0) {
             result.isVPNDetected = true;
-            result.suspicionScore = Math.min(100, (int)(distanceKm * 10));
-            result.reason = String.format("IP location %.1fkm away from GPS location", distanceKm);
+            result.suspicionScore = 100;
+            result.reason = String.format("GPS vs IP location mismatch: %.0fkm", distanceKm);
             System.out.println("[ANTI-CHEAT] VPN DETECTED: " + result.reason);
         } else {
             result.isVPNDetected = false;
-            result.suspicionScore = (int)(distanceKm * 5);
-            result.reason = "IP location matches GPS location";
+            result.suspicionScore = (int) Math.min(100, distanceKm);
+            result.reason = "IP/GPS distance within tolerance";
         }
-        
+
         return result;
     }
 
@@ -151,6 +162,20 @@ public class AntiCheatingService {
         attempts.add(now);
         attendanceAttempts.put(studentId, attempts);
         return false;
+    }
+
+    /**
+     * Detect device sharing: same device fingerprint used by multiple studentIds in a short window.
+     */
+    public boolean detectDeviceSharing(String deviceFingerprint, String studentId) {
+        if (deviceFingerprint == null || deviceFingerprint.isBlank() || studentId == null || studentId.isBlank()) {
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        Map<String, Long> lastSeen = deviceStudentLastSeen.computeIfAbsent(deviceFingerprint, k -> new HashMap<>());
+        lastSeen.entrySet().removeIf(entry -> now - entry.getValue() > DEVICE_SHARING_WINDOW_MS);
+        lastSeen.put(studentId, now);
+        return lastSeen.size() > 1;
     }
 
     /**
