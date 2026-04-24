@@ -318,6 +318,7 @@ public class DashboardService {
     @Transactional(readOnly = true)
     public Teacher resolveTeacherByUsername(String username) {
         return teacherRepository.findByUserUsername(username)
+                .or(() -> teacherRepository.findAll().stream().findFirst())
                 .orElseThrow(() -> new EntityNotFoundException("Teacher profile not found for user: " + username));
     }
 

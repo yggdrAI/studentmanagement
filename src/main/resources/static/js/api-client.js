@@ -167,9 +167,17 @@
                 const headers = tokenOverride ? { Authorization: 'Bearer ' + tokenOverride } : {};
                 return request('/api/student/attendance/mark', { method: 'POST', headers, body: JSON.stringify(payload) });
             },
+            attendanceVerifyQr: (token, tokenOverride) => {
+                const headers = tokenOverride ? { Authorization: 'Bearer ' + tokenOverride } : {};
+                return request('/api/student/attendance/verify-qr?token=' + encodeURIComponent(token), { method: 'POST', headers });
+            },
             attendanceCheckToday: (subjectId, tokenOverride) => {
                 const headers = tokenOverride ? { Authorization: 'Bearer ' + tokenOverride } : {};
                 return request('/api/student/attendance/check-today?subjectId=' + encodeURIComponent(subjectId), { method: 'GET', headers });
+            },
+            attendanceFaceStatus: (tokenOverride) => {
+                const headers = tokenOverride ? { Authorization: 'Bearer ' + tokenOverride } : {};
+                return request('/api/student/attendance/face-status', { method: 'GET', headers });
             },
             attendanceGeofenceCheck: (latitude, longitude) => request('/api/student/attendance/geofence/check', { method: 'POST', body: JSON.stringify({ latitude, longitude }) }),
             attendanceMetrics: (subjectId) => request('/api/student/attendance/metrics?subjectId=' + encodeURIComponent(subjectId)),

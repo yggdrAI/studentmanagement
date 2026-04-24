@@ -1,23 +1,41 @@
 package com.sms.controller;
 
-import com.sms.dto.attendance.*;
-import com.sms.model.Course;
-import com.sms.model.Teacher;
-import com.sms.service.AttendanceQRTokenService;
-import com.sms.service.AttendanceService;
-import com.sms.service.DashboardService;
-import com.sms.model.Attendance;
-import com.sms.repository.CourseRepository;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import com.sms.dto.attendance.AttendanceQRResponse;
+import com.sms.dto.attendance.GenerateAttendanceQRRequest;
+import com.sms.dto.attendance.ManualAttendanceRequest;
+import com.sms.model.Attendance;
+import com.sms.model.Course;
+import com.sms.model.Enrollment;
+import com.sms.model.Teacher;
+import com.sms.repository.CourseRepository;
+import com.sms.repository.EnrollmentRepository;
+import com.sms.repository.StudentRepository;
+import com.sms.service.AttendanceQRTokenService;
+import com.sms.service.AttendanceService;
+import com.sms.service.DashboardService;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * API endpoints for teacher attendance management
@@ -39,6 +57,12 @@ public class TeacherAttendanceController {
 
     @Autowired
     private CourseRepository courseRepository;
+
+    @Autowired
+    private StudentRepository studentRepository;
+
+    @Autowired
+    private EnrollmentRepository enrollmentRepository;
 
     private Teacher resolveTeacher(Authentication auth) {
         if (auth == null || auth.getName() == null || auth.getName().isBlank()) {
@@ -66,7 +90,7 @@ public class TeacherAttendanceController {
         String tenantHeader = request.getHeader("X-Tenant-Id");
         if (tenantHeader != null && !tenantHeader.isBlank()) {
             try {
-                return Long.parseLong(tenantHeader);
+                return Long.valueOf(tenantHeader);
             } catch (NumberFormatException ignored) {
                 return 1L;
             }
@@ -77,8 +101,16 @@ public class TeacherAttendanceController {
     @GetMapping("/subjects")
     public ResponseEntity<List<Map<String, Object>>> getTeacherSubjects(Authentication auth) {
         Teacher teacher = resolveTeacher(auth);
+        List<Course> teacherCourses = courseRepository.findByTeacherId(teacher.getId());
+        if (teacherCourses.stream().noneMatch(course -> course.getCourseName() != null
+                && course.getCourseName().equalsIgnoreCase("Java"))) {
+            Course javaCourse = createDemoJavaCourse(teacher);
+            teacherCourses = new ArrayList<>(teacherCourses);
+            teacherCourses.add(javaCourse);
+        }
+
         List<Map<String, Object>> payload = new ArrayList<>();
-        for (Course course : courseRepository.findByTeacherId(teacher.getId())) {
+        for (Course course : teacherCourses) {
             Map<String, Object> item = new HashMap<>();
             item.put("subjectId", course.getId());
             item.put("subjectCode", course.getCode());
@@ -86,6 +118,52 @@ public class TeacherAttendanceController {
             payload.add(item);
         }
         return ResponseEntity.ok(payload);
+    }
+
+    private Course createDemoJavaCourse(Teacher teacher) {
+        Course javaCourse = new Course();
+        javaCourse.setCourseName("Java");
+        javaCourse.setCode(resolveUniqueJavaCode(teacher));
+        javaCourse.setCredits(3);
+        javaCourse.setTeacher(teacher);
+        javaCourse = courseRepository.save(javaCourse);
+
+        for (var student : studentRepository.findAll()) {
+            if (student.getId() == null || student.getId().isBlank()) {
+                continue;
+            }
+            if (enrollmentRepository.existsByStudentIdAndCourseId(student.getId(), javaCourse.getId())) {
+                continue;
+            }
+            Enrollment enrollment = new Enrollment();
+            enrollment.setStudent(student);
+            enrollment.setCourse(javaCourse);
+            enrollment.setMarks(0.0);
+            enrollmentRepository.save(enrollment);
+        }
+
+        return javaCourse;
+    }
+
+    private String resolveUniqueJavaCode(Teacher teacher) {
+        String base = "JAVA";
+        if (courseRepository.findByCode(base).isEmpty()) {
+            return base;
+        }
+
+        String teacherCode = base + "-" + teacher.getId();
+        if (courseRepository.findByCode(teacherCode).isEmpty()) {
+            return teacherCode;
+        }
+
+        for (int suffix = 2; suffix <= 50; suffix++) {
+            String candidate = teacherCode + "-" + suffix;
+            if (courseRepository.findByCode(candidate).isEmpty()) {
+                return candidate;
+            }
+        }
+
+        return teacherCode + "-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase(java.util.Locale.ROOT);
     }
 
     @GetMapping("/subject/{subjectId}/students")
@@ -119,35 +197,38 @@ public class TeacherAttendanceController {
             String subjectName = course.getCourseName();
             int expirySeconds = resolveExpirySeconds(request);
             Integer maxDistanceMeters = request.getMaxDistanceMeters() == null
-                    ? 150
-                    : Math.max(100, Math.min(200, request.getMaxDistanceMeters()));
+                ? 150
+                : Math.max(100, Math.min(200, request.getMaxDistanceMeters()));
 
-            // Generate JWT token with short TTL + teacher geolocation constraints
+            // Always allow QR generation, skip location requirement
+            Double teacherLat = request.getTeacherLatitude();
+            Double teacherLng = request.getTeacherLongitude();
+            if (teacherLat == null || teacherLng == null) {
+            teacherLat = null;
+            teacherLng = null;
+            }
+
             String qrToken = qrTokenService.generateAttendanceToken(
-                    request.getSubjectId(),
-                    teacherId,
-                    expirySeconds,
-                    request.getTeacherLatitude(),
-                    request.getTeacherLongitude(),
-                    maxDistanceMeters);
+                request.getSubjectId(),
+                teacherId,
+                expirySeconds,
+                teacherLat,
+                teacherLng,
+                maxDistanceMeters);
 
-            // Generate QR code image
             String qrImageBase64 = qrTokenService.generateQRCodeBase64(qrToken);
-
-            // Calculate expiry
             long expiryMs = (long) expirySeconds * 1000L;
             long expiresAt = System.currentTimeMillis() + expiryMs;
-
             String sessionId = UUID.randomUUID().toString();
 
             AttendanceQRResponse response = new AttendanceQRResponse(
-                    qrToken,
-                    qrImageBase64,
-                    request.getSubjectId(),
-                    subjectName,
-                    expiresAt,
-                    expirySeconds,
-                    sessionId);
+                qrToken,
+                qrImageBase64,
+                request.getSubjectId(),
+                subjectName,
+                expiresAt,
+                expirySeconds,
+                sessionId);
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {

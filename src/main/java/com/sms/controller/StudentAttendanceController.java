@@ -12,7 +12,9 @@ import com.sms.service.FraudDetectionService;
 import com.sms.service.FaceVerificationService;
 import com.sms.service.GeolocationService;
 import com.sms.model.Attendance;
+import com.sms.model.Student;
 import com.sms.repository.CampusLocationRepository;
+import com.sms.repository.StudentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -56,6 +58,9 @@ public class StudentAttendanceController {
     @Autowired
     private FraudDetectionService fraudDetectionService;
 
+    @Autowired
+    private StudentRepository studentRepository;
+
     /**
      * Mark attendance by scanning QR code
      * Student scans teacher's QR and attendance is marked
@@ -75,7 +80,7 @@ public class StudentAttendanceController {
             HttpServletRequest httpRequest,
             @RequestHeader(value = "User-Agent", required = false) String userAgent) {
         try {
-            String studentId = auth.getName();
+            String studentId = resolveAuthenticatedStudentId(auth);
             Long tenantId = resolveTenantId(httpRequest);
 
             // ✅ STEP 1: Validate QR token
@@ -90,7 +95,9 @@ public class StudentAttendanceController {
             }
 
             // ✅ STEP 2: Check if token is expired
-            if (qrTokenService.isTokenExpired(claims.getExpiresAt())) {
+            Long detectedAt = markRequest.getQrDetectedAtEpochMs();
+            if (qrTokenService.isTokenExpired(claims.getExpiresAt())
+                    && !wasScannedBeforeExpiry(detectedAt, claims.getExpiresAt())) {
                 return ResponseEntity.ok(new MarkAttendanceResponse(
                         false,
                         "QR code has expired",
@@ -109,7 +116,6 @@ public class StudentAttendanceController {
                         "LOCATION_REQUIRED"));
             }
 
-            Long detectedAt = markRequest.getQrDetectedAtEpochMs();
             if (detectedAt == null || Math.abs(System.currentTimeMillis() - detectedAt) > 30_000L) {
                 return ResponseEntity.ok(new MarkAttendanceResponse(
                         false,
@@ -449,7 +455,7 @@ public class StudentAttendanceController {
             Authentication auth,
             HttpServletRequest httpRequest) {
         try {
-            String studentId = auth.getName();
+            String studentId = resolveAuthenticatedStudentId(auth);
             Long tenantId = resolveTenantId(httpRequest);
             FaceVerificationService.FaceVerificationResult result = faceVerificationService.registerFace(
                     studentId,
@@ -479,7 +485,7 @@ public class StudentAttendanceController {
 
     @GetMapping("/face-status")
     public ResponseEntity<Map<String, Object>> faceStatus(Authentication auth, HttpServletRequest request) {
-        String studentId = auth.getName();
+        String studentId = resolveAuthenticatedStudentId(auth);
         Long tenantId = resolveTenantId(request);
         boolean registered = faceVerificationService.hasRegisteredFace(studentId, tenantId);
         Map<String, Object> response = new HashMap<>();
@@ -521,6 +527,25 @@ public class StudentAttendanceController {
         return 1L;
     }
 
+    private boolean wasScannedBeforeExpiry(Long detectedAt, long expiresAtEpochMs) {
+        if (detectedAt == null) {
+            return false;
+        }
+
+        long graceWindowMs = 30_000L;
+        return detectedAt <= expiresAtEpochMs && (System.currentTimeMillis() - detectedAt) <= graceWindowMs;
+    }
+
+    private String resolveAuthenticatedStudentId(Authentication auth) {
+        if (auth == null || auth.getName() == null || auth.getName().isBlank()) {
+            throw new IllegalArgumentException("Authenticated student is required");
+        }
+
+        String username = auth.getName().trim();
+        Optional<Student> student = studentRepository.findByUserUsername(username);
+        return student.map(Student::getId).orElse(username);
+    }
+
     /**
      * Get student's attendance record for a subject
      * 
@@ -532,7 +557,7 @@ public class StudentAttendanceController {
             Authentication auth,
             HttpServletRequest request) {
         try {
-            String studentId = auth.getName();
+            String studentId = resolveAuthenticatedStudentId(auth);
             Long tenantId = resolveTenantId(request);
 
             List<Attendance> records = attendanceService.getStudentAttendance(studentId, subjectId, tenantId);
@@ -577,7 +602,7 @@ public class StudentAttendanceController {
             Authentication auth,
             HttpServletRequest request) {
         try {
-            String studentId = auth.getName();
+            String studentId = resolveAuthenticatedStudentId(auth);
             Long tenantId = resolveTenantId(request);
             LocalDate today = LocalDate.now();
 
@@ -666,7 +691,7 @@ public class StudentAttendanceController {
             Authentication auth,
             HttpServletRequest request) {
         try {
-            String studentId = auth.getName();
+            String studentId = resolveAuthenticatedStudentId(auth);
             Long tenantId = resolveTenantId(request);
             AttendanceService.WeightedAttendanceMetrics metrics = attendanceService
                     .getWeightedAttendanceMetrics(studentId, subjectId, tenantId);

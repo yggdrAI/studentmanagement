@@ -113,7 +113,7 @@ public class StudentProfileService {
                 byte[] imageBytes = decodeDataImage(profileImage);
                 faceVerificationService.registerFaceFromImageUpload(
                         normalizedStudentId,
-                        1L,
+                        student.getTenantId(),
                         imageBytes,
                         normalizedStudentId + "-profile-upload.jpg",
                         true,
@@ -267,7 +267,7 @@ public class StudentProfileService {
                 byte[] imageBytes = decodeDataImage(profileImage);
                 faceVerificationService.registerFaceFromImageUpload(
                         student.getId(),
-                        1L,
+                        student.getTenantId(),
                         imageBytes,
                         student.getId() + "-profile-upload.jpg",
                         true,

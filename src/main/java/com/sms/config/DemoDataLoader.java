@@ -2,6 +2,8 @@ package com.sms.config;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import org.springframework.boot.CommandLineRunner;
@@ -86,6 +88,96 @@ public class DemoDataLoader implements CommandLineRunner {
         ensureStudentLoginPolicy();
         ensureTeacherLoginPolicy();
         ensureTeacherAliasCredentials();
+        ensureDemoTeacherEntity();
+        ensureTeacherHasAtLeastOneSubject();
+    }
+
+    private void ensureDemoTeacherEntity() {
+        if (!teacherRepository.findAll().isEmpty()) {
+            return;
+        }
+
+        User teacherUser = userRepository.findFirstByRoleOrderByIdAsc(Role.TEACHER)
+                .orElseGet(() -> createUser("temp-teacher", "temp-teacher", Role.TEACHER));
+        teacherUser = userRepository.save(teacherUser);
+
+        Teacher teacher = new Teacher();
+        teacher.setFirstName("Rahul");
+        teacher.setLastName("Sharma");
+        teacher.setName("Dr. Rahul Sharma");
+        teacher.setEmail(teacherUser.getEmail() != null && !teacherUser.getEmail().isBlank()
+                ? teacherUser.getEmail()
+                : "rahul.sharma@sms.com");
+        teacher.setPhone(teacherUser.getPhone());
+        teacher.setEmployeeId(teacherUser.getId() == null ? "TEACHER-DEMO" : "TEACHER-" + teacherUser.getId());
+        teacher.setDepartment("Computer Science");
+        teacher.setDesignation("Assistant Professor");
+        teacher.setQualification("M.Tech");
+        teacher.setSpecialization("Programming Languages");
+        teacher.setExperienceYears(5);
+        teacher.setStatus("ACTIVE");
+        teacher.setUser(teacherUser);
+        teacherRepository.save(teacher);
+    }
+
+    private void ensureTeacherHasAtLeastOneSubject() {
+        List<Student> students = studentRepository.findAll();
+        for (Teacher teacher : teacherRepository.findAll()) {
+            if (teacher.getId() == null) {
+                continue;
+            }
+            boolean hasJavaCourse = courseRepository.findByTeacherId(teacher.getId()).stream()
+                    .anyMatch(course -> course.getCourseName() != null
+                            && course.getCourseName().equalsIgnoreCase("Java"));
+            if (hasJavaCourse) {
+                continue;
+            }
+
+            Course javaCourse = new Course();
+            javaCourse.setCourseName("Java");
+            javaCourse.setCode(resolveUniqueCourseCode("JAVA", teacher.getId()));
+            javaCourse.setCredits(3);
+            javaCourse.setTeacher(teacher);
+            javaCourse = courseRepository.save(javaCourse);
+
+            // Seed minimal enrollments so Teacher Attendance has a usable student list.
+            for (Student student : students) {
+                String studentId = student.getId();
+                if (studentId == null || studentId.isBlank()) {
+                    continue;
+                }
+                if (enrollmentRepository.existsByStudentIdAndCourseId(studentId, javaCourse.getId())) {
+                    continue;
+                }
+                Enrollment enrollment = new Enrollment();
+                enrollment.setStudent(student);
+                enrollment.setCourse(javaCourse);
+                enrollment.setMarks(0.0);
+                enrollmentRepository.save(enrollment);
+            }
+        }
+    }
+
+    private String resolveUniqueCourseCode(String base, Long teacherId) {
+        String normalizedBase = (base == null || base.isBlank() ? "JAVA" : base.trim())
+                .toUpperCase(Locale.ROOT);
+        if (courseRepository.findByCode(normalizedBase).isEmpty()) {
+            return normalizedBase;
+        }
+
+        String teacherCandidate = normalizedBase + "-" + teacherId;
+        if (courseRepository.findByCode(teacherCandidate).isEmpty()) {
+            return teacherCandidate;
+        }
+
+        for (int suffix = 2; suffix <= 50; suffix++) {
+            String candidate = teacherCandidate + "-" + suffix;
+            if (courseRepository.findByCode(candidate).isEmpty()) {
+                return candidate;
+            }
+        }
+
+        return teacherCandidate + "-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
     }
 
     private void seedInitialAcademicData() {
@@ -354,7 +446,7 @@ public class DemoDataLoader implements CommandLineRunner {
         user.setPassword(passwordEncoder.encode(password));
         user.setRole(role);
         user.setIsActive(true);
-        user.setIsFirstLogin(role == Role.ADMIN ? false : true);
+        user.setIsFirstLogin(role != Role.ADMIN);
         return user;
     }
 }

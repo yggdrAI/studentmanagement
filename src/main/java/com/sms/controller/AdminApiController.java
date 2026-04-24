@@ -112,13 +112,16 @@ public class AdminApiController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Face image file is required");
         }
 
-        studentService.findById(studentId)
+        Student student = studentService.findById(studentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+        Long effectiveTenantId = tenantId != null
+                ? tenantId
+                : (student.getTenantId() == null || student.getTenantId() <= 0 ? 1L : student.getTenantId());
 
         try {
             FaceVerificationService.FaceVerificationResult result = faceVerificationService.registerFaceFromImageUpload(
                     studentId,
-                    tenantId,
+                    effectiveTenantId,
                     file.getBytes(),
                     file.getOriginalFilename(),
                     livenessVerified,
@@ -131,7 +134,7 @@ public class AdminApiController {
                     "success", result.isVerified(),
                     "message", result.getMessage(),
                     "studentId", studentId,
-                    "tenantId", tenantId == null ? 1L : tenantId,
+                    "tenantId", effectiveTenantId,
                     "model", "Facenet512"));
         } catch (Exception ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);

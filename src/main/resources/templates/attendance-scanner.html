@@ -518,6 +518,7 @@
     let isScanning = false;
     let lastScannedToken = null;
     let scanInProgress = false;
+    let readerPlaceholderHtml = null;
     let useFallbackScanner = false;
     let libraryCheckAttempts = 0;
     let pwaInstallPrompt = null;
@@ -531,12 +532,168 @@
     let lastQrDetectedAt = null;
     let attendanceProcessing = false;
     let fallbackFaceStream = null;
+    let registeredFaceAvailable = null;
     let resolvedSubjectId = CURRENT_SUBJECT_ID ? Number(CURRENT_SUBJECT_ID) : null;
     const LIVENESS_FRAME_TARGET = 5;
     const LIVENESS_FRAME_MIN = 3;
+    const FACE_VERIFICATION_DELAY_MS = 5000;
 
     function isMobileDevice() {
         return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 768;
+    }
+
+    function captureReaderPlaceholder() {
+        if (readerPlaceholderHtml !== null) {
+            return;
+        }
+
+        const reader = document.getElementById('reader');
+        if (reader) {
+            readerPlaceholderHtml = reader.innerHTML;
+        }
+    }
+
+    function ensureReaderPlaceholder() {
+        const reader = document.getElementById('reader');
+        if (!reader) {
+            return;
+        }
+
+        const existingVideo = document.getElementById('cameraVideo') || reader.querySelector('video');
+        if (existingVideo) {
+            return;
+        }
+
+        if (readerPlaceholderHtml) {
+            reader.innerHTML = readerPlaceholderHtml;
+            return;
+        }
+
+        const video = document.createElement('video');
+        video.id = 'cameraVideo';
+        video.autoplay = true;
+        video.playsInline = true;
+        video.muted = true;
+        reader.prepend(video);
+    }
+
+    function isLikelyJwt(token) {
+        return typeof token === 'string' && token.split('.').length === 3;
+    }
+
+    function normalizeAttendanceToken(rawValue) {
+        if (typeof rawValue !== 'string') {
+            return '';
+        }
+
+        const trimmed = rawValue.trim();
+        if (!trimmed) {
+            return '';
+        }
+
+        if (isLikelyJwt(trimmed)) {
+            return trimmed;
+        }
+
+        try {
+            const parsedUrl = new URL(trimmed, window.location.origin);
+            const queryToken = parsedUrl.searchParams.get('token') || parsedUrl.searchParams.get('qrToken');
+            if (isLikelyJwt(queryToken)) {
+                return queryToken;
+            }
+        } catch (_error) {
+            // Ignore URL parsing failures and continue with JSON/plain-text checks.
+        }
+
+        try {
+            const parsedJson = JSON.parse(trimmed);
+            const candidate = parsedJson && (parsedJson.qrToken || parsedJson.token || parsedJson.attendanceToken);
+            if (isLikelyJwt(candidate)) {
+                return candidate;
+            }
+        } catch (_error) {
+            // Not JSON.
+        }
+
+        return trimmed;
+    }
+
+    async function ensureFaceEnrollment() {
+        if (registeredFaceAvailable === true) {
+            return true;
+        }
+
+        const data = await window.smsApi.student.attendanceFaceStatus(getAuthToken());
+        registeredFaceAvailable = Boolean(data && data.registered);
+        if (!registeredFaceAvailable) {
+            throw new Error('No registered face image was found for your account. Upload a student face image first.');
+        }
+        return true;
+    }
+
+    async function validateScannedQr(rawToken) {
+        const token = normalizeAttendanceToken(rawToken);
+        if (!isLikelyJwt(token)) {
+            throw new Error('This QR is not an attendance session QR. Please scan the teacher attendance QR.');
+        }
+
+        const data = await window.smsApi.student.attendanceVerifyQr(token, getAuthToken());
+        if (!data || data.valid !== true) {
+            throw new Error((data && (data.message || data.error)) || 'QR validation failed');
+        }
+
+        if (data.subjectId) {
+            resolvedSubjectId = Number(data.subjectId);
+        }
+
+        return {
+            token,
+            subjectId: data.subjectId ? Number(data.subjectId) : null,
+            remainingSeconds: Number(data.remainingSeconds || 0)
+        };
+    }
+
+    async function waitForFaceVerificationCountdown(delayMs = FACE_VERIFICATION_DELAY_MS) {
+        const seconds = Math.max(1, Math.ceil(delayMs / 1000));
+        for (let remaining = seconds; remaining > 0; remaining--) {
+            document.getElementById('facePromptText').textContent = `Face verification starts in ${remaining}s. Keep your face ready.`;
+            showStatus(`QR verified. Face verification starts in ${remaining}s...`, 'info');
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+    }
+
+    async function requestCameraStream(preferredFacingMode) {
+        const attempts = [];
+        if (preferredFacingMode) {
+            attempts.push({
+                audio: false,
+                video: {
+                    facingMode: { ideal: preferredFacingMode },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            });
+        }
+
+        attempts.push({
+            audio: false,
+            video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
+        });
+        attempts.push({ audio: false, video: true });
+
+        let lastError = null;
+        for (const constraints of attempts) {
+            try {
+                return await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw lastError || new Error('Unable to access a camera on this device');
     }
 
     function getRearCameraConstraints() {
@@ -632,7 +789,7 @@
             return;
         }
 
-        if (!CURRENT_SUBJECT_ID) {
+        if (!resolvedSubjectId) {
             return;
         }
 
@@ -640,7 +797,7 @@
             const position = await resolveAttendancePosition();
             locationStomp.send('/app/location', {}, JSON.stringify({
                 studentId: CURRENT_STUDENT_ID,
-                subjectId: CURRENT_SUBJECT_ID ? Number(CURRENT_SUBJECT_ID) : null,
+                subjectId: resolvedSubjectId || null,
                 sessionId: CURRENT_SESSION_ID || null,
                 lat: position.coords.latitude,
                 lng: position.coords.longitude,
@@ -685,30 +842,18 @@
 
     async function captureFaceEmbedding() {
         await ensureFaceModelsLoaded();
+        await ensureFaceEnrollment();
 
         const prompts = ['Blink naturally and turn your head left-right', 'Blink and move your head slightly', 'Blink once and shift your head angle'];
         activeLivenessPrompt = prompts[Math.floor(Math.random() * prompts.length)];
         document.getElementById('facePromptText').textContent = `Liveness prompt: ${activeLivenessPrompt}`;
-        showStatus(`👤 ${activeLivenessPrompt} and hold your face inside the frame`, 'info');
+        showStatus(`Face verification started. ${activeLivenessPrompt}.`, 'info');
+        showStatus('Switching to face verification camera...', 'warning');
 
-        let telemetry = null;
-        if (isMobileDevice()) {
-            showStatus('🔄 Switching to front camera for face verification...', 'warning');
-            telemetry = await captureFaceFromFrontCamera();
-        } else {
-            const video = document.querySelector('#reader video') || document.getElementById('cameraVideo');
-            if (!video) {
-                throw new Error('Camera stream is unavailable for face verification');
-            }
-            telemetry = await collectLivenessTelemetry(video, LIVENESS_FRAME_TARGET, 250);
-            if (!telemetry) {
-                showStatus('🔄 Switching to front camera for face verification...', 'warning');
-                telemetry = await captureFaceFromFrontCamera();
-            }
-        }
+        const telemetry = await captureFaceFromFrontCamera();
 
         if (!telemetry || !Array.isArray(telemetry.faceEmbedding) || telemetry.faceEmbedding.length === 0) {
-            throw new Error('No face detected. Center your face and try again.');
+            throw new Error('No face was detected during verification. Hold your face in the frame, blink, and try again.');
         }
 
         telemetry.livenessPrompt = activeLivenessPrompt;
@@ -926,21 +1071,27 @@
     async function captureFaceFromFrontCamera() {
         await stopScanner(true);
 
-        fallbackFaceStream = await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: {
-                facingMode: 'user',
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            }
-        });
+        ensureReaderPlaceholder();
 
-        const video = document.getElementById('cameraVideo');
+        fallbackFaceStream = await requestCameraStream('user');
+
+        const video = document.getElementById('cameraVideo') || document.querySelector('#reader video');
+        if (!video) {
+            throw new Error('Camera preview is unavailable. Tap Reset and try again.');
+        }
         video.srcObject = fallbackFaceStream;
         await video.play();
         enableCameraFocusMode();
+        document.getElementById('facePromptText').textContent = `Live verification: ${activeLivenessPrompt}`;
+        showStatus(`Live face verification in progress. ${activeLivenessPrompt}.`, 'info');
 
-        const telemetry = await collectLivenessTelemetry(video, LIVENESS_FRAME_TARGET, 260);
+        await new Promise((resolve) => setTimeout(resolve, 900));
+
+        let telemetry = await collectLivenessTelemetry(video, LIVENESS_FRAME_TARGET, 260);
+        if (!telemetry) {
+            await detectFaceWithRetries(video, 8, 350);
+            telemetry = await collectLivenessTelemetry(video, LIVENESS_FRAME_TARGET + 1, 280);
+        }
 
         fallbackFaceStream.getTracks().forEach((track) => track.stop());
         fallbackFaceStream = null;
@@ -1053,11 +1204,12 @@
             if ('BarcodeDetector' in window) {
                 try {
                     qrDetector = new BarcodeDetector({ formats: ['qr_code'] });
-                    const constraints = {
-                        ...getRearCameraConstraints()
-                    };
-                    cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    const video = document.getElementById('cameraVideo');
+                    cameraStream = await requestCameraStream('environment');
+                    ensureReaderPlaceholder();
+                    const video = document.getElementById('cameraVideo') || document.querySelector('#reader video');
+                    if (!video) {
+                        throw new Error('Camera preview is unavailable. Tap Reset and try again.');
+                    }
                     video.srcObject = cameraStream;
                     await video.play();
                     scanTimer = window.setInterval(() => detectQRCode(video), 250);
@@ -1081,7 +1233,7 @@
                 try {
                     html5QrcodeScanner = new Html5Qrcode('reader');
                     await html5QrcodeScanner.start(
-                        { facingMode: { exact: 'environment' } },
+                        { facingMode: 'environment' },
                         {
                             fps: 10,
                             qrbox: { width: 250, height: 250 },
@@ -1109,8 +1261,10 @@
                 } catch (err) {
                     console.error('html5-qrcode initialization failed:', err);
                     try {
+                        const cameras = await Html5Qrcode.getCameras();
+                        const fallbackCamera = Array.isArray(cameras) && cameras.length ? cameras[cameras.length - 1].id : { facingMode: 'environment' };
                         await html5QrcodeScanner.start(
-                            { facingMode: 'environment' },
+                            fallbackCamera,
                             {
                                 fps: 10,
                                 qrbox: { width: 250, height: 250 },
@@ -1159,7 +1313,7 @@
                 scanTimer = null;
             }
 
-            const video = document.getElementById('cameraVideo');
+            const video = document.querySelector('#reader video') || document.getElementById('cameraVideo');
             if (video) {
                 video.pause();
                 video.srcObject = null;
@@ -1181,6 +1335,7 @@
                     await html5QrcodeScanner.stop();
                     html5QrcodeScanner.clear();
                     html5QrcodeScanner = null;
+                    ensureReaderPlaceholder();
                 } catch (err) {
                     console.debug('Error stopping html5-qrcode:', err);
                 }
@@ -1190,8 +1345,10 @@
         } finally {
             isScanning = false;
             useFallbackScanner = false;
+            lastScannedToken = null;
             disconnectLocationSocket();
             disableCameraFocusMode();
+            ensureReaderPlaceholder();
             document.getElementById('startBtn').style.display = 'block';
             document.getElementById('stopBtn').style.display = 'none';
             if (!silent) {
@@ -1221,7 +1378,7 @@
     /**
      * Handle successful QR scan
      */
-    function onScanSuccess(decodedText, decodedResult) {
+    async function onScanSuccess(decodedText, decodedResult) {
         if (lastScannedToken === decodedText || attendanceProcessing) {
             return;
         }
@@ -1231,7 +1388,26 @@
         lastQrDetectedAt = Date.now();
         console.log('QR Scanned:', decodedText.substring(0, 50) + '...');
 
-        markAttendance(decodedText);
+        try {
+            showStatus('QR detected. Validating attendance session...', 'info');
+            const qrSession = await validateScannedQr(decodedText);
+            if (qrSession.subjectId) {
+                loadTodayAttendance();
+            }
+
+            await waitForFaceVerificationCountdown();
+            await markAttendance(qrSession.token);
+        } catch (error) {
+            console.error('QR validation failed:', error);
+            showStatus(error && error.message ? error.message : 'Unable to validate this QR code.', 'error');
+            document.getElementById('facePromptText').textContent = 'Face check will run automatically after a valid attendance QR scan.';
+            attendanceProcessing = false;
+            window.setTimeout(() => {
+                if (!attendanceProcessing) {
+                    lastScannedToken = null;
+                }
+            }, 1500);
+        }
     }
 
     /**
@@ -1245,14 +1421,12 @@
      * Mark attendance by submitting QR token to backend
      */
     async function markAttendance(token) {
-        if (attendanceProcessing === false) {
-            attendanceProcessing = true;
-        }
         showLoader(true);
 
         try {
+            document.getElementById('facePromptText').textContent = 'Verifying your live face against the uploaded student image.';
             const facePayload = await captureFaceEmbedding();
-            showStatus('📍 Getting your location...', 'info');
+            showStatus('Face verified. Checking your location...', 'info');
             const position = await resolveAttendancePosition();
             const request = {
                 qrToken: token,
@@ -1285,6 +1459,7 @@
                     ? ` | Face ${Math.round(data.faceSimilarity * 100)}%`
                     : '';
                 showStatus('✅ ' + data.message + confidenceText + faceText, 'success');
+                document.getElementById('facePromptText').textContent = 'Face verification completed successfully.';
                 document.getElementById('lastScan').textContent = new Date().toLocaleTimeString();
                 document.getElementById('scanStatus').textContent = 'Marked';
                 if (navigator.vibrate) {
@@ -1300,8 +1475,8 @@
             const message = error && error.message && /timeout/i.test(error.message)
                 ? 'Location lookup timed out. Move to an open area and try again.'
                 : 'Error marking attendance: ' + error.message;
-            showStatus('❌ ' + message, 'error');
-            document.getElementById('facePromptText').textContent = 'Face check will run automatically after a QR scan.';
+            showStatus(message, 'error');
+            document.getElementById('facePromptText').textContent = 'Face check will run automatically after a valid attendance QR scan.';
         } finally {
             await stopScanner(true);
             attendanceProcessing = false;
@@ -1311,7 +1486,7 @@
     /**
      * Mark attendance manually with token
      */
-    function markAttendanceManual() {
+    async function markAttendanceManual() {
         const token = document.getElementById('manualToken').value.trim();
         
         if (!token) {
@@ -1319,9 +1494,7 @@
             return;
         }
 
-        lastQrDetectedAt = Date.now();
-
-        markAttendance(token);
+        await onScanSuccess(token);
     }
 
     /**
@@ -1403,23 +1576,22 @@
 
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
+        captureReaderPlaceholder();
         registerPwa();
         document.body.classList.add('has-bottom-nav');
-        if (!resolvedSubjectId) {
-            window.smsApi.student.timetable()
-                .then((items) => {
-                    const first = Array.isArray(items) ? items.find(item => item && item.courseId) : null;
-                    if (first && first.courseId) {
-                        resolvedSubjectId = Number(first.courseId);
-                    }
-                    loadTodayAttendance();
-                })
-                .catch(() => loadTodayAttendance());
-        } else {
-            loadTodayAttendance();
-        }
+        loadTodayAttendance();
         document.getElementById('metadata').style.display = 'block';
         showStatus('Click "Start Scanner" to begin', 'info');
+        window.smsApi.student.attendanceFaceStatus(getAuthToken())
+            .then((data) => {
+                registeredFaceAvailable = Boolean(data && data.registered);
+                if (!registeredFaceAvailable) {
+                    document.getElementById('facePromptText').textContent = 'No enrolled face image found. Upload a student face image before scanning attendance.';
+                }
+            })
+            .catch((error) => {
+                console.debug('Unable to preload face status:', error);
+            });
 
         window.addEventListener('beforeinstallprompt', (event) => {
             event.preventDefault();

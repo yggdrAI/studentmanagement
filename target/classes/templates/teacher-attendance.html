@@ -602,8 +602,26 @@
                         subjectId: parseInt(subjectId),
                         subjectName: getSelectedSubjectName(),
                         expirySeconds: dynamicQr ? parseInt(expirySeconds, 10) : resolvedExpirySeconds,
-                        teacherLatitude: position.coords.latitude,
-                        teacherLongitude: position.coords.longitude,
+                        teacherLatitude: position && position.coords ? position.coords.latitude : null,
+                        teacherLongitude: position && position.coords ? position.coords.longitude : null,
+                        maxDistanceMeters: 150,
+                        dynamicQr: dynamicQr,
+                        qrMode: qrMode
+                    };
+                    return window.smsApi.teacher.attendance.generateQr(request, getAuthToken());
+                })
+                .catch(error => {
+                    // If location fails, proceed with null lat/lng
+                    const dynamicQr = qrMode === 'dynamic';
+                    const resolvedExpirySeconds = dynamicQr
+                        ? 10
+                        : Math.max(8, parseInt(staticDurationMinutes || '5', 10) * 60);
+                    const request = {
+                        subjectId: parseInt(subjectId),
+                        subjectName: getSelectedSubjectName(),
+                        expirySeconds: dynamicQr ? parseInt(expirySeconds, 10) : resolvedExpirySeconds,
+                        teacherLatitude: null,
+                        teacherLongitude: null,
                         maxDistanceMeters: 150,
                         dynamicQr: dynamicQr,
                         qrMode: qrMode

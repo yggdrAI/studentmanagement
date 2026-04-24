@@ -154,7 +154,7 @@ public class CredentialService {
                     "Password must contain uppercase, lowercase, number, and special character");
         }
     }
-
+    
     private boolean isFixedAdminAccount(User user) {
         if (user == null || user.getRole() != com.sms.model.Role.ADMIN) {
             return false;
