@@ -111,6 +111,13 @@ public class AdminApiController {
         if (file == null || file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Face image file is required");
         }
+        String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase();
+        if (!contentType.startsWith("image/")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only image files are allowed");
+        }
+        if (file.getSize() > (20L * 1024L * 1024L)) {
+            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Image exceeds 20MB upload limit");
+        }
 
         Student student = studentService.findById(studentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
@@ -136,8 +143,12 @@ public class AdminApiController {
                     "studentId", studentId,
                     "tenantId", effectiveTenantId,
                     "model", "Facenet512"));
+        } catch (ResponseStatusException ex) {
+            throw ex;
         } catch (Exception ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Image upload failed: " + (ex.getMessage() == null ? "Unexpected server error" : ex.getMessage()),
+                    ex);
         }
     }
 

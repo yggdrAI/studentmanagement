@@ -15,6 +15,7 @@ public class GenerateAttendanceQRRequest {
     private Integer maxDistanceMeters;
     private Boolean dynamicQr;
     private String qrMode;
+    private Boolean faceVerificationRequired;
 
     public GenerateAttendanceQRRequest() {
     }
@@ -95,5 +96,13 @@ public class GenerateAttendanceQRRequest {
 
     public void setQrMode(String qrMode) {
         this.qrMode = qrMode;
+    }
+
+    public Boolean getFaceVerificationRequired() {
+        return faceVerificationRequired;
+    }
+
+    public void setFaceVerificationRequired(Boolean faceVerificationRequired) {
+        this.faceVerificationRequired = faceVerificationRequired;
     }
 }

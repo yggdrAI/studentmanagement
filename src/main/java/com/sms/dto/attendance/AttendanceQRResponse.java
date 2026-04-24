@@ -11,6 +11,7 @@ public class AttendanceQRResponse {
     private Long expiresAt; // Timestamp when QR expires
     private Integer expirySeconds;
     private String sessionId; // For tracking this attendance session
+    private Boolean faceVerificationRequired;
 
     public AttendanceQRResponse() {}
 
@@ -23,6 +24,13 @@ public class AttendanceQRResponse {
         this.expiresAt = expiresAt;
         this.expirySeconds = expirySeconds;
         this.sessionId = sessionId;
+    }
+
+    public AttendanceQRResponse(String qrToken, String qrImage, Long subjectId,
+                               String subjectName, Long expiresAt, Integer expirySeconds, String sessionId,
+                               Boolean faceVerificationRequired) {
+        this(qrToken, qrImage, subjectId, subjectName, expiresAt, expirySeconds, sessionId);
+        this.faceVerificationRequired = faceVerificationRequired;
     }
 
     public String getQrToken() {
@@ -79,5 +87,13 @@ public class AttendanceQRResponse {
 
     public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
+    }
+
+    public Boolean getFaceVerificationRequired() {
+        return faceVerificationRequired;
+    }
+
+    public void setFaceVerificationRequired(Boolean faceVerificationRequired) {
+        this.faceVerificationRequired = faceVerificationRequired;
     }
 }

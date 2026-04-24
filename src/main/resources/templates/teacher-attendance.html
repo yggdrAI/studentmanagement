@@ -368,6 +368,14 @@
                             </select>
                         </div>
 
+                        <div class="form-group">
+                            <label class="form-label">🧠 Face Verification</label>
+                            <select id="faceVerificationMode">
+                                <option value="required" selected>Required (Face + QR + Location)</option>
+                                <option value="optional">Optional (QR + Location only)</option>
+                            </select>
+                        </div>
+
                         <div class="form-group" id="staticDurationGroup" style="display:none;">
                             <label class="form-label">⏱️ Static QR Duration (minutes)</label>
                             <select id="staticDurationMinutes">
@@ -584,6 +592,8 @@
             const qrMode = document.getElementById('qrMode').value;
             const expirySeconds = document.getElementById('expirySeconds').value;
             const staticDurationMinutes = document.getElementById('staticDurationMinutes').value;
+            const faceVerificationMode = document.getElementById('faceVerificationMode').value;
+            const faceVerificationRequired = faceVerificationMode !== 'optional';
 
             if (!subjectId) {
                 showError('Please select a subject');
@@ -605,6 +615,7 @@
                         teacherLatitude: position && position.coords ? position.coords.latitude : null,
                         teacherLongitude: position && position.coords ? position.coords.longitude : null,
                         maxDistanceMeters: 150,
+                        faceVerificationRequired: faceVerificationRequired,
                         dynamicQr: dynamicQr,
                         qrMode: qrMode
                     };
@@ -623,6 +634,7 @@
                         teacherLatitude: null,
                         teacherLongitude: null,
                         maxDistanceMeters: 150,
+                        faceVerificationRequired: faceVerificationRequired,
                         dynamicQr: dynamicQr,
                         qrMode: qrMode
                     };

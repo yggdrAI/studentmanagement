@@ -199,6 +199,7 @@ public class TeacherAttendanceController {
             Integer maxDistanceMeters = request.getMaxDistanceMeters() == null
                 ? 150
                 : Math.max(100, Math.min(200, request.getMaxDistanceMeters()));
+            boolean faceVerificationRequired = !Boolean.FALSE.equals(request.getFaceVerificationRequired());
 
             // Always allow QR generation, skip location requirement
             Double teacherLat = request.getTeacherLatitude();
@@ -214,7 +215,8 @@ public class TeacherAttendanceController {
                 expirySeconds,
                 teacherLat,
                 teacherLng,
-                maxDistanceMeters);
+                maxDistanceMeters,
+                faceVerificationRequired);
 
             String qrImageBase64 = qrTokenService.generateQRCodeBase64(qrToken);
             long expiryMs = (long) expirySeconds * 1000L;
@@ -228,7 +230,8 @@ public class TeacherAttendanceController {
                 subjectName,
                 expiresAt,
                 expirySeconds,
-                sessionId);
+                sessionId,
+                faceVerificationRequired);
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {

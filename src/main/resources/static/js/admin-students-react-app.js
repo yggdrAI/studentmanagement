@@ -13,8 +13,8 @@ import {
 const h = React.createElement;
 const PAGE_SIZE = 100;
 const CLASS_BATCH_COUNT = 4;
-const INITIAL_CLASSES_VISIBLE = 8;
-const CLASS_PAGE_SIZE = 8;
+const INITIAL_CLASSES_VISIBLE = 200;
+const CLASS_PAGE_SIZE = 50;
 const CACHE_PREFIX = "sms:hierarchy:cache:";
 const CACHE_TTL = 5 * 60 * 1000;
 
@@ -1018,7 +1018,8 @@ function App() {
 
     const params = buildQuery(route, filters);
     const cacheKey = params.toString() || "dashboard";
-    const cached = readCache(cacheKey);
+    const useCache = refreshTick === 0;
+    const cached = useCache ? readCache(cacheKey) : null;
 
     if (cached) {
       setData(normalizeHierarchy(cached));
@@ -1108,12 +1109,18 @@ function App() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("studentId", pendingUploadStudentId);
-    formData.append("file", file);
-    await api("/api/admin/upload-face", { method: "POST", body: formData });
-    setPendingUploadStudentId("");
-    refresh();
+    try {
+      const formData = new FormData();
+      formData.append("studentId", pendingUploadStudentId);
+      formData.append("file", file);
+      await api("/api/admin/upload-face", { method: "POST", body: formData });
+      refresh();
+    } catch (uploadError) {
+      setError(uploadError?.message || "Failed to upload image");
+    } finally {
+      setPendingUploadStudentId("");
+      event.target.value = "";
+    }
   }, [pendingUploadStudentId, refresh]);
 
   return h(

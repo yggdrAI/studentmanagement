@@ -128,6 +128,7 @@ public class StudentAttendanceController {
             String clientDeviceId = markRequest.getDeviceId() != null ? markRequest.getDeviceId() : "UNKNOWN";
             String deviceInfo = (userAgent != null ? userAgent : "UNKNOWN") + " | clientDeviceId=" + clientDeviceId;
             String deviceFingerprint = antiCheatingService.generateDeviceFingerprint(deviceInfo, clientIp);
+            boolean faceVerificationRequired = !Boolean.FALSE.equals(claims.getFaceVerificationRequired());
 
             // ✅ STEP 4.2: Verify proximity to teacher-issued QR location (100-200m policy)
             Double teacherLatitude = claims.getTeacherLatitude();
@@ -160,37 +161,39 @@ public class StudentAttendanceController {
             }
 
             // ✅ STEP 4.5: Face verification before any geolocation decision
-            FaceVerificationService.FaceVerificationResult faceResult;
-            try {
-                faceResult = faceVerificationService.verifyFace(
-                        studentId,
-                        tenantId,
-                        markRequest.getFaceEmbedding(),
-                        markRequest.getLivenessVerified(),
-                        markRequest.getLivenessPrompt(),
-                        markRequest.getBlinkDetected(),
-                        markRequest.getHeadMovementDetected(),
-                        markRequest.getFrameCount(),
-                        markRequest.getMotionParallaxScore(),
-                        markRequest.getBrightnessVariance(),
-                        markRequest.getFrameEmbeddings(),
-                        markRequest.getFrameSnapshots());
-            } catch (RuntimeException faceError) {
-                antiCheatingService.logViolation(
-                        studentId,
-                        "FACE_MISMATCH",
-                        faceError.getMessage(),
-                        deviceFingerprint,
-                        clientIp,
-                        latitude,
-                        longitude,
-                        null,
-                        null,
-                        "HIGH");
-                return ResponseEntity.ok(new MarkAttendanceResponse(
-                        false,
-                        faceError.getMessage(),
-                        "FACE_MISMATCH"));
+            FaceVerificationService.FaceVerificationResult faceResult = null;
+            if (faceVerificationRequired) {
+                try {
+                    faceResult = faceVerificationService.verifyFace(
+                            studentId,
+                            tenantId,
+                            markRequest.getFaceEmbedding(),
+                            markRequest.getLivenessVerified(),
+                            markRequest.getLivenessPrompt(),
+                            markRequest.getBlinkDetected(),
+                            markRequest.getHeadMovementDetected(),
+                            markRequest.getFrameCount(),
+                            markRequest.getMotionParallaxScore(),
+                            markRequest.getBrightnessVariance(),
+                            markRequest.getFrameEmbeddings(),
+                            markRequest.getFrameSnapshots());
+                } catch (RuntimeException faceError) {
+                    antiCheatingService.logViolation(
+                            studentId,
+                            "FACE_MISMATCH",
+                            faceError.getMessage(),
+                            deviceFingerprint,
+                            clientIp,
+                            latitude,
+                            longitude,
+                            null,
+                            null,
+                            "HIGH");
+                    return ResponseEntity.ok(new MarkAttendanceResponse(
+                            false,
+                            faceError.getMessage(),
+                            "FACE_MISMATCH"));
+                }
             }
 
             // ✅ STEP 5: Check if student is blocked
@@ -344,8 +347,8 @@ public class StudentAttendanceController {
                     closestLocation,
                     confidenceScore,
                     markRequest.getQrDetectedAtEpochMs(),
-                    true,
-                    faceResult.getSimilarity(),
+                    !faceVerificationRequired || faceResult != null,
+                    faceResult != null ? faceResult.getSimilarity() : 1.0,
                     locationVerified,
                     deviceSharingDetected,
                     vpnResult,
@@ -413,9 +416,9 @@ public class StudentAttendanceController {
                         attendance.getId(),
                         latitude,
                         longitude,
-                        true,
+                        !faceVerificationRequired || faceResult != null,
                         false,
-                        faceResult.getSimilarity(),
+                        faceResult != null ? faceResult.getSimilarity() : 1.0,
                         confidenceScore);
 
                 MarkAttendanceResponse response = new MarkAttendanceResponse(
@@ -426,8 +429,8 @@ public class StudentAttendanceController {
                         fraudAssessment.isSuspicious() ? "SUSPICIOUS" : "MARKED",
                         attendance.getId().toString());
                 response.setConfidenceScore(confidenceScore);
-                response.setFaceVerified(true);
-                response.setFaceSimilarity(faceResult.getSimilarity());
+                response.setFaceVerified(!faceVerificationRequired || faceResult != null);
+                response.setFaceSimilarity(faceResult != null ? faceResult.getSimilarity() : 1.0);
                 response.setLocationVerified(locationVerified);
                 response.setFraudScore(fraudAssessment.getFraudScore());
                 response.setDecision(fraudAssessment.getDecision());
@@ -740,6 +743,7 @@ public class StudentAttendanceController {
             response.put("subjectId", claims.getSubjectId());
             response.put("remainingSeconds", remainingSeconds);
             response.put("maxDistanceMeters", claims.getMaxDistanceMeters());
+            response.put("faceVerificationRequired", !Boolean.FALSE.equals(claims.getFaceVerificationRequired()));
             response.put("message", "QR is valid - You can now mark attendance");
 
             return ResponseEntity.ok(response);

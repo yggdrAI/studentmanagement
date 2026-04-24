@@ -52,6 +52,17 @@ public class AttendanceQRTokenService {
             Double teacherLatitude,
             Double teacherLongitude,
             Integer maxDistanceMeters) {
+        return generateAttendanceToken(subjectId, teacherId, expirySeconds, teacherLatitude, teacherLongitude,
+                maxDistanceMeters, true);
+    }
+
+    public String generateAttendanceToken(Long subjectId,
+            Long teacherId,
+            Integer expirySeconds,
+            Double teacherLatitude,
+            Double teacherLongitude,
+            Integer maxDistanceMeters,
+            Boolean faceVerificationRequired) {
         // Validate expiry
         int exSecs = (expirySeconds == null || expirySeconds <= 0) ? DEFAULT_EXPIRY_SECONDS : expirySeconds;
         exSecs = Math.max(MIN_EXPIRY_SECONDS, Math.min(MAX_EXPIRY_SECONDS, exSecs));
@@ -70,6 +81,7 @@ public class AttendanceQRTokenService {
                 .claim("sessionId", sessionId)
                 .claim("type", "ATTENDANCE_QR")
                 .claim("maxDistanceMeters", boundedDistance)
+                .claim("faceVerificationRequired", !Boolean.FALSE.equals(faceVerificationRequired))
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiryTime));
 
@@ -110,7 +122,8 @@ public class AttendanceQRTokenService {
                     claims.getExpiration().getTime(),
                     getNullableDouble(claims.get("teacherLatitude")),
                     getNullableDouble(claims.get("teacherLongitude")),
-                    claims.get("maxDistanceMeters") instanceof Number n ? n.intValue() : null);
+                    claims.get("maxDistanceMeters") instanceof Number n ? n.intValue() : null,
+                    claims.get("faceVerificationRequired") instanceof Boolean b ? b : true);
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid or tampered token: " + e.getMessage(), e);
         }
@@ -177,6 +190,7 @@ public class AttendanceQRTokenService {
         private final Double teacherLatitude;
         private final Double teacherLongitude;
         private final Integer maxDistanceMeters;
+        private final Boolean faceVerificationRequired;
 
         public AttendanceTokenClaims(Long subjectId,
                 Long teacherId,
@@ -185,7 +199,8 @@ public class AttendanceQRTokenService {
                 long expiresAt,
                 Double teacherLatitude,
                 Double teacherLongitude,
-                Integer maxDistanceMeters) {
+                Integer maxDistanceMeters,
+                Boolean faceVerificationRequired) {
             this.subjectId = subjectId;
             this.teacherId = teacherId;
             this.sessionId = sessionId;
@@ -194,6 +209,7 @@ public class AttendanceQRTokenService {
             this.teacherLatitude = teacherLatitude;
             this.teacherLongitude = teacherLongitude;
             this.maxDistanceMeters = maxDistanceMeters;
+            this.faceVerificationRequired = faceVerificationRequired;
         }
 
         public Long getSubjectId() {
@@ -226,6 +242,10 @@ public class AttendanceQRTokenService {
 
         public Integer getMaxDistanceMeters() {
             return maxDistanceMeters;
+        }
+
+        public Boolean getFaceVerificationRequired() {
+            return faceVerificationRequired;
         }
     }
 
