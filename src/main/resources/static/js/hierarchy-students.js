@@ -499,8 +499,30 @@
         const classes = Array.isArray(state.hierarchy?.classes) ? state.hierarchy.classes : [];
         const filtered = applyFilters(classes);
 
+        // Fallback: If filters remove all data but classes exist, reset filters and re-render
+        if (!filtered.length && classes.length > 0) {
+            console.warn("Filters removed all data → resetting filters");
+            state.filters.searchQuery = "";
+            state.filters.course = "";
+            state.filters.semester = "";
+            state.filters.performance = "";
+            // Optionally, reset UI filter controls if needed
+            if (refs.courseFilter) refs.courseFilter.value = "";
+            if (refs.semesterFilter) refs.semesterFilter.value = "";
+            if (refs.performanceFilter) refs.performanceFilter.value = "";
+            return renderHierarchy();
+        }
+
+        // If still no data, show a user-friendly message and reset button
         if (!filtered.length) {
-            showEmptyState();
+            if (refs.noDataState) {
+                refs.noDataState.innerHTML = `
+                    <p>No students match current filters.</p>
+                    <button onclick="resetFilters()">Reset Filters</button>
+                `;
+                refs.noDataState.hidden = false;
+            }
+            if (refs.classesContainer) refs.classesContainer.innerHTML = "";
             return;
         }
 
@@ -510,6 +532,18 @@
         refs.classesContainer.style.display = "grid";
         refs.classesContainer.innerHTML = filtered.map((classItem, index) => renderClassCard(classItem, index)).join("");
         bindRenderedInteractions();
+    }
+
+    // Add a global function for the reset button
+    window.resetFilters = function() {
+        state.filters.searchQuery = "";
+        state.filters.course = "";
+        state.filters.semester = "";
+        state.filters.performance = "";
+        if (refs.courseFilter) refs.courseFilter.value = "";
+        if (refs.semesterFilter) refs.semesterFilter.value = "";
+        if (refs.performanceFilter) refs.performanceFilter.value = "";
+        renderHierarchy();
     }
 
     function applyFilters(classes) {
