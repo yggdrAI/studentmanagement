@@ -12,6 +12,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 
@@ -40,6 +42,7 @@ import com.sms.service.StudentService;
 @RequestMapping("/api/admin")
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminHierarchyController {
+    private static final Logger log = LoggerFactory.getLogger(AdminHierarchyController.class);
 
     private static final int BATCH_SIZE = 30;
     private static final int DEFAULT_CLUSTER_COUNT = 4;
@@ -111,6 +114,7 @@ public class AdminHierarchyController {
             @RequestParam(required = false) Integer batchNumber,
             @RequestParam(required = false) String performance,
             @RequestParam(required = false, defaultValue = "true") boolean includeStudents) {
+        try {
 
         // UI sends semester as "2" (from the dropdown), while we often persist
         // "Semester 2".
@@ -181,6 +185,67 @@ public class AdminHierarchyController {
                         "totalBatches", totalBatchCount,
                         "totalStudents", filtered.size()),
                 "classes", classes));
+        } catch (Exception ex) {
+            log.error("Failed to build students hierarchy. Returning fallback hierarchy.", ex);
+            return ResponseEntity.ok(buildFallbackHierarchyResponse(includeStudents));
+        }
+    }
+
+    private Map<String, Object> buildFallbackHierarchyResponse(boolean includeStudents) {
+        List<Student> students = studentRepository.findAll();
+        Map<String, StudentProfile> profileByStudentId = loadProfilesByStudentId(students);
+        Map<String, Double> marksMap = studentService.getAverageMarksMap(students);
+        Map<String, Double> attendanceMap = loadAttendanceRateMap();
+
+        Map<Integer, Map<Integer, List<Student>>> grouped = new HashMap<>();
+        for (Student student : students) {
+            try {
+                int cls = classGroupingKey(student, profileByStudentId.get(student.getId()));
+                int batch = batchGroupingKey(student, profileByStudentId.get(student.getId()));
+                grouped.computeIfAbsent(cls, ignored -> new HashMap<>())
+                        .computeIfAbsent(batch, ignored -> new ArrayList<>())
+                        .add(student);
+            } catch (Exception ignored) {
+                grouped.computeIfAbsent(UNASSIGNED_CLASS_NUMBER, k -> new HashMap<>())
+                        .computeIfAbsent(UNASSIGNED_BATCH_NUMBER, k -> new ArrayList<>())
+                        .add(student);
+            }
+        }
+
+        List<Map<String, Object>> classes = grouped.keySet().stream()
+                .sorted()
+                .map(classKey -> {
+                    try {
+                        return buildClassNode(classKey, grouped.get(classKey), marksMap, attendanceMap, profileByStudentId,
+                                includeStudents);
+                    } catch (Exception ex) {
+                        log.warn("Failed to build class node {} in fallback hierarchy", classKey, ex);
+                        Map<String, Object> node = new HashMap<>();
+                        node.put("id", classKey);
+                        node.put("number", classKey);
+                        node.put("label", classKey == 0 ? "Unassigned" : "Class " + classKey);
+                        node.put("totalStudents", grouped.get(classKey).values().stream().mapToInt(List::size).sum());
+                        node.put("batches", List.of());
+                        node.put("analytics", Map.of("avgMarks", 0.0, "attendance", 0.0, "riskStudents", 0));
+                        return node;
+                    }
+                })
+                .collect(Collectors.toList());
+
+        int totalBatches = grouped.values().stream().mapToInt(Map::size).sum();
+        int totalStudents = grouped.values().stream()
+                .flatMap(batchMap -> batchMap.values().stream())
+                .mapToInt(List::size)
+                .sum();
+
+        return Map.of(
+                "summary", Map.of(
+                        "totalPrograms", 0,
+                        "totalClasses", classes.size(),
+                        "totalBatches", totalBatches,
+                        "totalStudents", totalStudents,
+                        "degraded", true),
+                "classes", classes);
     }
 
     @GetMapping("/class/{classNumber}/analytics")
