@@ -534,6 +534,7 @@
     let fallbackFaceStream = null;
     let registeredFaceAvailable = null;
     let resolvedSubjectId = CURRENT_SUBJECT_ID ? Number(CURRENT_SUBJECT_ID) : null;
+    let faceVerificationRequiredForSession = true;
     const LIVENESS_FRAME_TARGET = 5;
     const LIVENESS_FRAME_MIN = 3;
     const FACE_VERIFICATION_DELAY_MS = 5000;
@@ -649,7 +650,8 @@
         return {
             token,
             subjectId: data.subjectId ? Number(data.subjectId) : null,
-            remainingSeconds: Number(data.remainingSeconds || 0)
+            remainingSeconds: Number(data.remainingSeconds || 0),
+            faceVerificationRequired: data.faceVerificationRequired !== false
         };
     }
 
@@ -1395,7 +1397,13 @@
                 loadTodayAttendance();
             }
 
-            await waitForFaceVerificationCountdown();
+            faceVerificationRequiredForSession = qrSession.faceVerificationRequired !== false;
+            if (faceVerificationRequiredForSession) {
+                await waitForFaceVerificationCountdown();
+            } else {
+                document.getElementById('facePromptText').textContent = 'Teacher selected QR + location mode. Face verification is skipped for this session.';
+                showStatus('QR verified. Face verification is not required for this session.', 'info');
+            }
             await markAttendance(qrSession.token);
         } catch (error) {
             console.error('QR validation failed:', error);
@@ -1424,9 +1432,26 @@
         showLoader(true);
 
         try {
-            document.getElementById('facePromptText').textContent = 'Verifying your live face against the uploaded student image.';
-            const facePayload = await captureFaceEmbedding();
-            showStatus('Face verified. Checking your location...', 'info');
+            let facePayload = {
+                faceEmbedding: null,
+                livenessVerified: null,
+                livenessPrompt: null,
+                blinkDetected: null,
+                headMovementDetected: null,
+                frameCount: null,
+                motionParallaxScore: null,
+                brightnessVariance: null,
+                frameEmbeddings: null,
+                frameSnapshots: null
+            };
+            if (faceVerificationRequiredForSession) {
+                document.getElementById('facePromptText').textContent = 'Verifying your live face against the uploaded student image.';
+                facePayload = await captureFaceEmbedding();
+                showStatus('Face verified. Checking your location...', 'info');
+            } else {
+                document.getElementById('facePromptText').textContent = 'Face verification skipped. Checking your location...';
+                showStatus('Checking your location...', 'info');
+            }
             const position = await resolveAttendancePosition();
             const request = {
                 qrToken: token,

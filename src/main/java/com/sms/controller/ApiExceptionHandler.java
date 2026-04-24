@@ -7,11 +7,13 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -75,6 +77,24 @@ public class ApiExceptionHandler {
         HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
         String message = ex.getReason() != null ? ex.getReason() : "Request failed";
         return build(status, message, request.getRequestURI(), null);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleUnreadablePayload(HttpMessageNotReadableException ex,
+                                                                        HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST,
+                "Invalid request payload. Please check field formats (especially dates/image data) and retry.",
+                request.getRequestURI(),
+                null);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex,
+                                                                    HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST,
+                "Unable to save data due to database constraints. Please verify image size and field values.",
+                request.getRequestURI(),
+                null);
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

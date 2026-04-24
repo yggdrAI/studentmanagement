@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/admin/student")
@@ -33,6 +35,9 @@ public class AdminStudentProfileApiController {
     public ResponseEntity<StudentProfileResponseDTO> updateStudentProfile(@PathVariable String studentId,
                                                                           @RequestBody AdminUpdateStudentProfileRequest request,
                                                                           Authentication auth) {
+        if (auth == null || auth.getName() == null || auth.getName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Admin authentication is required");
+        }
         return ResponseEntity.ok(studentProfileService.updateByAdmin(studentId, request, auth.getName()));
     }
 }

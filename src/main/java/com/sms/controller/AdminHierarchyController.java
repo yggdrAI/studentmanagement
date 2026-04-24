@@ -536,7 +536,7 @@ public class AdminHierarchyController {
             trend.add(point);
         }
 
-        trend.sort(Comparator.comparingInt(point -> Integer.parseInt(String.valueOf(point.get("batch")).substring(1))));
+        trend.sort(Comparator.comparingInt(point -> parseBatchOrder(point.get("batch"))));
 
         Map<String, Object> analytics = new HashMap<>();
         analytics.put("avgMarks", round(average(students.stream()
@@ -808,6 +808,24 @@ public class AdminHierarchyController {
             return Integer.valueOf(matcher.group(1));
         } catch (NumberFormatException ignored) {
             return null;
+        }
+    }
+
+    private int parseBatchOrder(Object batchValue) {
+        if (batchValue == null) {
+            return Integer.MAX_VALUE;
+        }
+        String token = String.valueOf(batchValue).trim();
+        if (token.isEmpty()) {
+            return Integer.MAX_VALUE;
+        }
+        if (token.startsWith("B") || token.startsWith("b")) {
+            token = token.substring(1);
+        }
+        try {
+            return Integer.parseInt(token);
+        } catch (NumberFormatException ignored) {
+            return Integer.MAX_VALUE;
         }
     }
 
