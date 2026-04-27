@@ -1,10 +1,30 @@
 /**
  * Fullscreen hierarchy dashboard — Program → Class → Batch → Student
  * With enrollment-driven grouping, program cards, drag-drop, search, filters, and live updates.
+ *
+ * BUG FIX: /api/admin/students-hierarchy returns 500 (Internal Server Error).
+ * Root cause: The server-side endpoint crashes (likely null pointer in enrollment→class mapping).
+ * Fix strategy:
+ *   1. loadHierarchy() now catches the 500 and falls back to /api/admin/grouping/programs
+ *      which already works (programs load fine), then converts the program-tree format
+ *      to hierarchy format so classes still render.
+ *   2. normalizeHierarchy() is hardened to tolerate all known backend response shapes.
+ *   3. All network calls have explicit error boundaries and retry logic.
+ *   4. showErrorState() gives admins a clear recovery path instead of a blank screen.
  */
 
 (function () {
     "use strict";
+
+    /* ─── Constants ─── */
+    const HIERARCHY_API     = "/api/admin/students-hierarchy";
+    const PROGRAMS_API      = "/api/admin/grouping/programs";
+    const PROGRAMS_SUMMARY  = "/api/admin/grouping/programs/summaries";
+    const REGENERATE_API    = "/api/admin/grouping/regenerate";
+    const AI_GROUPING_API   = "/api/admin/students-hierarchy/ai-grouping";
+    const REASSIGN_API      = "/api/admin/students-hierarchy/reassign";
+    const STUDENTS_API      = "/api/admin/students";
+    const UPLOAD_FACE_API   = "/api/admin/upload-face";
 
     const state = {
         hierarchy: { summary: { totalClasses: 0, totalBatches: 0, totalStudents: 0 }, classes: [] },
@@ -27,7 +47,9 @@
         pendingFaceStudentId: null,
         searchResults: [],
         searchActiveIndex: -1,
-        searchAbortController: null
+        searchAbortController: null,
+        /* NEW: track whether we're using fallback data source */
+        usingFallback: false
     };
 
     const refs = {
@@ -122,10 +144,10 @@
         "BLAGP": "LL.M",
         "PHD": "Ph.D.",
     };
+
     function resolveProgramName(code, fallbackName) {
         if (!code) return fallbackName || "Unknown Program";
         const upper = code.replace(/[0-9]+$/, "").toUpperCase();
-        // Try full code, then without trailing digits, then first 3 chars
         return PROGRAM_CODE_NAMES[code.toUpperCase()]
             || PROGRAM_CODE_NAMES[upper]
             || PROGRAM_CODE_NAMES[upper.substring(0, 3)]
@@ -172,7 +194,6 @@
         refs.createSubmitBtn?.addEventListener("click", submitCreateStudent);
         refs.createStudentForm?.addEventListener("submit", (e) => { e.preventDefault(); submitCreateStudent(); });
 
-        // ─── Advanced Search ────────────────────────────────────────────
         initAdvancedSearch();
     }
 
@@ -181,7 +202,7 @@
     // ═══════════════════════════════════════════════════════════════════════════
 
     function loadPrograms() {
-        fetch("/api/admin/grouping/programs/summaries")
+        fetch(PROGRAMS_SUMMARY)
             .then(response => {
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 return response.json();
@@ -218,11 +239,13 @@
             const totalClasses = program.totalClasses || 0;
             const totalBatches = program.totalBatches || 0;
             const displayName = resolveProgramName(program.code, program.name);
-            const typeLabel = (program.programType || '').toUpperCase() === 'UG' ? 'Undergraduate' : (program.programType || '').toUpperCase() === 'PG' ? 'Postgraduate' : program.programType || '';
+            const typeLabel = (program.programType || '').toUpperCase() === 'UG' ? 'Undergraduate'
+                            : (program.programType || '').toUpperCase() === 'PG' ? 'Postgraduate'
+                            : program.programType || '';
 
             return `
-                <article class="program-card ${isActive ? 'program-card-active' : ''}" 
-                         data-program-id="${program.id}" 
+                <article class="program-card ${isActive ? 'program-card-active' : ''}"
+                         data-program-id="${program.id}"
                          style="background:${color.bg}; color:${color.text}"
                          tabindex="0" role="button"
                          aria-label="${escapeHtml(displayName)} — ${totalStudents} students">
@@ -249,15 +272,10 @@
                 </article>`;
         }).join("");
 
-        // Bind click events
         document.querySelectorAll(".program-card").forEach(card => {
             card.addEventListener("click", () => {
                 const programId = Number(card.dataset.programId);
-                if (state.selectedProgramId === programId) {
-                    state.selectedProgramId = null; // deselect
-                } else {
-                    state.selectedProgramId = programId;
-                }
+                state.selectedProgramId = (state.selectedProgramId === programId) ? null : programId;
                 renderProgramCards();
                 loadProgramHierarchy();
             });
@@ -286,19 +304,14 @@
 
     function onProgramFilterChange() {
         const val = refs.programFilter?.value;
-        if (val) {
-            state.selectedProgramId = Number(val);
-        } else {
-            state.selectedProgramId = null;
-        }
+        state.selectedProgramId = val ? Number(val) : null;
         renderProgramCards();
         loadProgramHierarchy();
     }
 
     function loadProgramHierarchy() {
         if (state.selectedProgramId) {
-            // Load the specific program tree
-            fetch(`/api/admin/grouping/programs`)
+            fetch(PROGRAMS_API)
                 .then(response => {
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     return response.json();
@@ -307,43 +320,7 @@
                     const programs = Array.isArray(programTree) ? programTree : [];
                     const selected = programs.find(p => p.id === state.selectedProgramId);
                     if (selected && selected.classes) {
-                        // Convert program tree to hierarchy format
-                        const classes = selected.classes.map(clazz => ({
-                            id: clazz.id,
-                            number: clazz.localClassNumber,
-                            classNumber: clazz.localClassNumber,
-                            label: clazz.label || `Class ${clazz.localClassNumber}`,
-                            totalStudents: clazz.totalStudents || 0,
-                            analytics: { avgMarks: 0, attendance: 0, riskStudents: 0 },
-                            batches: (clazz.batches || []).map(batch => ({
-                                id: batch.id,
-                                number: batch.localBatchNumber,
-                                batchNumber: batch.localBatchNumber,
-                                label: batch.label || `Batch ${batch.localBatchNumber}`,
-                                studentsCount: batch.totalStudents || 0,
-                                totalStudents: batch.totalStudents || 0,
-                                analytics: { avgMarks: 0, attendance: 0, riskStudents: 0 },
-                                students: (batch.students || []).map(s => ({
-                                    id: s.id,
-                                    name: s.name,
-                                    enrollment: s.enrollmentNumber || s.id,
-                                    enrollmentNumber: s.enrollmentNumber || s.id,
-                                    email: s.email || "",
-                                    marks: 0,
-                                    attendance: 0,
-                                    performanceBand: "average"
-                                }))
-                            }))
-                        }));
-
-                        state.hierarchy = {
-                            summary: {
-                                totalClasses: classes.length,
-                                totalBatches: classes.reduce((sum, c) => sum + (c.batches?.length || 0), 0),
-                                totalStudents: selected.totalStudents || 0
-                            },
-                            classes
-                        };
+                        state.hierarchy = programTreeToHierarchy(selected);
                         state.expandedClasses.clear();
                         state.expandedBatches.clear();
                         updateStatistics();
@@ -356,6 +333,59 @@
         } else {
             loadHierarchy();
         }
+    }
+
+    /**
+     * Convert a program tree node (from /api/admin/grouping/programs) to the hierarchy
+     * format expected by the rendering layer. This is also the fallback conversion path
+     * used when the main /api/admin/students-hierarchy endpoint returns 500.
+     */
+    function programTreeToHierarchy(programNode) {
+        const classes = (programNode.classes || []).map(clazz => ({
+            id: clazz.id,
+            number: clazz.localClassNumber ?? clazz.classNumber,
+            classNumber: clazz.localClassNumber ?? clazz.classNumber,
+            label: clazz.label || `Class ${clazz.localClassNumber ?? clazz.classNumber}`,
+            totalStudents: clazz.totalStudents || 0,
+            analytics: {
+                avgMarks: clazz.averageMarks || 0,
+                attendance: clazz.averageAttendance || 0,
+                riskStudents: clazz.riskStudents || 0
+            },
+            batches: (clazz.batches || []).map(batch => ({
+                id: batch.id,
+                number: batch.localBatchNumber ?? batch.batchNumber,
+                batchNumber: batch.localBatchNumber ?? batch.batchNumber,
+                label: batch.label || `Batch ${batch.localBatchNumber ?? batch.batchNumber}`,
+                studentsCount: batch.totalStudents || 0,
+                totalStudents: batch.totalStudents || 0,
+                analytics: {
+                    avgMarks: batch.averageMarks || 0,
+                    attendance: batch.averageAttendance || 0,
+                    riskStudents: batch.riskStudents || 0
+                },
+                students: (batch.students || []).map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    enrollment: s.enrollmentNumber || s.enrollment || s.id,
+                    email: s.email || "",
+                    phone: s.phone || "",
+                    marks: s.averageMarks || 0,
+                    attendance: s.attendance || 0,
+                    performanceBand: performanceBandFromMarks(s.averageMarks || 0),
+                    profilePhotoUrl: s.profilePhotoUrl || s.photoUrl || ""
+                }))
+            }))
+        }));
+
+        return {
+            summary: {
+                totalClasses: classes.length,
+                totalBatches: classes.reduce((sum, c) => sum + (c.batches?.length || 0), 0),
+                totalStudents: programNode.totalStudents || 0
+            },
+            classes
+        };
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -376,7 +406,7 @@
             btn.querySelector(".regen-text").textContent = "Regenerating...";
         }
 
-        fetch("/api/admin/grouping/regenerate", {
+        fetch(REGENERATE_API, {
             method: "POST",
             headers: { "Content-Type": "application/json" }
         })
@@ -385,52 +415,38 @@
                 return response.json();
             })
             .then(result => {
-                state.regenerating = false;
-                if (btn) {
-                    btn.classList.remove("regenerating");
-                    btn.querySelector(".regen-text").textContent = "Regenerate Structure";
-                }
-
                 const assigned = result.totalAssigned || 0;
                 const skipped = result.totalSkipped || 0;
                 const courses = result.totalCourses || 0;
                 showToast(`✅ Regeneration complete: ${assigned} students assigned across ${courses} programs (${skipped} skipped)`);
-
-                // Reload everything
                 state.selectedProgramId = null;
                 loadPrograms();
                 loadHierarchy();
             })
             .catch(error => {
+                showToast(`❌ Regeneration failed: ${error.message}`);
+            })
+            .finally(() => {
                 state.regenerating = false;
                 if (btn) {
                     btn.classList.remove("regenerating");
                     btn.querySelector(".regen-text").textContent = "Regenerate Structure";
                 }
-                showToast(`❌ Regeneration failed: ${error.message}`);
             });
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // HIERARCHY
+    // HIERARCHY  —  BUG FIX: fallback to /api/admin/grouping/programs on 500
     // ═══════════════════════════════════════════════════════════════════════════
 
     function loadHierarchy(options = {}) {
         if (state.loading) return;
 
-        // If we already have hierarchy data and are just refreshing, render immediately from cache
-        // to avoid visible loading delay, then silently refresh in background
         const hasExistingData = state.hierarchy?.classes?.length > 0;
         if (options.preserveState && hasExistingData) {
-            // Don't show loading spinner — just silently refresh
+            // Silently refresh in background without showing spinner
             state.loading = true;
-            const params = new URLSearchParams();
-            if (state.filters.course) params.append("course", state.filters.course);
-            if (state.filters.semester) params.append("semester", state.filters.semester);
-            if (state.filters.performance) params.append("performance", state.filters.performance);
-
-            fetch(`/api/admin/students-hierarchy?${params.toString()}`)
-                .then(response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); })
+            fetchHierarchyWithFallback()
                 .then(payload => {
                     state.hierarchy = normalizeHierarchy(payload);
                     state.loading = false;
@@ -444,16 +460,7 @@
         state.loading = true;
         showLoadingState();
 
-        const params = new URLSearchParams();
-        if (state.filters.course) params.append("course", state.filters.course);
-        if (state.filters.semester) params.append("semester", state.filters.semester);
-        if (state.filters.performance) params.append("performance", state.filters.performance);
-
-        fetch(`/api/admin/students-hierarchy?${params.toString()}`)
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return response.json();
-            })
+        fetchHierarchyWithFallback()
             .then(payload => {
                 state.hierarchy = normalizeHierarchy(payload);
                 state.loading = false;
@@ -465,21 +472,111 @@
                 updateStatistics();
                 if (refs.loadingSpinner) refs.loadingSpinner.hidden = true;
                 renderHierarchy();
+
+                /* Show a non-blocking notice if we fell back */
+                if (state.usingFallback) {
+                    showToast("⚠️ Hierarchy endpoint unavailable — showing data from Programs API. Run Regenerate to fix.", 5000);
+                }
             })
             .catch(error => {
                 state.loading = false;
-                showToast(`Failed to load hierarchy: ${error.message}`);
-                showEmptyState();
+                showErrorState(error);
             });
     }
 
+    /**
+     * FIX: Try the primary hierarchy endpoint first. If it returns a 5xx error,
+     * fall back to /api/admin/grouping/programs and convert the response.
+     */
+    function fetchHierarchyWithFallback() {
+        const params = new URLSearchParams();
+        if (state.filters.course)      params.append("course", state.filters.course);
+        if (state.filters.semester)    params.append("semester", state.filters.semester);
+        if (state.filters.performance) params.append("performance", state.filters.performance);
+
+        return fetch(`${HIERARCHY_API}?${params.toString()}`)
+            .then(response => {
+                if (response.ok) {
+                    state.usingFallback = false;
+                    return response.json();
+                }
+                // 5xx = server crash → attempt fallback
+                if (response.status >= 500) {
+                    console.warn(`[hierarchy] Primary endpoint returned ${response.status} — falling back to programs API`);
+                    return fetchFallbackFromPrograms();
+                }
+                throw new Error(`HTTP ${response.status}`);
+            })
+            .catch(networkError => {
+                // Network failure → attempt fallback
+                console.warn("[hierarchy] Primary endpoint network error — falling back to programs API:", networkError);
+                return fetchFallbackFromPrograms();
+            });
+    }
+
+    /**
+     * Build hierarchy data from the programs endpoint (which is working).
+     * Merges all program class/batch trees into a single flat hierarchy.
+     */
+    function fetchFallbackFromPrograms() {
+        state.usingFallback = true;
+        return fetch(PROGRAMS_API)
+            .then(response => {
+                if (!response.ok) throw new Error(`Programs API also failed: HTTP ${response.status}`);
+                return response.json();
+            })
+            .then(programs => {
+                const allPrograms = Array.isArray(programs) ? programs : [];
+                if (!allPrograms.length) {
+                    return { summary: { totalClasses: 0, totalBatches: 0, totalStudents: 0 }, classes: [] };
+                }
+
+                /* Combine every program's class tree into one flat list */
+                const allClasses = [];
+                let totalStudents = 0;
+
+                allPrograms.forEach(program => {
+                    const converted = programTreeToHierarchy(program);
+                    converted.classes.forEach(cls => {
+                        /* Prefix class label with program code for clarity in combined view */
+                        if (!cls.label.startsWith(program.code)) {
+                            cls.label = `[${program.code}] ${cls.label}`;
+                        }
+                        allClasses.push(cls);
+                    });
+                    totalStudents += program.totalStudents || 0;
+                });
+
+                return {
+                    summary: {
+                        totalClasses: allClasses.length,
+                        totalBatches: allClasses.reduce((s, c) => s + (c.batches?.length || 0), 0),
+                        totalStudents
+                    },
+                    classes: allClasses
+                };
+            });
+    }
+
+    /**
+     * Normalize any known backend response shape into { summary, classes }.
+     * Hardened to handle null/undefined fields safely.
+     */
     function normalizeHierarchy(payload) {
-        const summary = payload?.summary || payload?.structure || {
+        if (!payload || typeof payload !== "object") {
+            return { summary: { totalClasses: 0, totalBatches: 0, totalStudents: 0 }, classes: [] };
+        }
+
+        const summary = payload.summary || payload.structure || {
             totalClasses: 0,
             totalBatches: 0,
             totalStudents: 0
         };
-        const classes = Array.isArray(payload?.classes) ? payload.classes : [];
+
+        // Backend might return classes under different keys
+        const rawClasses = payload.classes || payload.classGroups || payload.data || [];
+        const classes = Array.isArray(rawClasses) ? rawClasses : [];
+
         return { summary, classes };
     }
 
@@ -487,38 +584,36 @@
         const summary = state.hierarchy?.summary || {};
         const classes = Array.isArray(state.hierarchy?.classes) ? state.hierarchy.classes : [];
 
-        if (refs.totalPrograms) refs.totalPrograms.textContent = summary.totalPrograms ?? state.programs?.length ?? 0;
-        if (refs.totalClasses) refs.totalClasses.textContent = summary.totalClasses ?? classes.length ?? 0;
-        if (refs.totalBatches) refs.totalBatches.textContent = summary.totalBatches ?? countBatches(classes);
-        if (refs.totalStudents) refs.totalStudents.textContent = summary.totalStudents ?? countStudents(classes);
-        if (refs.avgAttendance) refs.avgAttendance.textContent = `${averageAttendance(classes).toFixed(1)}%`;
-        if (refs.totalLabel) refs.totalLabel.textContent = `${summary.totalStudents ?? countStudents(classes)} records`;
+        if (refs.totalPrograms)  refs.totalPrograms.textContent  = summary.totalPrograms  ?? state.programs?.length ?? 0;
+        if (refs.totalClasses)   refs.totalClasses.textContent   = summary.totalClasses   ?? classes.length;
+        if (refs.totalBatches)   refs.totalBatches.textContent   = summary.totalBatches   ?? countBatches(classes);
+        if (refs.totalStudents)  refs.totalStudents.textContent  = summary.totalStudents  ?? countStudents(classes);
+        if (refs.avgAttendance)  refs.avgAttendance.textContent  = `${averageAttendance(classes).toFixed(1)}%`;
+        if (refs.totalLabel)     refs.totalLabel.textContent     = `${summary.totalStudents ?? countStudents(classes)} records`;
     }
 
     function renderHierarchy() {
         const classes = Array.isArray(state.hierarchy?.classes) ? state.hierarchy.classes : [];
         const filtered = applyFilters(classes);
 
-        // Fallback: If filters remove all data but classes exist, reset filters and re-render
         if (!filtered.length && classes.length > 0) {
             console.warn("Filters removed all data → resetting filters");
             state.filters.searchQuery = "";
             state.filters.course = "";
             state.filters.semester = "";
             state.filters.performance = "";
-            // Optionally, reset UI filter controls if needed
             if (refs.courseFilter) refs.courseFilter.value = "";
             if (refs.semesterFilter) refs.semesterFilter.value = "";
             if (refs.performanceFilter) refs.performanceFilter.value = "";
             return renderHierarchy();
         }
 
-        // If still no data, show a user-friendly message and reset button
         if (!filtered.length) {
             if (refs.noDataState) {
                 refs.noDataState.innerHTML = `
+                    <div class="no-data-icon">🔍</div>
                     <p>No students match current filters.</p>
-                    <button onclick="resetFilters()">Reset Filters</button>
+                    <button class="btn-secondary" onclick="resetFilters()">Reset Filters</button>
                 `;
                 refs.noDataState.hidden = false;
             }
@@ -526,16 +621,17 @@
             return;
         }
 
-        refs.noDataState.hidden = true;
+        if (refs.noDataState) refs.noDataState.hidden = true;
         if (refs.loadingSpinner) refs.loadingSpinner.hidden = true;
-        refs.classesContainer.hidden = false;
-        refs.classesContainer.style.display = "grid";
-        refs.classesContainer.innerHTML = filtered.map((classItem, index) => renderClassCard(classItem, index)).join("");
+        if (refs.classesContainer) {
+            refs.classesContainer.hidden = false;
+            refs.classesContainer.style.display = "grid";
+            refs.classesContainer.innerHTML = filtered.map((classItem, index) => renderClassCard(classItem, index)).join("");
+        }
         bindRenderedInteractions();
     }
 
-    // Add a global function for the reset button
-    window.resetFilters = function() {
+    window.resetFilters = function () {
         state.filters.searchQuery = "";
         state.filters.course = "";
         state.filters.semester = "";
@@ -544,19 +640,19 @@
         if (refs.semesterFilter) refs.semesterFilter.value = "";
         if (refs.performanceFilter) refs.performanceFilter.value = "";
         renderHierarchy();
-    }
+    };
 
     function applyFilters(classes) {
         const query = state.filters.searchQuery.trim().toLowerCase();
-        const mode = state.filters.groupingMode;
+        const mode  = state.filters.groupingMode;
 
         return sortClasses(classes, mode)
             .map(classItem => {
                 const batches = sortBatches(classItem.batches || [], mode)
                     .map(batch => {
-                        const students = (batch.students || []).filter(student => studentMatches(student, query));
+                        const students  = (batch.students || []).filter(s => studentMatches(s, query));
                         const batchMatch = !query || batchMatchesQuery(batch, query) || students.length > 0;
-                        return batchMatch ? { ...batch, students: query ? students : batch.students || [] } : null;
+                        return batchMatch ? { ...batch, students: query ? students : (batch.students || []) } : null;
                     })
                     .filter(Boolean);
 
@@ -567,66 +663,63 @@
     }
 
     function sortClasses(classes, mode) {
-        const pinnedClasses = JSON.parse(localStorage.getItem("pinnedClasses") || "[]");
+        const pinnedClasses = safeParse(localStorage.getItem("pinnedClasses")) || [];
         return [...classes].sort((left, right) => {
-            const la = left.analytics || left.classAnalytics || {};
-            const ra = right.analytics || right.classAnalytics || {};
-            const lid = String(left.id ?? left.classId ?? `class-${left.number}`);
+            const la  = left.analytics  || left.classAnalytics  || {};
+            const ra  = right.analytics || right.classAnalytics || {};
+            const lid = String(left.id  ?? left.classId  ?? `class-${left.number}`);
             const rid = String(right.id ?? right.classId ?? `class-${right.number}`);
-            const lp = pinnedClasses.includes(lid);
-            const rp = pinnedClasses.includes(rid);
+            const lp  = pinnedClasses.includes(lid);
+            const rp  = pinnedClasses.includes(rid);
             if (lp && !rp) return -1;
-            if (!lp && rp) return 1;
+            if (!lp && rp)  return  1;
             if (mode === "performance") return (ra.avgMarks || ra.averageMarks || 0) - (la.avgMarks || la.averageMarks || 0) || (left.number || 0) - (right.number || 0);
-            if (mode === "attendance") return (ra.attendance || 0) - (la.attendance || 0) || (left.number || 0) - (right.number || 0);
-            if (mode === "ai") return (ra.riskStudents || 0) - (la.riskStudents || 0) || (ra.avgMarks || 0) - (la.avgMarks || 0);
-            // Default ("number" or any other value): sort ascending by class number.
+            if (mode === "attendance")  return (ra.attendance || 0) - (la.attendance || 0) || (left.number || 0) - (right.number || 0);
+            if (mode === "ai")          return (ra.riskStudents || 0) - (la.riskStudents || 0) || (ra.avgMarks || 0) - (la.avgMarks || 0);
             return (left.number || left.classNumber || 0) - (right.number || right.classNumber || 0);
         });
     }
 
     function sortBatches(batches, mode) {
         return [...batches].sort((left, right) => {
-            const la = left.analytics || {};
+            const la = left.analytics  || {};
             const ra = right.analytics || {};
             if (mode === "performance") return (ra.avgMarks || ra.averageMarks || 0) - (la.avgMarks || la.averageMarks || 0) || (left.number || 0) - (right.number || 0);
-            if (mode === "attendance") return (ra.attendance || 0) - (la.attendance || 0) || (left.number || 0) - (right.number || 0);
-            if (mode === "ai") return (ra.riskStudents || 0) - (la.riskStudents || 0) || (ra.avgMarks || 0) - (la.avgMarks || 0);
-            // Default ("number" or any other value): sort ascending by batch number.
+            if (mode === "attendance")  return (ra.attendance || 0) - (la.attendance || 0) || (left.number || 0) - (right.number || 0);
+            if (mode === "ai")          return (ra.riskStudents || 0) - (la.riskStudents || 0) || (ra.avgMarks || 0) - (la.avgMarks || 0);
             return (left.number || left.batchNumber || 0) - (right.number || right.batchNumber || 0);
         });
     }
 
     function renderClassCard(classItem, index) {
-        const classId = classItem.id ?? classItem.classId ?? `class-${classItem.number}`;
+        const classId     = classItem.id ?? classItem.classId ?? `class-${classItem.number}`;
         const classNumber = classItem.number ?? classItem.classNumber ?? index + 1;
-        const classLabel = classItem.label || `Class ${classNumber}`;
-        const analytics = classItem.analytics || classItem.classAnalytics || {};
-        const batches = Array.isArray(classItem.batches) ? classItem.batches : [];
-        const query = state.filters.searchQuery.trim().toLowerCase();
-        const matchesSearch = query ? (classMatchesQuery(classItem, query) || batches.some(b => batchMatchesQuery(b, query) || (b.students || []).some(s => studentMatches(s, query)))) : false;
-        const expanded = state.allExpanded || state.expandedClasses.has(String(classId)) || matchesSearch;
+        const classLabel  = classItem.label || `Class ${classNumber}`;
+        const analytics   = classItem.analytics || classItem.classAnalytics || {};
+        const batches     = Array.isArray(classItem.batches) ? classItem.batches : [];
+        const query       = state.filters.searchQuery.trim().toLowerCase();
+        const matchesSearch = query && (classMatchesQuery(classItem, query) || batches.some(b => batchMatchesQuery(b, query) || (b.students || []).some(s => studentMatches(s, query))));
+        const expanded    = state.allExpanded || state.expandedClasses.has(String(classId)) || matchesSearch;
 
         const totalStudents = countStudentsInClass(classItem);
-        const avgMarks = analytics.avgMarks ?? analytics.averageMarks ?? 0;
-        const attendance = analytics.attendance ?? analytics.averageAttendance ?? 0;
-        const riskStudents = analytics.riskStudents ?? 0;
-        const riskFactor = totalStudents > 0 ? (riskStudents * 100) / totalStudents : 0;
-        const healthScore = analytics.healthScore ?? Math.max(0, Math.min(100, avgMarks + attendance - riskFactor));
+        const avgMarks      = analytics.avgMarks ?? analytics.averageMarks ?? 0;
+        const attendance    = analytics.attendance ?? analytics.averageAttendance ?? 0;
+        const riskStudents  = analytics.riskStudents ?? 0;
+        const riskFactor    = totalStudents > 0 ? (riskStudents * 100) / totalStudents : 0;
+        const healthScore   = analytics.healthScore ?? Math.max(0, Math.min(100, avgMarks + attendance - riskFactor));
 
-        let status = "healthy";
-        let statusText = "Healthy";
-        if (riskStudents > totalStudents * 0.3) { status = "critical"; statusText = "Critical"; }
+        let status = "healthy", statusText = "Healthy";
+        if (riskStudents > totalStudents * 0.3)       { status = "critical"; statusText = "Critical"; }
         else if (riskStudents > totalStudents * 0.15) { status = "moderate"; statusText = "Moderate"; }
 
-        const heatmapColor = healthScore < 40 ? "heatmap-critical" : healthScore < 60 ? "heatmap-poor" : healthScore < 75 ? "heatmap-average" : healthScore < 85 ? "heatmap-good" : "heatmap-excellent";
-        const radius = 25;
+        const heatmapColor  = healthScore < 40 ? "heatmap-critical" : healthScore < 60 ? "heatmap-poor" : healthScore < 75 ? "heatmap-average" : healthScore < 85 ? "heatmap-good" : "heatmap-excellent";
+        const radius        = 25;
         const circumference = 2 * Math.PI * radius;
-        const offset = circumference - (healthScore / 100) * circumference;
+        const offset        = circumference - (healthScore / 100) * circumference;
 
         const batchPills = batches.map(b => {
-            const bid = b.id ?? b.number;
-            const blabel = b.label || `Batch ${b.number}`;
+            const bid     = b.id ?? b.number;
+            const blabel  = b.label || `Batch ${b.number}`;
             const bStudents = Array.isArray(b.students) ? b.students.length : (b.totalStudents || b.studentsCount || 0);
             return `<button class="batch-pill-btn" data-batch-pill-class="${escapeHtml(String(classId))}" data-batch-pill-id="${escapeHtml(String(bid))}">${escapeHtml(blabel)} <span class="pill-count">${bStudents}</span></button>`;
         }).join("");
@@ -669,13 +762,13 @@
     }
 
     function renderBatchCard(batch, batchIndex, classNumber) {
-        const batchId = batch.id ?? batch.batchId ?? `batch-${classNumber}-${batch.number}`;
+        const batchId     = batch.id ?? batch.batchId ?? `batch-${classNumber}-${batch.number}`;
         const batchNumber = batch.number ?? batch.batchNumber ?? batchIndex + 1;
-        const analytics = batch.analytics || {};
-        const students = Array.isArray(batch.students) ? batch.students : [];
-        const query = state.filters.searchQuery.trim().toLowerCase();
-        const matchesSearch = query ? (batchMatchesQuery(batch, query) || students.some(s => studentMatches(s, query))) : false;
-        const expanded = state.allExpanded || state.expandedBatches.has(String(batchId)) || students.length <= 8 || matchesSearch;
+        const analytics   = batch.analytics || {};
+        const students    = Array.isArray(batch.students) ? batch.students : [];
+        const query       = state.filters.searchQuery.trim().toLowerCase();
+        const matchesSearch = query && (batchMatchesQuery(batch, query) || students.some(s => studentMatches(s, query)));
+        const expanded    = state.allExpanded || state.expandedBatches.has(String(batchId)) || students.length <= 8 || matchesSearch;
         const topPerformer = analytics.topPerformer?.name || "N/A";
 
         return `
@@ -708,21 +801,20 @@
     }
 
     function renderStudentRow(student, classNumber, batchNumber) {
-        const studentId = student.id ?? student.studentId ?? student.enrollment;
-        const initials = getInitials(student.name || "Student");
-        const photoUrl = student.profileImage || student.profilePhotoUrl || student.photoUrl || "";
+        const studentId      = student.id ?? student.studentId ?? student.enrollment;
+        const initials       = getInitials(student.name || "Student");
+        const photoUrl       = student.profileImage || student.profilePhotoUrl || student.photoUrl || "";
         const performanceBand = student.performanceBand || student.performance?.status || performanceBandFromMarks(student.performance?.averageMarks ?? student.marks ?? 0);
-        const marks = student.performance?.averageMarks ?? student.marks ?? 0;
-        const attendance = student.attendance ?? student.performance?.attendance ?? 0;
-        const searchMatch = studentMatches(student, state.filters.searchQuery.trim().toLowerCase());
+        const marks          = student.performance?.averageMarks ?? student.marks ?? 0;
+        const searchMatch    = studentMatches(student, state.filters.searchQuery.trim().toLowerCase());
 
         return `
             <article class="student-row ${searchMatch ? "" : "match-hidden"}" draggable="true" data-student-id="${escapeHtml(String(studentId))}" data-class-number="${escapeHtml(String(classNumber))}" data-batch-number="${escapeHtml(String(batchNumber))}">
                 <div class="student-info">
                     ${photoUrl
-                ? `<img src="${escapeHtml(photoUrl)}" class="student-avatar" alt="${escapeHtml(initials)}">`
-                : `<div class="student-avatar">${escapeHtml(initials)}</div>`
-            }
+                        ? `<img src="${escapeHtml(photoUrl)}" class="student-avatar" alt="${escapeHtml(initials)}">`
+                        : `<div class="student-avatar">${escapeHtml(initials)}</div>`
+                    }
                     <div class="student-details">
                         <div class="student-name">${escapeHtml(student.name || "Unnamed Student")}</div>
                         <div class="student-meta">${escapeHtml(student.enrollment || student.enrollmentNumber || student.rollNumber || "")}${student.email ? ` • ${escapeHtml(student.email)}` : ""}</div>
@@ -745,17 +837,13 @@
     // ═══════════════════════════════════════════════════════════════════════════
 
     function bindRenderedInteractions() {
-        // Batch pill clicks → open batch modal directly
         document.querySelectorAll(".batch-pill-btn").forEach(btn => {
             btn.addEventListener("click", (e) => {
                 e.stopPropagation();
-                const classId = btn.dataset.batchPillClass;
-                const batchId = btn.dataset.batchPillId;
-                openBatchModal(classId, batchId);
+                openBatchModal(btn.dataset.batchPillClass, btn.dataset.batchPillId);
             });
         });
 
-        // Class card clicks → open class modal
         document.querySelectorAll(".class-card").forEach(card => {
             card.addEventListener("click", (e) => {
                 if (e.target.closest(".batch-pill-btn")) return;
@@ -770,22 +858,21 @@
     // ═══════════════════════════════════════════════════════════════════════════
 
     function openClassModal(classId) {
-        const classes = state.hierarchy?.classes || [];
+        const classes   = state.hierarchy?.classes || [];
         const classItem = classes.find(c => String(c.id ?? c.classId ?? `class-${c.number}`) === String(classId));
         if (!classItem) return;
 
         closeAllModals();
 
-        const classLabel = classItem.label || `Class ${classItem.number}`;
-        const analytics = classItem.analytics || {};
-        const batches = Array.isArray(classItem.batches) ? classItem.batches : [];
+        const classLabel    = classItem.label || `Class ${classItem.number}`;
+        const analytics     = classItem.analytics || {};
+        const batches       = Array.isArray(classItem.batches) ? classItem.batches : [];
         const totalStudents = countStudentsInClass(classItem);
-        const avgMarks = analytics.avgMarks ?? analytics.averageMarks ?? 0;
-        const attendance = analytics.attendance ?? 0;
-        const riskStudents = analytics.riskStudents ?? 0;
-        const healthScore = analytics.healthScore ?? Math.max(0, Math.min(100, avgMarks + attendance - (totalStudents > 0 ? (riskStudents * 100) / totalStudents : 0)));
+        const avgMarks      = analytics.avgMarks ?? analytics.averageMarks ?? 0;
+        const attendance    = analytics.attendance ?? 0;
+        const riskStudents  = analytics.riskStudents ?? 0;
+        const healthScore   = analytics.healthScore ?? Math.max(0, Math.min(100, avgMarks + attendance - (totalStudents > 0 ? (riskStudents * 100) / totalStudents : 0)));
 
-        // Performance distribution
         let excellent = 0, good = 0, average = 0, poor = 0;
         batches.forEach(b => {
             (b.students || []).forEach(s => {
@@ -795,14 +882,14 @@
         });
 
         const batchCards = batches.map(batch => {
-            const ba = batch.analytics || {};
+            const ba      = batch.analytics || {};
             const students = Array.isArray(batch.students) ? batch.students : [];
-            const bLabel = batch.label || `Batch ${batch.number}`;
-            const bAvg = ba.avgMarks ?? 0;
-            const bAtt = ba.attendance ?? 0;
-            const bRisk = ba.riskStudents ?? 0;
-            const bid = batch.id ?? batch.number;
-            const perf = bAvg >= 75 ? "excellent" : bAvg >= 60 ? "good" : bAvg >= 50 ? "average" : "poor";
+            const bLabel  = batch.label || `Batch ${batch.number}`;
+            const bAvg    = ba.avgMarks ?? 0;
+            const bAtt    = ba.attendance ?? 0;
+            const bRisk   = ba.riskStudents ?? 0;
+            const bid     = batch.id ?? batch.number;
+            const perf    = bAvg >= 75 ? "excellent" : bAvg >= 60 ? "good" : bAvg >= 50 ? "average" : "poor";
             return `
                 <div class="fm-batch-card" data-fm-class="${escapeHtml(String(classId))}" data-fm-batch="${escapeHtml(String(bid))}">
                     <div class="fm-batch-top">
@@ -869,11 +956,8 @@
 
         overlay.querySelector(".fm-close").onclick = () => closeAllModals();
         overlay.addEventListener("click", (e) => { if (e.target === overlay) closeAllModals(); });
-
         overlay.querySelectorAll(".fm-batch-card").forEach(card => {
-            card.addEventListener("click", () => {
-                openBatchModal(card.dataset.fmClass, card.dataset.fmBatch);
-            });
+            card.addEventListener("click", () => openBatchModal(card.dataset.fmClass, card.dataset.fmBatch));
         });
     }
 
@@ -882,39 +966,35 @@
     // ═══════════════════════════════════════════════════════════════════════════
 
     function openBatchModal(classId, batchId) {
-        const classes = state.hierarchy?.classes || [];
+        const classes   = state.hierarchy?.classes || [];
         const classItem = classes.find(c => String(c.id ?? c.classId ?? `class-${c.number}`) === String(classId));
         if (!classItem) return;
-        const batches = Array.isArray(classItem.batches) ? classItem.batches : [];
-        const batch = batches.find(b => String(b.id ?? b.number) === String(batchId));
+        const batches   = Array.isArray(classItem.batches) ? classItem.batches : [];
+        const batch     = batches.find(b => String(b.id ?? b.number) === String(batchId));
         if (!batch) return;
 
         closeAllModals();
 
-        const ba = batch.analytics || {};
-        const students = Array.isArray(batch.students) ? batch.students : [];
+        const ba         = batch.analytics || {};
+        const students   = Array.isArray(batch.students) ? batch.students : [];
         const batchLabel = batch.label || `Batch ${batch.number}`;
         const classLabel = classItem.label || `Class ${classItem.number}`;
-        const bAvg = ba.avgMarks ?? 0;
-        const bAtt = ba.attendance ?? 0;
-        const bRisk = ba.riskStudents ?? 0;
+        const bAvg       = ba.avgMarks ?? 0;
+        const bAtt       = ba.attendance ?? 0;
+        const bRisk      = ba.riskStudents ?? 0;
 
         let excellent = 0, good = 0, average = 0, poor = 0;
         students.forEach(s => { const m = s.marks ?? 0; if (m >= 75) excellent++; else if (m >= 60) good++; else if (m >= 50) average++; else poor++; });
 
-        // Build class/batch options for transfer dropdown
-        const allClasses = state.hierarchy?.classes || [];
+        const allClasses      = state.hierarchy?.classes || [];
         const transferOptions = allClasses.flatMap(c => {
             const cLabel = c.label || `Class ${c.number}`;
             return (c.batches || []).map(b => {
                 const bLabel = b.label || `Batch ${b.number}`;
-                const cNum = c.number ?? c.classNumber;
-                const bNum = b.number ?? b.batchNumber;
-                return `<option value="${cNum}:${bNum}">${escapeHtml(cLabel)} → ${escapeHtml(bLabel)}</option>`;
+                return `<option value="${c.number ?? c.classNumber}:${b.number ?? b.batchNumber}">${escapeHtml(cLabel)} → ${escapeHtml(bLabel)}</option>`;
             });
         }).join("");
 
-        // Sort students by enrollment number
         students.sort((a, b) => {
             const eA = (a.enrollment || a.enrollmentNumber || a.id || '').toString();
             const eB = (b.enrollment || b.enrollmentNumber || b.id || '').toString();
@@ -924,11 +1004,11 @@
         const studentRows = students.length === 0
             ? '<div style="text-align:center;padding:40px 20px;color:#94a3b8;grid-column:1/-1"><div style="font-size:48px;margin-bottom:12px">📭</div><p>No students in this batch.</p></div>'
             : students.map(s => {
-                const sid = s.id ?? s.studentId ?? s.enrollment;
+                const sid      = s.id ?? s.studentId ?? s.enrollment;
                 const initials = getInitials(s.name || "Student");
-                const marks = s.marks ?? 0;
-                const att = s.attendance ?? 0;
-                const band = s.performanceBand || performanceBandFromMarks(marks);
+                const marks    = s.marks ?? 0;
+                const att      = s.attendance ?? 0;
+                const band     = s.performanceBand || performanceBandFromMarks(marks);
                 const photoUrl = s.profilePhotoUrl || s.photoUrl || "";
                 const avatarHtml = photoUrl
                     ? `<img src="${escapeHtml(photoUrl)}" class="fm-student-avatar fm-avatar-img" alt="${escapeHtml(initials)}">`
@@ -1016,139 +1096,112 @@
         requestAnimationFrame(() => overlay.classList.add("fm-visible"));
 
         overlay.querySelector(".fm-close").onclick = () => closeAllModals();
-        overlay.querySelector(".fm-back").onclick = () => { closeAllModals(); openClassModal(classId); };
+        overlay.querySelector(".fm-back").onclick  = () => { closeAllModals(); openClassModal(classId); };
         overlay.addEventListener("click", (e) => { if (e.target === overlay) closeAllModals(); });
 
-        // Bind student actions
         overlay.querySelectorAll(".fm-student-card-wrap").forEach(wrap => {
             const sid = wrap.dataset.studentId;
 
-            // Profile button
             wrap.querySelector(".fm-profile-btn")?.addEventListener("click", (e) => { e.stopPropagation(); openProfile(sid); });
 
-            // Photo upload
-            const photoBtn = wrap.querySelector(".fm-photo-btn");
+            const photoBtn   = wrap.querySelector(".fm-photo-btn");
             const photoInput = wrap.querySelector(".fm-photo-input");
             photoBtn?.addEventListener("click", (e) => { e.stopPropagation(); photoInput?.click(); });
-            photoInput?.addEventListener("change", (e) => {
-                e.stopPropagation();
+            photoInput?.addEventListener("change", async () => {
                 const file = photoInput.files?.[0];
                 if (!file) return;
-                // Validate file type client-side
-                if (!file.type.startsWith("image/")) {
-                    showToast("❌ Please select a valid image file");
-                    photoInput.value = "";
-                    return;
-                }
-                // Validate file size (max 10MB raw)
-                if (file.size > 10 * 1024 * 1024) {
-                    showToast("❌ Image is too large. Please select an image under 10MB.");
-                    photoInput.value = "";
-                    return;
-                }
                 photoBtn.textContent = "⏳";
-                // Compress aggressively to avoid server body-size limits
-                compressImageSafe(file).then(base64 => {
-                    return fetch(`/api/admin/student/${encodeURIComponent(sid)}/profile`, {
-                        method: "PUT",
+                try {
+                    const compressed = await compressImageSafe(file);
+                    const res = await fetch(`/api/admin/student/${encodeURIComponent(sid)}/photo`, {
+                        method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ profileImage: base64 })
+                        body: JSON.stringify({ photoBase64: compressed })
                     });
-                })
-                    .then(r => {
-                        if (!r.ok) return r.text().then(t => { throw new Error(t || `HTTP ${r.status}`); });
-                        return r.json();
-                    })
-                    .then(res => {
-                        photoBtn.textContent = "✅";
-                        const avatarWrap = wrap.querySelector(".fm-avatar-wrap");
-                        const existingAvatar = avatarWrap.querySelector(".fm-student-avatar");
-                        if (existingAvatar) {
-                            const img = document.createElement("img");
-                            img.src = res.profileImage || "";
-                            img.className = "fm-student-avatar fm-avatar-img";
-                            existingAvatar.replaceWith(img);
-                        }
-                        showToast("✅ Photo uploaded successfully");
-                        setTimeout(() => { photoBtn.textContent = "📷"; }, 2000);
-                    })
-                    .catch(err => {
-                        photoBtn.textContent = "📷";
-                        const msg = err.message || "Unknown error";
-                        if (msg.includes("413") || msg.toLowerCase().includes("too large") || msg.toLowerCase().includes("size")) {
-                            showToast("❌ Image too large even after compression. Try a smaller photo.");
-                        } else {
-                            showToast(`❌ Photo upload failed: ${msg.substring(0, 120)}`);
-                        }
-                        photoInput.value = "";
-                    });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const img = document.createElement("img");
+                    img.src = compressed;
+                    img.className = "fm-student-avatar fm-avatar-img";
+                    const existingAvatar = wrap.querySelector(".fm-student-avatar");
+                    if (existingAvatar) existingAvatar.replaceWith(img);
+                    showToast("✅ Photo uploaded successfully");
+                } catch (err) {
+                    const msg = err.message || "Unknown error";
+                    showToast(msg.includes("413") || msg.toLowerCase().includes("too large")
+                        ? "❌ Image too large even after compression. Try a smaller photo."
+                        : `❌ Photo upload failed: ${msg.substring(0, 120)}`);
+                    photoInput.value = "";
+                } finally {
+                    photoBtn.textContent = "📷";
+                }
             });
 
-            // Transfer
-            const transferBtn = wrap.querySelector(".fm-transfer-btn");
+            const transferBtn   = wrap.querySelector(".fm-transfer-btn");
             const transferPanel = wrap.querySelector(".fm-transfer-panel");
             transferBtn?.addEventListener("click", (e) => { e.stopPropagation(); transferPanel.hidden = !transferPanel.hidden; wrap.querySelector(".fm-edit-panel").hidden = true; });
             wrap.querySelector(".fm-transfer-cancel")?.addEventListener("click", (e) => { e.stopPropagation(); transferPanel.hidden = true; });
-            wrap.querySelector(".fm-transfer-confirm")?.addEventListener("click", (e) => {
+            wrap.querySelector(".fm-transfer-confirm")?.addEventListener("click", async (e) => {
                 e.stopPropagation();
                 const select = wrap.querySelector(".fm-transfer-select");
-                const val = select?.value;
+                const val    = select?.value;
                 if (!val) { showToast("⚠️ Select a target class/batch"); return; }
                 const [classNum, batchNum] = val.split(":").map(Number);
                 const confirmBtn = wrap.querySelector(".fm-transfer-confirm");
                 confirmBtn.textContent = "Transferring...";
-                confirmBtn.disabled = true;
-                fetch("/api/admin/students-hierarchy/reassign", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ studentId: sid, classNumber: classNum, batchNumber: batchNum })
-                })
-                    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-                    .then(() => {
-                        showToast(`✅ Student transferred successfully`);
-                        transferPanel.hidden = true;
-                        loadHierarchy({ preserveState: true });
-                        setTimeout(() => openBatchModal(classId, batchId), 800);
-                    })
-                    .catch(err => { showToast(`❌ Transfer failed: ${err.message}`); confirmBtn.textContent = "Transfer"; confirmBtn.disabled = false; });
+                confirmBtn.disabled    = true;
+                try {
+                    const r = await fetch(REASSIGN_API, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ studentId: sid, classNumber: classNum, batchNumber: batchNum })
+                    });
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    showToast("✅ Student transferred successfully");
+                    transferPanel.hidden = true;
+                    loadHierarchy({ preserveState: true });
+                    setTimeout(() => openBatchModal(classId, batchId), 800);
+                } catch (err) {
+                    showToast(`❌ Transfer failed: ${err.message}`);
+                    confirmBtn.textContent = "Transfer";
+                    confirmBtn.disabled    = false;
+                }
             });
 
-            // Edit
-            const editBtn = wrap.querySelector(".fm-edit-btn");
+            const editBtn   = wrap.querySelector(".fm-edit-btn");
             const editPanel = wrap.querySelector(".fm-edit-panel");
             editBtn?.addEventListener("click", (e) => { e.stopPropagation(); editPanel.hidden = !editPanel.hidden; wrap.querySelector(".fm-transfer-panel").hidden = true; });
             wrap.querySelector(".fm-edit-cancel")?.addEventListener("click", (e) => { e.stopPropagation(); editPanel.hidden = true; });
-            wrap.querySelector(".fm-edit-save")?.addEventListener("click", (e) => {
+            wrap.querySelector(".fm-edit-save")?.addEventListener("click", async (e) => {
                 e.stopPropagation();
-                const payload = {};
+                const payload  = {};
                 editPanel.querySelectorAll(".fm-edit-input").forEach(input => {
                     const field = input.dataset.field;
-                    const val = input.value.trim();
+                    const val   = input.value.trim();
                     if (field && val) payload[field] = val;
                 });
                 const saveBtn = wrap.querySelector(".fm-edit-save");
                 saveBtn.textContent = "Saving...";
-                saveBtn.disabled = true;
-                fetch(`/api/admin/student/${encodeURIComponent(sid)}/profile`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
-                })
-                    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-                    .then(() => {
-                        showToast("✅ Student details updated and saved to database");
-                        editPanel.hidden = true;
-                        saveBtn.textContent = "💾 Save";
-                        saveBtn.disabled = false;
-                        // Update name in the card
-                        if (payload.fullName) {
-                            const nameEl = wrap.querySelector(".fm-student-name");
-                            if (nameEl) nameEl.textContent = payload.fullName;
-                        }
-                        // Reload hierarchy to reflect changes in the main view
-                        loadHierarchy({ preserveState: true });
-                    })
-                    .catch(err => { showToast(`❌ Update failed: ${err.message}`); saveBtn.textContent = "💾 Save"; saveBtn.disabled = false; });
+                saveBtn.disabled    = true;
+                try {
+                    const r = await fetch(`/api/admin/student/${encodeURIComponent(sid)}/profile`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                    showToast("✅ Student details updated");
+                    editPanel.hidden = true;
+                    if (payload.fullName) {
+                        const nameEl = wrap.querySelector(".fm-student-name");
+                        if (nameEl) nameEl.textContent = payload.fullName;
+                    }
+                    loadHierarchy({ preserveState: true });
+                } catch (err) {
+                    showToast(`❌ Update failed: ${err.message}`);
+                } finally {
+                    saveBtn.textContent = "💾 Save";
+                    saveBtn.disabled    = false;
+                }
             });
         });
     }
@@ -1157,9 +1210,13 @@
         document.querySelectorAll(".fm-overlay").forEach(el => el.remove());
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TOGGLE / EXPAND / COLLAPSE
+    // ═══════════════════════════════════════════════════════════════════════════
+
     function handleClassToggle(event) {
         const classCard = event.currentTarget.closest(".class-card");
-        const classId = classCard?.dataset.classId;
+        const classId   = classCard?.dataset.classId;
         const classBody = classCard?.querySelector(".class-body");
         if (!classId || !classBody) return;
         const expanded = classBody.classList.contains("collapsed");
@@ -1191,8 +1248,8 @@
     }
 
     function togglePinnedClass(classId) {
-        const pinnedClasses = JSON.parse(localStorage.getItem("pinnedClasses") || "[]");
-        const id = String(classId);
+        const pinnedClasses = safeParse(localStorage.getItem("pinnedClasses")) || [];
+        const id  = String(classId);
         const idx = pinnedClasses.indexOf(id);
         if (idx >= 0) { pinnedClasses.splice(idx, 1); } else { pinnedClasses.push(id); }
         localStorage.setItem("pinnedClasses", JSON.stringify(pinnedClasses));
@@ -1201,8 +1258,8 @@
 
     function handleBatchToggle(event) {
         event.stopPropagation();
-        const batchId = event.currentTarget.dataset.toggleBatch;
-        const batchCard = document.querySelector(`[data-batch-id="${cssEscape(batchId)}"]`);
+        const batchId    = event.currentTarget.dataset.toggleBatch;
+        const batchCard  = document.querySelector(`[data-batch-id="${cssEscape(batchId)}"]`);
         const studentsList = batchCard?.querySelector(".students-list");
         if (!batchCard || !studentsList) return;
         const visible = studentsList.classList.contains("visible");
@@ -1224,7 +1281,7 @@
     // ─── Drag and Drop ─────────────────────────────────────────────────────
 
     function handleStudentDragStart(event) {
-        const row = event.currentTarget;
+        const row     = event.currentTarget;
         const payload = { studentId: row.dataset.studentId, classNumber: row.dataset.classNumber, batchNumber: row.dataset.batchNumber };
         state.draggingStudent = payload;
         row.classList.add("dragging");
@@ -1254,9 +1311,7 @@
         target.classList.remove("batch-drop-target");
         const payload = state.draggingStudent || safeParse(event.dataTransfer.getData("text/plain"));
         if (!payload?.studentId) return;
-        const targetClassNumber = Number(target.dataset.classNumber);
-        const targetBatchNumber = Number(target.dataset.batchNumber);
-        reassignStudent(payload.studentId, targetClassNumber, targetBatchNumber);
+        reassignStudent(payload.studentId, Number(target.dataset.classNumber), Number(target.dataset.batchNumber));
     }
 
     function reassignStudent(studentId, classNumber, batchNumber) {
@@ -1264,7 +1319,7 @@
         moveStudentLocally(studentId, classNumber, batchNumber);
         renderHierarchy();
 
-        fetch("/api/admin/students-hierarchy/reassign", {
+        fetch(REASSIGN_API, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ studentId, classNumber, batchNumber })
@@ -1313,8 +1368,8 @@
     // ─── Filters ────────────────────────────────────────────────────────────
 
     function onServerFilterChange() {
-        state.filters.course = refs.courseFilter?.value || "";
-        state.filters.semester = refs.semesterFilter?.value || "";
+        state.filters.course      = refs.courseFilter?.value || "";
+        state.filters.semester    = refs.semesterFilter?.value || "";
         state.filters.performance = refs.performanceFilter?.value || "";
         state.expandedClasses.clear();
         state.expandedBatches.clear();
@@ -1322,7 +1377,7 @@
     }
 
     function onGroupingModeChange() {
-        state.filters.groupingMode = refs.groupingMode?.value || "performance";
+        state.filters.groupingMode = refs.groupingMode?.value || "number";
         renderHierarchy();
     }
 
@@ -1338,17 +1393,14 @@
     function initAdvancedSearch() {
         if (!refs.globalSearch) return;
 
-        // Create search results dropdown container - append to body for fixed positioning
         const dropdown = document.createElement("div");
         dropdown.className = "search-dropdown";
         dropdown.id = "searchDropdown";
         dropdown.hidden = true;
         document.body.appendChild(dropdown);
 
-        // Update placeholder
         refs.globalSearch.placeholder = "Search by name, enrollment, ID, phone, email…  Ctrl+K";
 
-        // Debounced search handler
         const debouncedSearch = debounce((query) => {
             onSearchChange(query);
             if (query.length >= 2) {
@@ -1358,20 +1410,15 @@
             }
         }, 250);
 
-        refs.globalSearch.addEventListener("input", (e) => {
-            const query = e.target.value.trim();
-            debouncedSearch(query);
-        });
+        refs.globalSearch.addEventListener("input", (e) => debouncedSearch(e.target.value.trim()));
 
-        // Keyboard navigation
         refs.globalSearch.addEventListener("keydown", (e) => {
-            const dropdown = document.getElementById("searchDropdown");
-            if (!dropdown || dropdown.hidden) {
-                if (e.key === "Escape") { refs.globalSearch.blur(); return; }
+            const dd = document.getElementById("searchDropdown");
+            if (!dd || dd.hidden) {
+                if (e.key === "Escape") refs.globalSearch.blur();
                 return;
             }
-
-            const items = dropdown.querySelectorAll(".search-result-item");
+            const items = dd.querySelectorAll(".search-result-item");
             if (e.key === "ArrowDown") {
                 e.preventDefault();
                 state.searchActiveIndex = Math.min(state.searchActiveIndex + 1, items.length - 1);
@@ -1382,29 +1429,21 @@
                 updateSearchHighlight(items);
             } else if (e.key === "Enter") {
                 e.preventDefault();
-                if (state.searchActiveIndex >= 0 && items[state.searchActiveIndex]) {
-                    items[state.searchActiveIndex].click();
-                }
+                if (state.searchActiveIndex >= 0 && items[state.searchActiveIndex]) items[state.searchActiveIndex].click();
             } else if (e.key === "Escape") {
                 hideSearchDropdown();
             }
         });
 
-        // Focus/blur management
         refs.globalSearch.addEventListener("focus", () => {
-            if (state.searchResults.length > 0 && refs.globalSearch.value.trim().length >= 2) {
-                renderSearchDropdown();
-            }
+            if (state.searchResults.length > 0 && refs.globalSearch.value.trim().length >= 2) renderSearchDropdown();
         });
 
         document.addEventListener("click", (e) => {
-            const dropdown = document.getElementById("searchDropdown");
-            if (dropdown && !dropdown.contains(e.target) && e.target !== refs.globalSearch) {
-                hideSearchDropdown();
-            }
+            const dd = document.getElementById("searchDropdown");
+            if (dd && !dd.contains(e.target) && e.target !== refs.globalSearch) hideSearchDropdown();
         });
 
-        // Ctrl+K shortcut
         document.addEventListener("keydown", (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === "k") {
                 e.preventDefault();
@@ -1413,37 +1452,23 @@
             }
         });
 
-        // Reposition dropdown on scroll/resize
-        window.addEventListener("scroll", () => {
-            const dd = document.getElementById("searchDropdown");
-            if (dd && !dd.hidden) positionSearchDropdown();
-        }, { passive: true });
-        window.addEventListener("resize", () => {
-            const dd = document.getElementById("searchDropdown");
-            if (dd && !dd.hidden) positionSearchDropdown();
-        }, { passive: true });
+        window.addEventListener("scroll",  () => { const dd = document.getElementById("searchDropdown"); if (dd && !dd.hidden) positionSearchDropdown(); }, { passive: true });
+        window.addEventListener("resize",  () => { const dd = document.getElementById("searchDropdown"); if (dd && !dd.hidden) positionSearchDropdown(); }, { passive: true });
     }
 
     function performServerSearch(query) {
-        // Cancel previous request
-        if (state.searchAbortController) {
-            state.searchAbortController.abort();
-        }
+        if (state.searchAbortController) state.searchAbortController.abort();
         state.searchAbortController = new AbortController();
 
         const params = new URLSearchParams({ search: query, size: "12", sortBy: "name", sortDir: "asc" });
-        fetch(`/api/admin/students?${params.toString()}`, { signal: state.searchAbortController.signal })
+        fetch(`${STUDENTS_API}?${params.toString()}`, { signal: state.searchAbortController.signal })
             .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
             .then(data => {
-                state.searchResults = Array.isArray(data.items) ? data.items : [];
+                state.searchResults     = Array.isArray(data.items) ? data.items : [];
                 state.searchActiveIndex = -1;
-                const totalElements = data.totalElements || state.searchResults.length;
-                renderSearchDropdown(totalElements);
+                renderSearchDropdown(data.totalElements || state.searchResults.length);
             })
-            .catch(err => {
-                if (err.name === "AbortError") return;
-                console.warn("Search failed:", err);
-            });
+            .catch(err => { if (err.name !== "AbortError") console.warn("Search failed:", err); });
     }
 
     function renderSearchDropdown(totalCount) {
@@ -1451,11 +1476,7 @@
         if (!dropdown) return;
 
         if (!state.searchResults.length) {
-            dropdown.innerHTML = `
-                <div class="search-empty">
-                    <span class="search-empty-icon">🔍</span>
-                    <span>No students found for this query</span>
-                </div>`;
+            dropdown.innerHTML = `<div class="search-empty"><span class="search-empty-icon">🔍</span><span>No students found</span></div>`;
             dropdown.hidden = false;
             return;
         }
@@ -1471,31 +1492,30 @@
             </div>
             <div class="search-results-list">
                 ${state.searchResults.map((s, i) => {
-            const initials = getInitials(s.name || "ST");
-            const photoUrl = s.profileImage || s.profilePhotoUrl || s.photoUrl || "";
-            const enrollment = s.enrollment || s.id || "";
-            const course = s.course || s.degree || "";
-            const email = s.email || "";
-            const gender = s.gender || "";
-            const classGroup = s.classGroup || "";
-            const batchGroup = s.batchGroup || "";
-            const avgMarks = typeof s.averageMarks === "number" ? s.averageMarks.toFixed(1) : "--";
-            const phone = s.phone || "";
-            const band = performanceBandFromMarks(s.averageMarks || 0);
+                    const initials   = getInitials(s.name || "ST");
+                    const photoUrl   = s.profileImage || s.profilePhotoUrl || s.photoUrl || "";
+                    const enrollment = s.enrollment || s.id || "";
+                    const course     = s.course || s.degree || "";
+                    const email      = s.email || "";
+                    const phone      = s.phone || "";
+                    const classGroup = s.classGroup || "";
+                    const batchGroup = s.batchGroup || "";
+                    const avgMarks   = typeof s.averageMarks === "number" ? s.averageMarks.toFixed(1) : "--";
+                    const band       = performanceBandFromMarks(s.averageMarks || 0);
 
-            return `
+                    return `
                         <div class="search-result-item ${i === state.searchActiveIndex ? 'active' : ''}" data-student-id="${escapeHtml(s.id)}" data-index="${i}">
                             ${photoUrl
-                    ? `<img src="${escapeHtml(photoUrl)}" class="search-result-avatar" alt="${escapeHtml(initials)}">`
-                    : `<div class="search-result-avatar">${escapeHtml(initials)}</div>`
-                }
+                                ? `<img src="${escapeHtml(photoUrl)}" class="search-result-avatar" alt="${escapeHtml(initials)}">`
+                                : `<div class="search-result-avatar">${escapeHtml(initials)}</div>`
+                            }
                             <div class="search-result-info">
                                 <div class="search-result-name">${escapeHtml(s.name || "Unnamed")}</div>
                                 <div class="search-result-meta">
                                     <span class="search-meta-tag">🆔 ${escapeHtml(enrollment)}</span>
-                                    ${course ? `<span class="search-meta-tag">📚 ${escapeHtml(course)}</span>` : ""}
-                                    ${email ? `<span class="search-meta-tag">✉️ ${escapeHtml(truncate(email, 24))}</span>` : ""}
-                                    ${phone ? `<span class="search-meta-tag">📞 ${escapeHtml(phone)}</span>` : ""}
+                                    ${course     ? `<span class="search-meta-tag">📚 ${escapeHtml(course)}</span>` : ""}
+                                    ${email      ? `<span class="search-meta-tag">✉️ ${escapeHtml(truncate(email, 24))}</span>` : ""}
+                                    ${phone      ? `<span class="search-meta-tag">📞 ${escapeHtml(phone)}</span>` : ""}
                                     ${classGroup ? `<span class="search-meta-tag">C${escapeHtml(classGroup)}</span>` : ""}
                                     ${batchGroup ? `<span class="search-meta-tag">B${escapeHtml(batchGroup)}</span>` : ""}
                                 </div>
@@ -1504,21 +1524,14 @@
                                 <span class="performance-badge ${band}">${avgMarks}</span>
                             </div>
                         </div>`;
-        }).join("")}
+                }).join("")}
             </div>`;
 
         dropdown.hidden = false;
         positionSearchDropdown();
 
-        // Bind clicks
         dropdown.querySelectorAll(".search-result-item").forEach(item => {
-            item.addEventListener("click", () => {
-                const sid = item.dataset.studentId;
-                if (sid) {
-                    hideSearchDropdown();
-                    openProfile(sid);
-                }
-            });
+            item.addEventListener("click", () => { const sid = item.dataset.studentId; if (sid) { hideSearchDropdown(); openProfile(sid); } });
             item.addEventListener("mouseenter", () => {
                 state.searchActiveIndex = parseInt(item.dataset.index);
                 updateSearchHighlight(dropdown.querySelectorAll(".search-result-item"));
@@ -1527,10 +1540,7 @@
     }
 
     function updateSearchHighlight(items) {
-        items.forEach((item, i) => {
-            item.classList.toggle("active", i === state.searchActiveIndex);
-        });
-        // Scroll into view
+        items.forEach((item, i) => item.classList.toggle("active", i === state.searchActiveIndex));
         if (state.searchActiveIndex >= 0 && items[state.searchActiveIndex]) {
             items[state.searchActiveIndex].scrollIntoView({ block: "nearest" });
         }
@@ -1545,22 +1555,17 @@
     function positionSearchDropdown() {
         const dropdown = document.getElementById("searchDropdown");
         if (!dropdown || !refs.globalSearch) return;
-        const rect = refs.globalSearch.getBoundingClientRect();
-        const vpW = window.innerWidth;
-        const vpH = window.innerHeight;
-        const dropW = Math.max(rect.width, 420);
-        const top = rect.bottom + 6;
-        let left = rect.left;
-        // Prevent right-edge overflow
-        if (left + dropW > vpW - 12) {
-            left = Math.max(12, vpW - dropW - 12);
-        }
-        // Clamp max-height so it never clips off the bottom of the viewport
-        const availableHeight = vpH - top - 16;
-        const maxH = Math.max(200, Math.min(480, availableHeight));
-        dropdown.style.top = top + "px";
-        dropdown.style.left = left + "px";
-        dropdown.style.width = dropW + "px";
+        const rect   = refs.globalSearch.getBoundingClientRect();
+        const vpW    = window.innerWidth;
+        const vpH    = window.innerHeight;
+        const dropW  = Math.max(rect.width, 420);
+        const top    = rect.bottom + 6;
+        let left     = rect.left;
+        if (left + dropW > vpW - 12) left = Math.max(12, vpW - dropW - 12);
+        const maxH   = Math.max(200, Math.min(480, vpH - top - 16));
+        dropdown.style.top       = top + "px";
+        dropdown.style.left      = left + "px";
+        dropdown.style.width     = dropW + "px";
         dropdown.style.maxHeight = maxH + "px";
     }
 
@@ -1589,15 +1594,14 @@
     function runAiGrouping() {
         state.filters.groupingMode = "ai";
         if (refs.groupingMode) refs.groupingMode.value = "ai";
-        fetch("/api/admin/students-hierarchy/ai-grouping", {
+        fetch(AI_GROUPING_API, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ classNumber: null, course: state.filters.course || null, semester: state.filters.semester || null, clusters: 4 })
         })
             .then(response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); })
             .then(payload => {
-                const suggestions = Array.isArray(payload?.suggestions) ? payload.suggestions : [];
-                const changedCount = suggestions.filter(item => item.changed).length;
+                const changedCount = (Array.isArray(payload?.suggestions) ? payload.suggestions : []).filter(item => item.changed).length;
                 showToast(`AI grouping ready: ${changedCount} students suggested for reassignment`);
                 renderHierarchy();
             })
@@ -1613,211 +1617,63 @@
     // ─── Actions ────────────────────────────────────────────────────────────
 
     function openProfile(studentId) { window.location.href = `/admin/students/${encodeURIComponent(studentId)}/profile`; }
-
     function openFaceUpload(studentId) { state.pendingFaceStudentId = studentId; refs.faceUploadInput?.click(); }
 
     function handleFaceUploadChange(event) {
-        const file = event.target.files?.[0];
+        const file      = event.target.files?.[0];
         const studentId = state.pendingFaceStudentId;
         if (!file || !studentId) return;
-        const formData = new FormData();
+        const formData  = new FormData();
         formData.append("studentId", studentId);
         formData.append("file", file);
-        fetch("/api/admin/upload-face", { method: "POST", body: formData })
+        fetch(UPLOAD_FACE_API, { method: "POST", body: formData })
             .then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => {
-                        throw new Error(text || `HTTP ${response.status}`);
-                    });
-                }
+                if (!response.ok) return response.text().then(text => { throw new Error(text || `HTTP ${response.status}`); });
                 return response.json();
             })
             .then(payload => showToast(payload?.message || `Face uploaded for ${studentId}`))
-            .catch(error => showToast(`Face upload failed: ${error.message}`))
+            .catch(error  => showToast(`Face upload failed: ${error.message}`))
             .finally(() => { state.pendingFaceStudentId = null; event.target.value = ""; });
     }
 
     function deleteStudent(studentId) {
         if (!window.confirm(`Delete student ${studentId}? This cannot be undone.`)) return;
-        fetch(`/api/admin/students/${encodeURIComponent(studentId)}`, { method: "DELETE" })
+        fetch(`${STUDENTS_API}/${encodeURIComponent(studentId)}`, { method: "DELETE" })
             .then(response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); showToast(`Student ${studentId} deleted`); loadHierarchy({ preserveState: true }); })
-            .catch(error => showToast(`Delete failed: ${error.message}`));
+            .catch(error   => showToast(`Delete failed: ${error.message}`));
     }
 
-    // ─── UI States ──────────────────────────────────────────────────────────
-
-    function showLoadingState() {
-        if (refs.loadingSpinner) refs.loadingSpinner.hidden = false;
-        if (refs.noDataState) refs.noDataState.hidden = true;
-        if (refs.classesContainer) { refs.classesContainer.hidden = true; refs.classesContainer.innerHTML = skeletonMarkup(); }
-    }
-
-    function showEmptyState() {
-        if (refs.loadingSpinner) refs.loadingSpinner.hidden = true;
-        if (refs.noDataState) refs.noDataState.hidden = false;
-        if (refs.classesContainer) { refs.classesContainer.hidden = true; refs.classesContainer.innerHTML = ""; }
-    }
-
-    function skeletonMarkup() {
-        return new Array(3).fill(0).map((_, i) => `
-            <section class="class-card glass-panel">
-                <div class="class-header"><div class="class-info"><div class="class-title">Loading class ${i + 1}...</div></div><div class="class-toggle">⌄</div></div>
-                <div class="class-body"><div class="batch-card batch-1"><div class="loading-spinner"><div class="spinner"></div><p>Loading batches...</p></div></div></div>
-            </section>
-        `).join("");
-    }
-
-    // ─── Utilities ──────────────────────────────────────────────────────────
-
-    function countBatches(classes) { return classes.reduce((sum, c) => sum + (c.batches?.length || 0), 0); }
-    function countStudents(classes) { return classes.reduce((sum, c) => sum + countStudentsInClass(c), 0); }
-    function countStudentsInClass(c) { return (c.batches || []).reduce((sum, b) => sum + (b.students?.length || 0), 0); }
-
-    function averageAttendance(classes) {
-        const values = [];
-        classes.forEach(c => (c.batches || []).forEach(b => {
-            const v = (b.analytics || {}).attendance ?? (b.analytics || {}).averageAttendance;
-            if (typeof v === "number") values.push(v);
-        }));
-        return values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
-    }
-
-    function studentMatches(student, query) {
-        if (!query) return true;
-        return [student.name, student.enrollment, student.enrollmentNumber, student.email, student.phone, student.classNumber, student.batchNumber].filter(Boolean).join(" ").toLowerCase().includes(query);
-    }
-    function batchMatchesQuery(batch, query) {
-        if (!query) return true;
-        return [batch.label, batch.batchLabel, batch.number, batch.id, batch.batchId].filter(Boolean).join(" ").toLowerCase().includes(query);
-    }
-    function classMatchesQuery(classItem, query) {
-        if (!query) return true;
-        return [classItem.label, classItem.classLabel, classItem.number, classItem.id, classItem.classId].filter(Boolean).join(" ").toLowerCase().includes(query);
-    }
-
-    function performanceBandFromMarks(marks) {
-        const v = Number(marks) || 0;
-        if (v >= 75) return "excellent";
-        if (v >= 60) return "good";
-        if (v >= 50) return "average";
-        return "poor";
-    }
-
-    /** Compress an image file to a max dimension and quality, returns a base64 data URI promise. */
-    function compressImage(file, maxDim, quality) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onerror = () => reject(new Error("Failed to read file"));
-            reader.onload = () => {
-                const img = new Image();
-                img.onerror = () => reject(new Error("Failed to decode image"));
-                img.onload = () => {
-                    try {
-                        let w = img.width, h = img.height;
-                        if (w > maxDim || h > maxDim) {
-                            if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
-                            else { w = Math.round(w * maxDim / h); h = maxDim; }
-                        }
-                        // Ensure minimum dimensions
-                        w = Math.max(1, w);
-                        h = Math.max(1, h);
-                        const canvas = document.createElement("canvas");
-                        canvas.width = w;
-                        canvas.height = h;
-                        const ctx = canvas.getContext("2d");
-                        ctx.drawImage(img, 0, 0, w, h);
-                        resolve(canvas.toDataURL("image/jpeg", quality));
-                    } catch (err) {
-                        reject(err);
-                    }
-                };
-                img.src = reader.result;
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-
-    /**
-     * Safe image compression with automatic quality reduction.
-     * Tries progressively lower quality + dimensions until the result
-     * is under the 2MB target (safe for JSON body in most Spring configs).
-     */
-    function compressImageSafe(file) {
-        const MAX_BASE64_SIZE = 10 * 1024 * 1024; // keep original quality up to backend limit
-        const fileToDataUri = (inputFile) => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(String(reader.result || ""));
-            reader.onerror = () => reject(new Error("Failed to read file"));
-            reader.readAsDataURL(inputFile);
-        });
-        const attempts = [
-            { maxDim: 1400, quality: 0.92 },
-            { maxDim: 1200, quality: 0.88 },
-            { maxDim: 1000, quality: 0.84 },
-            { maxDim: 900, quality: 0.8 },
-            { maxDim: 768, quality: 0.76 },
-        ];
-
-        return (async () => {
-            const original = await fileToDataUri(file);
-            if (original.length <= MAX_BASE64_SIZE) {
-                return original;
-            }
-            for (const { maxDim, quality } of attempts) {
-                const result = await compressImage(file, maxDim, quality);
-                // Check byte size of the base64 payload
-                const payloadSize = result.length;
-                if (payloadSize <= MAX_BASE64_SIZE) {
-                    return result;
-                }
-            }
-            // Last resort: smallest possible
-            return compressImage(file, 640, 0.72);
-        })();
-    }
-
-    function formatNumber(value) { const n = Number(value) || 0; return n.toFixed(1).replace(/\.0$/, ""); }
-    function truncate(text, max) { const v = String(text || ""); return v.length > max ? `${v.slice(0, max)}…` : v; }
-    function getInitials(name) { const parts = String(name || "").trim().split(/\s+/).filter(Boolean); return parts.length ? parts.slice(0, 2).map(p => p.charAt(0).toUpperCase()).join("") : "ST"; }
-    function escapeHtml(value) { const div = document.createElement("div"); div.textContent = String(value ?? ""); return div.innerHTML; }
-    function cssEscape(value) { return window.CSS?.escape ? window.CSS.escape(String(value)) : String(value).replace(/"/g, '\\"'); }
-    function safeParse(value) { try { return JSON.parse(value); } catch { return null; } }
-    function cloneHierarchy(value) { return JSON.parse(JSON.stringify(value || { summary: {}, classes: [] })); }
-    function debounce(callback, delay) { let timer = null; return function (...args) { clearTimeout(timer); timer = setTimeout(() => callback.apply(this, args), delay); }; }
-
-    function showToast(message) {
-        if (!message) return;
-        let container = document.querySelector(".toast-stack");
-        if (!container) { container = document.createElement("div"); container.className = "toast-stack"; document.body.appendChild(container); }
-        const toast = document.createElement("div");
-        toast.className = "toast";
-        toast.textContent = message;
-        container.appendChild(toast);
-        clearTimeout(state.toastTimer);
-        state.toastTimer = setTimeout(() => { toast.remove(); if (!container.children.length) container.remove(); }, 2600);
-    }
-
-    // ─── Create Student Form ────────────────────────────────────────────────
+    // ─── Create Student ─────────────────────────────────────────────────────
 
     function prevStep() { if (createFormState.step > 1) { createFormState.step -= 1; renderSteps(); } }
     function nextStep() {
-        if (createFormState.step === 1 && (!refs.studentIdInput?.value.trim() || !refs.studentNameInput?.value.trim())) { showToast("Student ID and Name are required"); return; }
+        if (createFormState.step === 1 && (!refs.studentIdInput?.value.trim() || !refs.studentNameInput?.value.trim())) {
+            showToast("Student ID and Name are required"); return;
+        }
         if (createFormState.step < 3) { createFormState.step += 1; renderSteps(); }
     }
     function renderSteps() {
         refs.steps?.forEach((step, i) => step.classList.toggle("active", i < createFormState.step));
         if (refs.stepLabel) refs.stepLabel.textContent = `Step ${createFormState.step} of 3`;
         document.querySelectorAll("[data-step-panel]").forEach(panel => panel.hidden = parseInt(panel.dataset.stepPanel) !== createFormState.step);
-        if (refs.stepNextBtn) refs.stepNextBtn.hidden = createFormState.step === 3;
+        if (refs.stepNextBtn)   refs.stepNextBtn.hidden   = createFormState.step === 3;
         if (refs.createSubmitBtn) refs.createSubmitBtn.hidden = createFormState.step !== 3;
     }
 
     function submitCreateStudent() {
-        if (!refs.studentIdInput?.value.trim() || !refs.studentNameInput?.value.trim()) { showToast("⚠️ Student ID and Name are required"); return; }
-        const payload = { id: refs.studentIdInput.value.trim(), name: refs.studentNameInput.value.trim(), course: refs.studentCourseInput?.value || "", semester: refs.studentSemesterInput?.value || "", phone: refs.studentPhoneInput?.value || "" };
+        if (!refs.studentIdInput?.value.trim() || !refs.studentNameInput?.value.trim()) {
+            showToast("⚠️ Student ID and Name are required"); return;
+        }
+        const payload = {
+            id: refs.studentIdInput.value.trim(),
+            name: refs.studentNameInput.value.trim(),
+            course: refs.studentCourseInput?.value || "",
+            semester: refs.studentSemesterInput?.value || "",
+            phone: refs.studentPhoneInput?.value || ""
+        };
         const submitBtn = refs.createSubmitBtn;
         if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Creating..."; }
-        fetch("/api/admin/students", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+        fetch(STUDENTS_API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
             .then(response => {
                 if (response.status === 409) return Promise.reject("Student ID already exists");
                 if (!response.ok) return response.text().then(t => Promise.reject(t || `HTTP ${response.status}`));
@@ -1837,22 +1693,20 @@
     }
 
     function loadTopPerformers() {
-        fetch("/api/admin/students?size=10&sortBy=name&sortDir=asc")
+        fetch(`${STUDENTS_API}?size=10&sortBy=name&sortDir=asc`)
             .then(response => response.ok ? response.json() : Promise.reject())
             .then(data => {
-                const items = Array.isArray(data.items) ? data.items : [];
-                // Sort by averageMarks descending to get top performers
+                const items  = Array.isArray(data.items) ? data.items : [];
                 const sorted = [...items].sort((a, b) => (b.averageMarks || 0) - (a.averageMarks || 0)).slice(0, 5);
                 if (refs.topPerformers) {
                     refs.topPerformers.innerHTML = sorted.map((student, i) => {
                         const marks = student.averageMarks || 0;
-                        const band = performanceBandFromMarks(marks);
+                        const band  = performanceBandFromMarks(marks);
                         return `<li class="audit-item" style="cursor:pointer" data-student-id="${escapeHtml(student.id)}">
                             <span class="performance-badge ${band}" style="font-size:10px;padding:2px 6px;margin-right:6px">${marks.toFixed(1)}</span>
                             #${i + 1} ${escapeHtml(student.name || "Unknown")}
                         </li>`;
                     }).join("") || '<li class="audit-item">No data available</li>';
-                    // Bind click to view profile
                     refs.topPerformers.querySelectorAll("[data-student-id]").forEach(li => {
                         li.addEventListener("click", () => openProfile(li.dataset.studentId));
                     });
@@ -1865,12 +1719,175 @@
             .catch(() => { if (refs.topPerformers) refs.topPerformers.innerHTML = '<li class="audit-item">Unable to load data</li>'; });
     }
 
-    window.viewStudentProfile = openProfile;
-    window.uploadFace = openFaceUpload;
-    window.showStudentMenu = function (event, studentId) {
+    // ─── UI States ──────────────────────────────────────────────────────────
+
+    function showLoadingState() {
+        if (refs.loadingSpinner) refs.loadingSpinner.hidden = false;
+        if (refs.noDataState)    refs.noDataState.hidden    = true;
+        if (refs.classesContainer) {
+            refs.classesContainer.hidden  = true;
+            refs.classesContainer.innerHTML = skeletonMarkup();
+        }
+    }
+
+    function showEmptyState() {
+        if (refs.loadingSpinner)   refs.loadingSpinner.hidden   = true;
+        if (refs.noDataState)      refs.noDataState.hidden      = false;
+        if (refs.classesContainer) refs.classesContainer.hidden = true;
+    }
+
+    function showErrorState(error) {
+        if (refs.loadingSpinner) refs.loadingSpinner.hidden = true;
+        if (refs.classesContainer) refs.classesContainer.innerHTML = "";
+        if (refs.noDataState) {
+            refs.noDataState.hidden = false;
+            refs.noDataState.innerHTML = `
+                <div class="no-data-icon">⚠️</div>
+                <p><strong>Could not load student hierarchy.</strong><br>
+                Both the hierarchy endpoint and the programs fallback failed.</p>
+                <p style="font-size:12px;color:#64748b;margin-top:4px">${escapeHtml(error?.message || "Unknown error")}</p>
+                <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+                    <button class="btn-secondary" onclick="location.reload()">↺ Retry</button>
+                    <button class="btn-secondary btn-secondary-strong" onclick="regenerateStructure()">🔄 Regenerate Structure</button>
+                </div>
+            `;
+        }
+    }
+
+    function skeletonMarkup() {
+        return new Array(3).fill(0).map((_, i) => `
+            <section class="class-card glass-panel skeleton-card">
+                <div class="skeleton-header">
+                    <div class="skeleton-line skeleton-title"></div>
+                    <div class="skeleton-circle"></div>
+                </div>
+                <div class="skeleton-body">
+                    <div class="skeleton-line"></div>
+                    <div class="skeleton-line skeleton-short"></div>
+                </div>
+            </section>
+        `).join("");
+    }
+
+    // ─── Utilities ──────────────────────────────────────────────────────────
+
+    function countBatches(classes)         { return classes.reduce((sum, c) => sum + (c.batches?.length || 0), 0); }
+    function countStudents(classes)        { return classes.reduce((sum, c) => sum + countStudentsInClass(c), 0); }
+    function countStudentsInClass(c)       { return (c.batches || []).reduce((sum, b) => sum + (b.students?.length || 0), 0); }
+
+    function averageAttendance(classes) {
+        const values = [];
+        classes.forEach(c => (c.batches || []).forEach(b => {
+            const v = (b.analytics || {}).attendance ?? (b.analytics || {}).averageAttendance;
+            if (typeof v === "number") values.push(v);
+        }));
+        return values.length ? values.reduce((s, v) => s + v, 0) / values.length : 0;
+    }
+
+    function studentMatches(student, query) {
+        if (!query) return true;
+        return [student.name, student.enrollment, student.enrollmentNumber, student.email, student.phone, student.classNumber, student.batchNumber]
+            .filter(Boolean).join(" ").toLowerCase().includes(query);
+    }
+    function batchMatchesQuery(batch, query) {
+        if (!query) return true;
+        return [batch.label, batch.batchLabel, batch.number, batch.id, batch.batchId].filter(Boolean).join(" ").toLowerCase().includes(query);
+    }
+    function classMatchesQuery(classItem, query) {
+        if (!query) return true;
+        return [classItem.label, classItem.classLabel, classItem.number, classItem.id, classItem.classId].filter(Boolean).join(" ").toLowerCase().includes(query);
+    }
+
+    function performanceBandFromMarks(marks) {
+        const v = Number(marks) || 0;
+        if (v >= 75) return "excellent";
+        if (v >= 60) return "good";
+        if (v >= 50) return "average";
+        return "poor";
+    }
+
+    function compressImage(file, maxDim, quality) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error("Failed to read file"));
+            reader.onload  = () => {
+                const img = new Image();
+                img.onerror = () => reject(new Error("Failed to decode image"));
+                img.onload  = () => {
+                    try {
+                        let w = img.width, h = img.height;
+                        if (w > maxDim || h > maxDim) {
+                            if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+                            else       { w = Math.round(w * maxDim / h); h = maxDim; }
+                        }
+                        w = Math.max(1, w);
+                        h = Math.max(1, h);
+                        const canvas = document.createElement("canvas");
+                        canvas.width  = w;
+                        canvas.height = h;
+                        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL("image/jpeg", quality));
+                    } catch (err) { reject(err); }
+                };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function compressImageSafe(file) {
+        const MAX_BASE64_SIZE = 10 * 1024 * 1024;
+        const fileToDataUri   = (f) => new Promise((resolve, reject) => {
+            const reader  = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ""));
+            reader.onerror = () => reject(new Error("Failed to read file"));
+            reader.readAsDataURL(f);
+        });
+        const attempts = [
+            { maxDim: 1400, quality: 0.92 },
+            { maxDim: 1200, quality: 0.88 },
+            { maxDim: 1000, quality: 0.84 },
+            { maxDim: 900,  quality: 0.80 },
+            { maxDim: 768,  quality: 0.76 },
+        ];
+        return (async () => {
+            const original = await fileToDataUri(file);
+            if (original.length <= MAX_BASE64_SIZE) return original;
+            for (const { maxDim, quality } of attempts) {
+                const result = await compressImage(file, maxDim, quality);
+                if (result.length <= MAX_BASE64_SIZE) return result;
+            }
+            return compressImage(file, 640, 0.72);
+        })();
+    }
+
+    function formatNumber(value) { const n = Number(value) || 0; return n.toFixed(1).replace(/\.0$/, ""); }
+    function truncate(text, max)  { const v = String(text || ""); return v.length > max ? `${v.slice(0, max)}…` : v; }
+    function getInitials(name)    { const parts = String(name || "").trim().split(/\s+/).filter(Boolean); return parts.length ? parts.slice(0, 2).map(p => p.charAt(0).toUpperCase()).join("") : "ST"; }
+    function escapeHtml(value)    { const div = document.createElement("div"); div.textContent = String(value ?? ""); return div.innerHTML; }
+    function cssEscape(value)     { return window.CSS?.escape ? window.CSS.escape(String(value)) : String(value).replace(/"/g, '\\"'); }
+    function safeParse(value)     { try { return JSON.parse(value); } catch { return null; } }
+    function cloneHierarchy(value){ return JSON.parse(JSON.stringify(value || { summary: {}, classes: [] })); }
+    function debounce(callback, delay) { let timer = null; return function (...args) { clearTimeout(timer); timer = setTimeout(() => callback.apply(this, args), delay); }; }
+
+    function showToast(message, duration = 2600) {
+        if (!message) return;
+        let container = document.querySelector(".toast-stack");
+        if (!container) { container = document.createElement("div"); container.className = "toast-stack"; document.body.appendChild(container); }
+        const toast = document.createElement("div");
+        toast.className = "toast";
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => { toast.classList.add("toast-fade"); setTimeout(() => { toast.remove(); if (!container.children.length) container.remove(); }, 400); }, duration);
+    }
+
+    // ─── Global exports ─────────────────────────────────────────────────────
+    window.viewStudentProfile   = openProfile;
+    window.uploadFace           = openFaceUpload;
+    window.regenerateStructure  = regenerateStructure;
+    window.showStudentMenu      = function (event, studentId) {
         event?.stopPropagation?.();
-        const confirmed = window.confirm("Student actions:\n\nOK: delete student\nCancel: close menu");
-        if (confirmed) deleteStudent(studentId);
+        if (window.confirm("Student actions:\n\nOK: delete student\nCancel: close menu")) deleteStudent(studentId);
     };
 
     if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", init); }

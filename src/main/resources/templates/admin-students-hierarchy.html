@@ -3,30 +3,1172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Hierarchy - Program &rarr; Class &rarr; Batch Management</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>Manage Students — Program → Class → Batch</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
     <link rel="stylesheet" th:href="@{/css/hierarchy-students.css}">
+    <style>
+        /* ── Design tokens ─────────────────────────────────────────────── */
+        :root {
+            --font-display: 'Sora', sans-serif;
+            --font-mono:    'JetBrains Mono', monospace;
+
+            /* Surface palette — deep navy with warm undertone */
+            --bg-base:      #0b0f1a;
+            --bg-surface:   #111827;
+            --bg-elevated:  #1a2236;
+            --bg-card:      #1e2d45;
+            --bg-overlay:   rgba(11, 15, 26, 0.85);
+
+            /* Accent — electric indigo with amber contrast */
+            --accent:       #6366f1;
+            --accent-light: #818cf8;
+            --accent-glow:  rgba(99, 102, 241, 0.25);
+            --accent-amber: #f59e0b;
+            --accent-emerald: #10b981;
+            --accent-rose:  #f43f5e;
+
+            /* Text */
+            --text-primary:   #f0f4ff;
+            --text-secondary: #8b9cb8;
+            --text-muted:     #4a5568;
+            --text-inverse:   #0b0f1a;
+
+            /* Borders */
+            --border:       rgba(99, 102, 241, 0.15);
+            --border-hover: rgba(99, 102, 241, 0.4);
+            --border-card:  rgba(255, 255, 255, 0.06);
+
+            /* Radii */
+            --r-sm:  6px;
+            --r-md:  12px;
+            --r-lg:  18px;
+            --r-xl:  24px;
+
+            /* Shadows */
+            --shadow-sm:  0 1px 3px rgba(0,0,0,0.4);
+            --shadow-md:  0 4px 16px rgba(0,0,0,0.45);
+            --shadow-lg:  0 8px 32px rgba(0,0,0,0.55);
+            --shadow-accent: 0 0 20px var(--accent-glow);
+
+            /* Layout */
+            --sidebar-w:  260px;
+            --topbar-h:   72px;
+            --gap:        20px;
+        }
+
+        /* ── Reset & Base ───────────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-display);
+            background: var(--bg-base);
+            color: var(--text-primary);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Layout Shell ───────────────────────────────────────────────── */
+        .hierarchy-shell {
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap);
+            padding: 24px 28px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* ── Topbar ─────────────────────────────────────────────────────── */
+        .hierarchy-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 20px 0 0;
+            flex-wrap: wrap;
+        }
+
+        .eyebrow {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent-light);
+            font-family: var(--font-mono);
+        }
+
+        .page-title {
+            font-size: clamp(20px, 3vw, 30px);
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1.15;
+            margin-top: 4px;
+        }
+
+        .page-title .arrow-sep {
+            color: var(--accent);
+            margin: 0 6px;
+            opacity: 0.7;
+        }
+
+        .dashboard-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+            max-width: 540px;
+        }
+
+        .hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* ── Fallback alert banner ──────────────────────────────────────── */
+        .fallback-banner {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: var(--r-md);
+            padding: 10px 16px;
+            font-size: 13px;
+            color: var(--accent-amber);
+        }
+        .fallback-banner.visible { display: flex; }
+
+        /* ── Stat overview strip ────────────────────────────────────────── */
+        .structure-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-card);
+            border-radius: var(--r-lg);
+            padding: 18px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(99,102,241,0.04) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-accent);
+            border-color: var(--border-hover);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+        }
+
+        /* ── Glass panel ────────────────────────────────────────────────── */
+        .glass-panel {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-card);
+            border-radius: var(--r-lg);
+            backdrop-filter: blur(12px);
+        }
+
+        /* ── Programs section ───────────────────────────────────────────── */
+        .programs-section {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-card);
+            border-radius: var(--r-xl);
+            padding: 20px 24px;
+        }
+
+        .programs-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .programs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: 12px;
+        }
+
+        .program-card {
+            border-radius: var(--r-md);
+            padding: 16px;
+            cursor: pointer;
+            transition: transform 0.18s, box-shadow 0.18s, outline 0.12s;
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+            user-select: none;
+        }
+
+        .program-card:hover  { transform: translateY(-3px) scale(1.02); box-shadow: 0 12px 28px rgba(0,0,0,0.4); }
+        .program-card:focus  { outline-color: var(--accent-light); }
+        .program-card-active { outline: 2px solid #fff; box-shadow: 0 0 0 4px rgba(255,255,255,0.15) !important; }
+
+        .program-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .program-card-code   { font-family: var(--font-mono); font-size: 12px; font-weight: 700; opacity: 0.9; }
+        .program-card-type   { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(0,0,0,0.2); border-radius: 4px; padding: 2px 6px; }
+        .program-card-name   { font-size: 13px; font-weight: 700; line-height: 1.3; margin-bottom: 12px; }
+        .program-card-stats  { display: flex; gap: 10px; }
+        .program-stat        { display: flex; flex-direction: column; gap: 1px; }
+        .program-stat-value  { font-size: 18px; font-weight: 800; line-height: 1; }
+        .program-stat-label  { font-size: 10px; font-weight: 500; opacity: 0.7; }
+        .program-card-year   { margin-top: 8px; font-size: 11px; opacity: 0.7; font-family: var(--font-mono); }
+
+        .program-card-skeleton {
+            height: 120px;
+            background: linear-gradient(90deg, var(--bg-card) 25%, rgba(99,102,241,0.07) 50%, var(--bg-card) 75%);
+            background-size: 400% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: var(--r-md);
+        }
+        @keyframes shimmer { to { background-position: -400% 0; } }
+
+        .program-empty-state { text-align: center; padding: 32px 20px; color: var(--text-secondary); font-size: 14px; }
+        .program-empty-icon  { font-size: 40px; margin-bottom: 10px; }
+
+        /* ── Controls strip ─────────────────────────────────────────────── */
+        .workspace-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 900px) { .workspace-controls { grid-template-columns: 1fr; } }
+
+        .create-section,
+        .insights-section {
+            padding: 20px 24px;
+        }
+
+        .section-subtitle {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            margin-bottom: 14px;
+        }
+
+        /* Stepper */
+        .stepper { display: flex; gap: 8px; margin-bottom: 6px; }
+        .step {
+            height: 4px;
+            flex: 1;
+            background: var(--bg-card);
+            border-radius: 2px;
+            transition: background 0.25s;
+        }
+        .step.active { background: var(--accent); }
+
+        /* Form */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+
+        .field { display: flex; flex-direction: column; gap: 5px; }
+        .field label { font-size: 12px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.05em; }
+        .field input,
+        .field select {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--r-sm);
+            color: var(--text-primary);
+            padding: 9px 12px;
+            font-size: 13px;
+            font-family: var(--font-display);
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .field input:focus,
+        .field select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+        .field select option { background: var(--bg-surface); }
+
+        /* Buttons */
+        .btn-small {
+            padding: 8px 16px;
+            border-radius: var(--r-sm);
+            font-size: 13px;
+            font-weight: 600;
+            font-family: var(--font-display);
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            transition: background 0.15s, border-color 0.15s, transform 0.1s;
+        }
+        .btn-small:hover { background: var(--bg-elevated); border-color: var(--border-hover); transform: translateY(-1px); }
+        .btn-small.btn-primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+        .btn-small.btn-primary:hover { background: var(--accent-light); }
+
+        .btn-secondary {
+            padding: 8px 14px;
+            border-radius: var(--r-sm);
+            font-size: 12px;
+            font-weight: 600;
+            font-family: var(--font-display);
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .btn-secondary:hover { background: var(--bg-elevated); border-color: var(--border-hover); color: var(--text-primary); }
+        .btn-secondary-strong { border-color: var(--accent); color: var(--accent-light); }
+        .btn-secondary-strong:hover { background: var(--accent-glow); }
+
+        /* KPI grid in insights */
+        .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: var(--r-md);
+            padding: 14px 16px;
+        }
+        .kpi-card h4 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); font-family: var(--font-mono); margin-bottom: 6px; }
+        .kpi-value { font-size: 22px; font-weight: 800; color: var(--text-primary); }
+
+        .audit-list { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+        .audit-item {
+            font-size: 13px;
+            color: var(--text-secondary);
+            padding: 6px 8px;
+            border-radius: var(--r-sm);
+            transition: background 0.12s;
+            display: flex;
+            align-items: center;
+        }
+        .audit-item:hover { background: var(--bg-card); color: var(--text-primary); }
+
+        /* ── Filters bar ─────────────────────────────────────────────────── */
+        .filters-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 14px 20px;
+        }
+
+        .filter-group { display: flex; flex-direction: column; gap: 4px; }
+        .filter-group label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-family: var(--font-mono); }
+        .filter-group select {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--r-sm);
+            color: var(--text-primary);
+            padding: 7px 10px;
+            font-size: 12px;
+            font-family: var(--font-display);
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.15s;
+            min-width: 130px;
+        }
+        .filter-group select:focus { border-color: var(--accent); }
+        .filter-group select option { background: var(--bg-surface); }
+
+        .filters-section .spacer { flex: 1; }
+        .filters-actions { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+
+        /* ── Regenerate button ──────────────────────────────────────────── */
+        .btn-regenerate {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 18px;
+            border-radius: var(--r-md);
+            background: linear-gradient(135deg, var(--accent) 0%, #7c3aed 100%);
+            border: none;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: var(--font-display);
+            cursor: pointer;
+            transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+            box-shadow: 0 4px 12px rgba(99,102,241,0.35);
+        }
+        .btn-regenerate:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,102,241,0.45); }
+        .btn-regenerate.regenerating { opacity: 0.7; cursor: not-allowed; }
+        .regen-icon { font-size: 16px; }
+
+        /* ── Global search ──────────────────────────────────────────────── */
+        .global-search {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--r-md);
+            color: var(--text-primary);
+            padding: 10px 16px 10px 40px;
+            font-size: 13px;
+            font-family: var(--font-display);
+            width: 320px;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s, width 0.25s;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b9cb8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: 12px center;
+        }
+        .global-search:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+            width: 380px;
+        }
+        .global-search::placeholder { color: var(--text-muted); }
+
+        /* ── Icon button ─────────────────────────────────────────────────── */
+        .icon-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: var(--r-sm);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .icon-btn:hover { background: var(--bg-card); border-color: var(--border-hover); color: var(--text-primary); }
+
+        /* ── Class cards ─────────────────────────────────────────────────── */
+        .classes-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+        }
+
+        .class-card {
+            border-radius: var(--r-xl);
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        }
+        .class-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 36px rgba(0,0,0,0.5);
+            border-color: var(--border-hover);
+        }
+
+        .class-card .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 20px 10px;
+        }
+
+        .header-left { display: flex; flex-direction: column; gap: 6px; }
+
+        .class-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+            width: fit-content;
+        }
+        .status-badge.healthy  { background: rgba(16,185,129,0.12); color: #34d399; }
+        .status-badge.moderate { background: rgba(245,158,11,0.12); color: #fbbf24; }
+        .status-badge.critical { background: rgba(244,63,94,0.12);  color: #fb7185; }
+
+        .new-inner-panel { padding: 0 20px 16px; }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .metric { display: flex; flex-direction: column; gap: 2px; }
+        .metric-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); font-family: var(--font-mono); }
+        .metric-value { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+
+        .batch-pills-row { display: flex; flex-wrap: wrap; gap: 6px; }
+        .batch-pill-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: rgba(99,102,241,0.1);
+            border: 1px solid rgba(99,102,241,0.2);
+            border-radius: 20px;
+            color: var(--accent-light);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: var(--font-display);
+        }
+        .batch-pill-btn:hover { background: rgba(99,102,241,0.2); border-color: var(--accent); }
+        .pill-count { background: rgba(99,102,241,0.2); border-radius: 10px; padding: 0px 5px; font-family: var(--font-mono); }
+
+        /* Heatmap colors */
+        .heatmap-excellent { border-color: rgba(16,185,129,0.3) !important; }
+        .heatmap-excellent .progress-ring-circle { stroke: #10b981 !important; }
+        .heatmap-good      { border-color: rgba(99,102,241,0.3) !important; }
+        .heatmap-average   { border-color: rgba(245,158,11,0.25) !important; }
+        .heatmap-poor      { border-color: rgba(244,63,94,0.25) !important; }
+        .heatmap-critical  { border-color: rgba(244,63,94,0.45) !important; }
+
+        /* Progress ring */
+        .progress-container { position: relative; flex-shrink: 0; }
+        .progress-ring { transform: rotate(-90deg); }
+        .progress-ring-circle { transition: stroke-dashoffset 0.6s ease; }
+        .progress-value {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+        }
+
+        /* ── Skeleton cards ─────────────────────────────────────────────── */
+        .skeleton-card { pointer-events: none; }
+        .skeleton-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px 10px; }
+        .skeleton-body   { padding: 10px 20px 18px; display: flex; flex-direction: column; gap: 8px; }
+        .skeleton-line {
+            height: 12px;
+            background: linear-gradient(90deg, var(--bg-card) 25%, rgba(99,102,241,0.06) 50%, var(--bg-card) 75%);
+            background-size: 400% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 6px;
+            width: 70%;
+        }
+        .skeleton-title  { height: 16px; width: 55%; }
+        .skeleton-short  { width: 40%; }
+        .skeleton-circle {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, var(--bg-card) 25%, rgba(99,102,241,0.06) 50%, var(--bg-card) 75%);
+            background-size: 400% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        /* ── Loading spinner ────────────────────────────────────────────── */
+        .loading-spinner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            padding: 48px 20px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── No data / error state ──────────────────────────────────────── */
+        .no-data-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 56px 24px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+            background: var(--bg-elevated);
+            border: 1px dashed var(--border);
+            border-radius: var(--r-xl);
+        }
+        .no-data-icon { font-size: 48px; }
+
+        /* ── Modals (fm-overlay) ────────────────────────────────────────── */
+        .fm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(11, 15, 26, 0.88);
+            backdrop-filter: blur(8px);
+            z-index: 9000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .fm-overlay.fm-visible { opacity: 1; }
+
+        .fm-modal {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-card);
+            border-radius: var(--r-xl);
+            width: 100%;
+            max-width: 720px;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-lg);
+            transform: translateY(16px) scale(0.97);
+            transition: transform 0.2s, opacity 0.2s;
+            overflow: hidden;
+        }
+        .fm-overlay.fm-visible .fm-modal { transform: none; }
+        .fm-modal-wide { max-width: 960px; }
+
+        .fm-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 22px 26px 18px;
+            border-bottom: 1px solid var(--border-card);
+            flex-shrink: 0;
+        }
+        .fm-title    { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+        .fm-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 3px; }
+        .fm-close {
+            width: 32px; height: 32px;
+            border-radius: var(--r-sm);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+        .fm-close:hover { background: var(--accent-rose); border-color: var(--accent-rose); color: #fff; }
+        .fm-back {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--r-sm);
+            color: var(--text-secondary);
+            padding: 5px 10px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+            margin-bottom: 6px;
+            display: inline-block;
+        }
+        .fm-back:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+        .fm-body {
+            padding: 20px 26px 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .fm-stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .fm-stat {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-card);
+            border-radius: var(--r-md);
+            padding: 12px 14px;
+            text-align: center;
+        }
+        .fm-stat-val { font-size: 22px; font-weight: 800; color: var(--text-primary); }
+        .fm-stat-val.fm-risk { color: var(--accent-rose); }
+        .fm-stat-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-top: 3px; font-family: var(--font-mono); }
+
+        .fm-section-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+        @media (max-width: 640px) { .fm-section-row { grid-template-columns: 1fr; } }
+
+        .fm-section {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-card);
+            border-radius: var(--r-md);
+            padding: 14px 16px;
+        }
+        .fm-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 10px; }
+        .fm-health-bar-wrap { background: var(--bg-card); border-radius: 4px; height: 8px; overflow: hidden; margin-bottom: 6px; }
+        .fm-health-bar { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+        .fm-health-val { font-size: 22px; font-weight: 800; color: var(--text-primary); }
+
+        .fm-dist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .fm-dist-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); }
+        .fm-dist-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .fm-dist-item strong { color: var(--text-primary); margin-left: auto; }
+
+        .fm-batches-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+        .fm-batch-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-card);
+            border-radius: var(--r-md);
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .fm-batch-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+        .fm-batch-top  { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .fm-batch-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .fm-perf-dot   { width: 10px; height: 10px; border-radius: 50%; }
+        .fm-perf-dot.excellent { background: var(--accent-emerald); }
+        .fm-perf-dot.good      { background: var(--accent-light); }
+        .fm-perf-dot.average   { background: var(--accent-amber); }
+        .fm-perf-dot.poor      { background: var(--accent-rose); }
+        .fm-batch-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .fm-bs         { display: flex; flex-direction: column; gap: 1px; }
+        .fm-bs-val     { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+        .fm-bs-val.fm-risk { color: var(--accent-rose); }
+        .fm-bs-lbl     { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+
+        .fm-students-grid { display: grid; gap: 8px; }
+        .fm-student-card-wrap { border-radius: var(--r-md); overflow: hidden; }
+        .fm-student-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-card);
+            border-radius: var(--r-md);
+            padding: 12px 14px;
+            transition: border-color 0.15s;
+        }
+        .fm-student-card:hover { border-color: var(--border-hover); }
+        .fm-avatar-wrap { position: relative; flex-shrink: 0; }
+        .fm-student-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            object-fit: cover;
+        }
+        .fm-photo-btn {
+            position: absolute;
+            bottom: -4px;
+            right: -4px;
+            font-size: 11px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.12s;
+        }
+        .fm-photo-btn:hover { background: var(--accent); border-color: var(--accent); }
+        .fm-student-info { flex: 1; min-width: 0; }
+        .fm-student-name { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fm-student-meta { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .fm-student-badges { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .fm-perf-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; font-family: var(--font-mono); }
+        .fm-perf-badge.excellent { background: rgba(16,185,129,0.15); color: #34d399; }
+        .fm-perf-badge.good      { background: rgba(99,102,241,0.15); color: var(--accent-light); }
+        .fm-perf-badge.average   { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .fm-perf-badge.poor      { background: rgba(244,63,94,0.15);  color: #fb7185; }
+        .fm-att-badge  { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+        .fm-student-actions { display: flex; gap: 4px; flex-shrink: 0; }
+        .fm-action-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: var(--r-sm);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.12s;
+        }
+        .fm-action-btn:hover { background: var(--bg-elevated); border-color: var(--border-hover); }
+
+        .fm-transfer-panel,
+        .fm-edit-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 var(--r-md) var(--r-md);
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .fm-transfer-select {
+            flex: 1;
+            min-width: 200px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--r-sm);
+            color: var(--text-primary);
+            padding: 6px 10px;
+            font-size: 12px;
+            font-family: var(--font-display);
+            outline: none;
+        }
+        .fm-transfer-confirm,
+        .fm-transfer-cancel,
+        .fm-edit-save,
+        .fm-edit-cancel {
+            padding: 6px 12px;
+            border-radius: var(--r-sm);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            font-family: var(--font-display);
+            transition: all 0.12s;
+        }
+        .fm-transfer-confirm:hover,
+        .fm-edit-save:hover { background: var(--accent); border-color: var(--accent); }
+
+        .fm-edit-panel { flex-direction: column; align-items: stretch; gap: 10px; }
+        .fm-edit-grid  { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+        .fm-edit-field { display: flex; flex-direction: column; gap: 4px; }
+        .fm-edit-field label { font-size: 11px; font-weight: 600; color: var(--text-muted); font-family: var(--font-mono); }
+        .fm-edit-input {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--r-sm);
+            color: var(--text-primary);
+            padding: 6px 9px;
+            font-size: 12px;
+            font-family: var(--font-display);
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .fm-edit-input:focus { border-color: var(--accent); }
+        .fm-edit-actions { display: flex; gap: 8px; }
+
+        /* Performance badges */
+        .performance-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3px 9px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+        .performance-badge.excellent { background: rgba(16,185,129,0.15); color: #34d399; }
+        .performance-badge.good      { background: rgba(99,102,241,0.15); color: var(--accent-light); }
+        .performance-badge.average   { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .performance-badge.poor      { background: rgba(244,63,94,0.15);  color: #fb7185; }
+
+        /* ── Search dropdown ────────────────────────────────────────────── */
+        .search-dropdown {
+            position: fixed;
+            z-index: 9999;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--r-lg);
+            box-shadow: var(--shadow-lg);
+            overflow-y: auto;
+        }
+        .search-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-card);
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+        .search-hint { color: var(--text-muted); }
+        .search-results-list { padding: 6px; }
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 10px;
+            border-radius: var(--r-md);
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        .search-result-item:hover,
+        .search-result-item.active { background: var(--bg-elevated); }
+        .search-result-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+            object-fit: cover;
+        }
+        .search-result-info { flex: 1; min-width: 0; }
+        .search-result-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+        .search-result-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+        .search-meta-tag    { font-size: 10px; color: var(--text-muted); background: var(--bg-card); padding: 1px 6px; border-radius: 4px; font-family: var(--font-mono); }
+        .search-result-score { flex-shrink: 0; }
+        .search-empty { display: flex; align-items: center; gap: 10px; padding: 16px 14px; font-size: 13px; color: var(--text-muted); }
+        .search-empty-icon { font-size: 20px; }
+
+        /* ── Toast stack ────────────────────────────────────────────────── */
+        .toast-stack {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .toast {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--r-md);
+            padding: 10px 16px;
+            font-size: 13px;
+            color: var(--text-primary);
+            box-shadow: var(--shadow-md);
+            animation: toastIn 0.25s ease forwards;
+            max-width: 380px;
+        }
+        .toast.toast-fade {
+            animation: toastOut 0.35s ease forwards;
+        }
+        @keyframes toastIn  { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+        @keyframes toastOut { to   { opacity: 0; transform: translateY(8px); } }
+
+        /* ── Student rows (in batch expansion) ──────────────────────────── */
+        .students-list { display: none; }
+        .students-list.visible { display: flex; flex-direction: column; gap: 6px; padding: 10px 20px; }
+
+        .student-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: var(--r-md);
+            cursor: grab;
+            transition: all 0.15s;
+        }
+        .student-row:hover { border-color: var(--border-hover); }
+        .student-row.dragging { opacity: 0.5; cursor: grabbing; }
+        .student-row.match-hidden { opacity: 0.35; }
+
+        .student-info    { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+        .student-avatar  {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+            object-fit: cover;
+        }
+        .student-details { min-width: 0; }
+        .student-name    { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .student-meta    { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+
+        .student-actions { display: flex; gap: 4px; flex-shrink: 0; }
+        .action-btn {
+            padding: 4px 9px;
+            border-radius: var(--r-sm);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.12s;
+        }
+        .action-btn:hover       { border-color: var(--border-hover); color: var(--text-primary); }
+        .action-btn.danger:hover { background: rgba(244,63,94,0.1); border-color: rgba(244,63,94,0.3); color: #fb7185; }
+
+        /* Batch cards inside class expansion */
+        .batch-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: var(--r-md);
+            margin: 0 16px 10px;
+            overflow: hidden;
+            transition: border-color 0.15s;
+        }
+        .batch-card.batch-drop-target { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+        .batch-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px 8px; }
+        .batch-title  { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+        .batch-count  { margin-top: 2px; }
+        .batch-count-badge { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+        .batch-toggle {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 12px;
+            padding: 3px 6px;
+            transition: color 0.12s;
+        }
+        .batch-toggle:hover { color: var(--text-primary); }
+        .batch-analytics {
+            display: flex;
+            gap: 16px;
+            padding: 0 14px 8px;
+            flex-wrap: wrap;
+        }
+        .analytics-item  { display: flex; flex-direction: column; gap: 1px; }
+        .analytics-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); font-family: var(--font-mono); }
+        .analytics-value { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+        .batch-indicator {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 14px 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            border-top: 1px solid var(--border-card);
+        }
+
+        /* ── Scrollbar ──────────────────────────────────────────────────── */
+        ::-webkit-scrollbar         { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track   { background: transparent; }
+        ::-webkit-scrollbar-thumb   { background: rgba(99,102,241,0.25); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.45); }
+
+        /* ── Animations ─────────────────────────────────────────────────── */
+        .app-enter { animation: fadeUp 0.4s ease both; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+        .class-card { animation: cardIn 0.3s ease both; }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+        /* ── Responsive ─────────────────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .hierarchy-shell   { padding: 16px; }
+            .global-search     { width: 220px; }
+            .global-search:focus { width: 260px; }
+            .programs-grid     { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+            .classes-container { grid-template-columns: 1fr; }
+            .fm-modal          { margin: 10px; max-height: 94vh; }
+        }
+    </style>
 </head>
 <body class="app-container hierarchy-page">
 <div th:replace="~{fragments/sidebar :: sidebar(activeTab='students')}"></div>
 
 <main class="content-area" id="maincontent" tabindex="-1">
     <div class="content-wrapper hierarchy-shell">
-        <header class="unified-topbar hierarchy-topbar app-enter">
+
+        <!-- ═══ Topbar ═══════════════════════════════════════════════════ -->
+        <header class="hierarchy-topbar app-enter">
             <div class="hero-copy">
                 <span class="eyebrow">Student Identity Workspace</span>
-                <h1 class="page-title">Program &rarr; Class &rarr; Batch &rarr; Student</h1>
-                <p class="dashboard-subtitle">Automated enrollment-driven grouping engine with program cards, tree navigation, and drag-and-drop.</p>
+                <h1 class="page-title">
+                    Program<span class="arrow-sep">→</span>Class<span class="arrow-sep">→</span>Batch<span class="arrow-sep">→</span>Student
+                </h1>
+                <p class="dashboard-subtitle">Enrollment-driven hierarchy engine with program cards, tree navigation, and drag-and-drop reassignment.</p>
             </div>
             <div class="hero-actions">
-                <input id="globalSearch" class="global-search" type="search" placeholder="Search students, class, or batch..." aria-label="Search">
+                <input id="globalSearch" class="global-search" type="search" placeholder="Search students…  Ctrl+K" aria-label="Global search">
                 <button id="sidebarToggle" class="icon-btn" type="button" aria-label="Toggle sidebar">&#9776;</button>
             </div>
         </header>
 
-        <!-- ═══════════════ Program Cards ═══════════════ -->
-        <section class="programs-section" id="programsSection">
+        <!-- ═══ Fallback notice (shown by JS when hierarchy 500s) ════════ -->
+        <div id="fallbackBanner" class="fallback-banner" aria-live="polite">
+            ⚠️ Hierarchy endpoint returned a server error — displaying data from Programs API.
+            Run <strong style="margin-left:4px">Regenerate Structure</strong> to rebuild and fix the hierarchy.
+        </div>
+
+        <!-- ═══ Stats strip ══════════════════════════════════════════════ -->
+        <section class="structure-overview app-enter" style="animation-delay:0.05s">
+            <article class="stat-card glass-panel">
+                <div class="stat-label">Programs</div>
+                <div class="stat-value" id="totalPrograms">0</div>
+            </article>
+            <article class="stat-card glass-panel">
+                <div class="stat-label">Classes</div>
+                <div class="stat-value" id="totalClasses">0</div>
+            </article>
+            <article class="stat-card glass-panel">
+                <div class="stat-label">Batches</div>
+                <div class="stat-value" id="totalBatches">0</div>
+            </article>
+            <article class="stat-card glass-panel">
+                <div class="stat-label">Students</div>
+                <div class="stat-value" id="totalStudents">0</div>
+            </article>
+            <article class="stat-card glass-panel">
+                <div class="stat-label">Avg Attendance</div>
+                <div class="stat-value" id="avgAttendance">—</div>
+            </article>
+        </section>
+
+        <!-- ═══ Program cards ════════════════════════════════════════════ -->
+        <section class="programs-section app-enter" id="programsSection" style="animation-delay:0.1s">
             <div class="programs-header">
                 <h2 class="section-title">Programs</h2>
                 <div class="programs-actions">
@@ -38,92 +1180,103 @@
             </div>
             <div id="programsGrid" class="programs-grid">
                 <div class="program-card-skeleton"></div>
+                <div class="program-card-skeleton"></div>
+                <div class="program-card-skeleton"></div>
+                <div class="program-card-skeleton"></div>
             </div>
         </section>
 
-        <!-- ═══════════════ Controls / Filters ═══════════════ -->
-        <section class="workspace-controls">
-            <div class="controls-row">
-                <div class="create-section glass-panel">
-                    <h2 class="section-title">Create Student</h2>
-                    <p class="section-subtitle">Enterprise onboarding wizard with validation and smart defaults.</p>
-                    <div class="stepper" aria-label="Create student progress">
-                        <div class="step active"></div>
-                        <div class="step"></div>
-                        <div class="step"></div>
-                    </div>
-                    <p id="stepLabel" class="section-subtitle">Step 1 of 3</p>
-                    <form id="createStudentForm" novalidate>
-                        <div data-step-panel="1" class="form-grid">
-                            <div class="field">
-                                <label for="studentIdInput">Student ID *</label>
-                                <input id="studentIdInput" name="id" required aria-required="true" autocomplete="off">
-                            </div>
-                            <div class="field">
-                                <label for="studentNameInput">Full Name *</label>
-                                <input id="studentNameInput" name="name" required aria-required="true" autocomplete="off">
-                            </div>
-                        </div>
-                        <div data-step-panel="2" class="form-grid" hidden>
-                            <div class="field">
-                                <label for="studentCourseInput">Course</label>
-                                <select id="studentCourseInput" name="course">
-                                    <option value="">Select course</option>
-                                    <option value="B.Tech">B.Tech</option>
-                                    <option value="BBA">BBA</option>
-                                    <option value="MBA">MBA</option>
-                                    <option value="M.Tech">M.Tech</option>
-                                </select>
-                            </div>
-                            <div class="field">
-                                <label for="studentSemesterInput">Semester</label>
-                                <select id="studentSemesterInput" name="semester">
-                                    <option value="">Select semester</option>
-                                    <option value="Semester 1">Semester 1</option>
-                                    <option value="Semester 2">Semester 2</option>
-                                    <option value="Semester 3">Semester 3</option>
-                                    <option value="Semester 4">Semester 4</option>
-                                    <option value="Semester 5">Semester 5</option>
-                                    <option value="Semester 6">Semester 6</option>
-                                    <option value="Semester 7">Semester 7</option>
-                                    <option value="Semester 8">Semester 8</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div data-step-panel="3" class="form-grid" hidden>
-                            <div class="field">
-                                <label for="studentPhoneInput">Phone</label>
-                                <input id="studentPhoneInput" name="phone" autocomplete="off">
-                            </div>
-                        </div>
-                        <div style="display:flex; gap:8px; margin-top:12px;">
-                            <button type="button" id="stepPrevBtn" class="btn-small">Back</button>
-                            <button type="button" id="stepNextBtn" class="btn-small">Next</button>
-                            <button type="submit" id="createSubmitBtn" class="btn-small btn-primary" hidden>Create</button>
-                        </div>
-                    </form>
+        <!-- ═══ Create + Insights ════════════════════════════════════════ -->
+        <section class="workspace-controls app-enter" style="animation-delay:0.15s">
+            <div class="create-section glass-panel">
+                <h2 class="section-title">Create Student</h2>
+                <p class="section-subtitle">Onboarding wizard with validation and smart defaults.</p>
+                <div class="stepper" aria-label="Create student progress">
+                    <div class="step active"></div>
+                    <div class="step"></div>
+                    <div class="step"></div>
                 </div>
+                <p id="stepLabel" class="section-subtitle">Step 1 of 3</p>
+                <form id="createStudentForm" novalidate>
+                    <div data-step-panel="1" class="form-grid">
+                        <div class="field">
+                            <label for="studentIdInput">Student ID *</label>
+                            <input id="studentIdInput" name="id" required aria-required="true" autocomplete="off" placeholder="e.g. 22CSU001">
+                        </div>
+                        <div class="field">
+                            <label for="studentNameInput">Full Name *</label>
+                            <input id="studentNameInput" name="name" required aria-required="true" autocomplete="off" placeholder="First Last">
+                        </div>
+                    </div>
+                    <div data-step-panel="2" class="form-grid" hidden>
+                        <div class="field">
+                            <label for="studentCourseInput">Course</label>
+                            <select id="studentCourseInput" name="course">
+                                <option value="">Select course</option>
+                                <option value="B.Tech">B.Tech</option>
+                                <option value="BBA">BBA</option>
+                                <option value="MBA">MBA</option>
+                                <option value="M.Tech">M.Tech</option>
+                                <option value="BCA">BCA</option>
+                                <option value="MCA">MCA</option>
+                                <option value="B.Arch">B.Arch</option>
+                                <option value="B.Des">B.Des</option>
+                                <option value="LL.B">LL.B</option>
+                                <option value="LL.M">LL.M</option>
+                                <option value="Ph.D">Ph.D</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="studentSemesterInput">Semester</label>
+                            <select id="studentSemesterInput" name="semester">
+                                <option value="">Select semester</option>
+                                <option value="Semester 1">Semester 1</option>
+                                <option value="Semester 2">Semester 2</option>
+                                <option value="Semester 3">Semester 3</option>
+                                <option value="Semester 4">Semester 4</option>
+                                <option value="Semester 5">Semester 5</option>
+                                <option value="Semester 6">Semester 6</option>
+                                <option value="Semester 7">Semester 7</option>
+                                <option value="Semester 8">Semester 8</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div data-step-panel="3" class="form-grid" hidden>
+                        <div class="field">
+                            <label for="studentPhoneInput">Phone</label>
+                            <input id="studentPhoneInput" name="phone" autocomplete="off" placeholder="+91 XXXXXXXXXX">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:14px;">
+                        <button type="button" id="stepPrevBtn" class="btn-small">← Back</button>
+                        <button type="button" id="stepNextBtn" class="btn-small">Next →</button>
+                        <button type="submit" id="createSubmitBtn" class="btn-small btn-primary" hidden>Create Student</button>
+                    </div>
+                </form>
+            </div>
 
-                <div class="insights-section glass-panel">
-                    <h2 class="section-title">Smart Insights</h2>
-                    <p class="section-subtitle">Performance analytics and student distribution.</p>
-                    <div class="kpi-grid">
-                        <article class="kpi-card">
-                            <h4>Total Students</h4>
-                            <div id="totalLabel" class="kpi-value">0 records</div>
-                        </article>
-                        <article class="kpi-card">
-                            <h4>Avg Marks</h4>
-                            <div id="avgMarksLabel" class="kpi-value">0.0</div>
-                        </article>
-                    </div>
-                    <h3 class="section-subtitle" style="margin-top:14px;">Top Performers</h3>
-                    <ul id="topPerformers" class="audit-list"></ul>
+            <div class="insights-section glass-panel">
+                <h2 class="section-title">Smart Insights</h2>
+                <p class="section-subtitle">Performance analytics and student distribution.</p>
+                <div class="kpi-grid">
+                    <article class="kpi-card">
+                        <h4>Total Students</h4>
+                        <div id="totalLabel" class="kpi-value">—</div>
+                    </article>
+                    <article class="kpi-card">
+                        <h4>Avg Marks</h4>
+                        <div id="avgMarksLabel" class="kpi-value">—</div>
+                    </article>
                 </div>
+                <h3 class="section-subtitle" style="margin-top:16px;margin-bottom:0">Top Performers</h3>
+                <ul id="topPerformers" class="audit-list">
+                    <li class="audit-item" style="color:var(--text-muted)">Loading…</li>
+                </ul>
             </div>
         </section>
 
-        <section class="filters-section glass-panel">
+        <!-- ═══ Filters bar ══════════════════════════════════════════════ -->
+        <section class="filters-section glass-panel app-enter" style="animation-delay:0.2s">
             <div class="filter-group">
                 <label for="groupingMode">Grouping</label>
                 <select id="groupingMode">
@@ -147,6 +1300,8 @@
                     <option value="BBA">BBA</option>
                     <option value="MBA">MBA</option>
                     <option value="M.Tech">M.Tech</option>
+                    <option value="BCA">BCA</option>
+                    <option value="MCA">MCA</option>
                 </select>
             </div>
             <div class="filter-group">
@@ -168,120 +1323,47 @@
                 <select id="performanceFilter">
                     <option value="">All Students</option>
                     <option value="excellent">Excellent (75+)</option>
-                    <option value="good">Good (60-74)</option>
-                    <option value="average">Average (50-59)</option>
+                    <option value="good">Good (60–74)</option>
+                    <option value="average">Average (50–59)</option>
                     <option value="poor">Poor (&lt;50)</option>
                 </select>
             </div>
-            <button id="refreshBtn" class="btn-secondary" type="button" aria-label="Refresh data">&#8635; Refresh</button>
-            <button id="expandAllBtn" class="btn-secondary" type="button" aria-label="Expand all classes">Expand All</button>
-            <button id="collapseAllBtn" class="btn-secondary" type="button" aria-label="Collapse all classes">Collapse All</button>
-            <button id="aiGroupBtn" class="btn-secondary btn-secondary-strong" type="button" aria-label="Run AI grouping">AI Grouping</button>
+
+            <div class="spacer"></div>
+            <div class="filters-actions">
+                <button id="refreshBtn"    class="btn-secondary" type="button" aria-label="Refresh data">↻ Refresh</button>
+                <button id="expandAllBtn"  class="btn-secondary" type="button" aria-label="Expand all">Expand All</button>
+                <button id="collapseAllBtn" class="btn-secondary" type="button" aria-label="Collapse all">Collapse All</button>
+                <button id="aiGroupBtn"    class="btn-secondary btn-secondary-strong" type="button" aria-label="Run AI grouping">✦ AI Group</button>
+            </div>
         </section>
 
-        <section class="structure-overview dashboard-grid">
-            <article class="stat-card glass-panel">
-                <div class="stat-label">Total Programs</div>
-                <div class="stat-value" id="totalPrograms">0</div>
-            </article>
-            <article class="stat-card glass-panel">
-                <div class="stat-label">Total Classes</div>
-                <div class="stat-value" id="totalClasses">0</div>
-            </article>
-            <article class="stat-card glass-panel">
-                <div class="stat-label">Total Batches</div>
-                <div class="stat-value" id="totalBatches">0</div>
-            </article>
-            <article class="stat-card glass-panel">
-                <div class="stat-label">Total Students</div>
-                <div class="stat-value" id="totalStudents">0</div>
-            </article>
-            <article class="stat-card glass-panel">
-                <div class="stat-label">Avg Attendance</div>
-                <div class="stat-value" id="avgAttendance">--</div>
-            </article>
-        </section>
-
+        <!-- ═══ Classes container ════════════════════════════════════════ -->
         <section class="classes-container" id="classesContainer"></section>
 
         <div id="loadingSpinner" class="loading-spinner" hidden>
             <div class="spinner"></div>
-            <p>Loading student hierarchy...</p>
+            <p>Loading student hierarchy…</p>
         </div>
 
         <div id="noDataState" class="no-data-state" hidden>
-            <div class="no-data-icon">&#128228;</div>
-            <p>No students found. Try adjusting your filters or click <strong>Regenerate Structure</strong>.</p>
+            <div class="no-data-icon">📭</div>
+            <p>No students found. Try adjusting your filters or regenerate the structure.</p>
         </div>
 
-        <!-- Class Drawer Panel -->
-        <div id="classDrawer" class="class-drawer" hidden>
-            <div class="drawer-overlay"></div>
-            <div class="drawer-content">
-                <div class="drawer-header">
-                    <div class="drawer-title-section">
-                        <h2 id="drawerTitle" class="drawer-title">Class Drawer</h2>
-                        <div id="drawerStats" class="drawer-stats-mini"></div>
-                    </div>
-                    <button id="closeDrawer" class="drawer-close" type="button" aria-label="Close drawer">✕</button>
-                </div>
-                
-                <div class="drawer-filters">
-                    <select id="drawerBatchFilter" class="filter-select">
-                        <option value="">All Batches</option>
-                    </select>
-                    <select id="drawerPerformanceFilter" class="filter-select">
-                        <option value="">All Performance</option>
-                        <option value="excellent">Excellent</option>
-                        <option value="good">Good</option>
-                        <option value="average">Average</option>
-                        <option value="poor">Poor</option>
-                    </select>
-                </div>
-
-                <div id="drawerBatchesGrid" class="drawer-batches-grid"></div>
-            </div>
-        </div>
-
-        <!-- Batch Dashboard Drawer -->
-        <div id="batchDrawer" class="batch-drawer" hidden>
-            <div class="drawer-overlay"></div>
-            <div class="drawer-content batch-drawer-content">
-                <div class="drawer-header">
-                    <div class="drawer-title-section">
-                        <button id="backToBatches" class="back-button" type="button">←</button>
-                        <div>
-                            <h2 id="batchDrawerTitle" class="drawer-title">Batch Dashboard</h2>
-                            <p id="batchDrawerSubtitle" class="drawer-subtitle"></p>
-                        </div>
-                    </div>
-                    <button id="closeBatchDrawer" class="drawer-close" type="button" aria-label="Close drawer">✕</button>
-                </div>
-                
-                <div class="batch-drawer-stats">
-                    <div class="stat-card-mini">
-                        <div class="stat-label">Students</div>
-                        <div class="stat-value" id="batchDrawerStudentCount">0</div>
-                    </div>
-                    <div class="stat-card-mini">
-                        <div class="stat-label">Avg Marks</div>
-                        <div class="stat-value" id="batchDrawerAvgMarks">0.0</div>
-                    </div>
-                    <div class="stat-card-mini">
-                        <div class="stat-label">Attendance</div>
-                        <div class="stat-value" id="batchDrawerAttendance">0%</div>
-                    </div>
-                    <div class="stat-card-mini">
-                        <div class="stat-label">At Risk</div>
-                        <div class="stat-value risk" id="batchDrawerRisk">0</div>
-                    </div>
-                </div>
-
-                <div id="batchStudentsGrid" class="batch-students-grid"></div>
-            </div>
-        </div>
     </div>
 </main>
+
+<!-- Initialise fallback banner visibility via JS hook -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        /* Expose banner so hierarchy-students.js can toggle it */
+        window.__showFallbackBanner = function () {
+            const banner = document.getElementById('fallbackBanner');
+            if (banner) banner.classList.add('visible');
+        };
+    });
+</script>
 
 <script th:src="@{/js/hierarchy-students.js}"></script>
 </body>

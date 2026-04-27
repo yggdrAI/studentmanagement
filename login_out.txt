@@ -44,10 +44,10 @@
         <script src="/js/api-client.js"></script>
         <!-- Logo -->
         <div class="logo-container">
-            <a href="/dashboard" class="logo-placeholder" aria-label="Bennett University Logo">
-                <span class="red">BENNETT</span><br>
-                UNIVERSITY<br>
-                <span class="subtitle">The Times Group</span>
+            <a href="/dashboard" class="logo-placeholder" aria-label="StudentOS Logo">
+                <span class="red">Student</span><br>
+                OS<br>
+                <span class="subtitle">Student Management Platform</span>
             </a>
         </div>
 
