@@ -3,6 +3,7 @@ import { getPalette } from '../lib/analytics';
 import StudentsChart from './StudentsChart';
 import AttendanceChart from './AttendanceChart';
 import ClassesChart from './ClassesChart';
+import TransferStudentDemoButton from "./TransferStudentDemoButton";
 
 function MotionCard({ children, delay = 0, className = '' }) {
   return (
@@ -46,6 +47,9 @@ export default function AnalyticsDashboard({ snapshot, connectionState, liveSumm
   const growthDelta = Number(latestGrowth.students || 0) - Number(previousGrowth.students || 0);
   const attendanceLatest = snapshot.attendanceTrend[snapshot.attendanceTrend.length - 1] || {};
   const attendanceAverage = snapshot.attendanceTrend.reduce((sum, row) => sum + Number(row.attendance || 0), 0) / Math.max(snapshot.attendanceTrend.length, 1);
+
+  // TEMP: Demo integration for transfer modal (replace with real studentId)
+  const demoStudentId = snapshot.studentsList?.[0]?.id || "SAMPLE123";
 
   return (
     <main className="dashboard-shell">
@@ -175,6 +179,9 @@ export default function AnalyticsDashboard({ snapshot, connectionState, liveSumm
               <span>Realtime readiness</span>
               <strong>{connectionState === 'live' ? 'Socket ready' : 'Polling fallback active'}</strong>
             </div>
+          </div>
+          <div style={{ marginTop: 24 }}>
+            <TransferStudentDemoButton studentId={demoStudentId} onTransfer={() => window.location.reload()} />
           </div>
         </MotionCard>
       </section>

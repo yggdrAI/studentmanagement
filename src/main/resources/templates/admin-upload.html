@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Bulk Upload</title>
+    <link rel="stylesheet" th:href="@{/css/admin-dashboard.css}">
+</head>
+<body>
+<div th:replace="~{fragments/sidebar :: sidebar(activeTab='upload')}"></div>
+<main class="content-area">
+    <div class="content-wrapper glass-card">
+        <header>
+            <h1>Bulk Data Upload</h1>
+            <p>Upload attendance, grades, exam scores, or results CSV files per class/batch/student.</p>
+        </header>
+
+        <form id="uploadForm">
+            <div>
+                <label for="type">Type</label>
+                <select id="type" name="type">
+                    <option value="attendance">Attendance</option>
+                    <option value="grades">Grades</option>
+                    <option value="exams">Exam Scores</option>
+                    <option value="results">Results</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="classId">Class ID (optional)</label>
+                <input id="classId" name="classId" />
+            </div>
+
+            <div>
+                <label for="batchId">Batch ID (optional)</label>
+                <input id="batchId" name="batchId" />
+            </div>
+
+            <div>
+                <label for="file">CSV File</label>
+                <input id="file" name="file" type="file" accept=".csv" required />
+            </div>
+
+            <div class="row-actions">
+                <button class="btn btn-primary" type="submit">Upload</button>
+                <a class="btn btn-outline" th:href="@{/docs/upload_templates/attendance_template.csv}">Download Templates</a>
+            </div>
+        </form>
+
+        <div id="uploadResult" style="margin-top:1rem;"></div>
+    </div>
+    <script th:src="@{/js/admin-upload.js}"></script>
+</main>
+</body>
+</html>
