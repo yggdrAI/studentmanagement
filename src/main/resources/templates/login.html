@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Student Management</title>
     <!-- Premium Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet">
     <style>
         :root {
             --bg-body: #f1f5f9;
@@ -19,46 +21,98 @@
             --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
-        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
         body {
-            display: flex; align-items: center; justify-content: center;
-            min-height: 100vh; background-color: var(--bg-body);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: var(--bg-body);
             color: var(--text-primary);
         }
 
         /* Decorative background element */
         body::before {
-            content: ''; position: absolute; top: -50%; left: -50%;
-            width: 200%; height: 200%;
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
             background: radial-gradient(circle at center, #dbeafe 0%, transparent 60%);
-            z-index: 0; pointer-events: none;
+            z-index: 0;
+            pointer-events: none;
         }
 
         .login-card {
-            position: relative; z-index: 1;
-            background: var(--bg-card); width: 100%; max-width: 420px;
-            border-radius: 16px; padding: 40px;
-            box-shadow: var(--shadow-lg); border: 1px solid rgba(255,255,255,0.8);
+            position: relative;
+            z-index: 1;
+            background: var(--bg-card);
+            width: 100%;
+            max-width: 420px;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(255, 255, 255, 0.8);
         }
 
         .logo {
-            text-align: center; margin-bottom: 32px;
+            text-align: center;
+            margin-bottom: 32px;
         }
-        .logo h1 { font-size: 24px; font-weight: 700; color: #0f172a; }
-        .logo span.red { color: #dc2626; }
-        .logo span.subtitle { display: block; font-size: 13px; color: var(--text-secondary); margin-top: 4px; font-weight: 500; }
 
-        .form-group { margin-bottom: 20px; }
-        .form-label { display: block; font-size: 14px; font-weight: 500; color: var(--text-secondary); margin-bottom: 8px; }
-        .form-input {
-            width: 100%; padding: 12px 16px; border: 1px solid var(--border-light);
-            border-radius: 8px; font-size: 15px; color: var(--text-primary);
-            transition: var(--transition); background-color: #f8fafc;
+        .logo h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
         }
+
+        .logo span.red {
+            color: #dc2626;
+        }
+
+        .logo span.subtitle {
+            display: block;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            font-size: 15px;
+            color: var(--text-primary);
+            transition: var(--transition);
+            background-color: #f8fafc;
+        }
+
         .form-input:focus {
-            outline: none; border-color: var(--accent-primary);
-            background-color: #ffffff; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            outline: none;
+            border-color: var(--accent-primary);
+            background-color: #ffffff;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
         }
 
         .password-wrap {
@@ -85,32 +139,69 @@
         }
 
         .btn-login {
-            width: 100%; padding: 14px; background: var(--accent-gradient);
-            color: white; border: none; border-radius: 8px;
-            font-size: 16px; font-weight: 600; cursor: pointer;
-            transition: var(--transition); margin-top: 10px;
+            width: 100%;
+            padding: 14px;
+            background: var(--accent-gradient);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 10px;
             box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
         }
-        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4); }
-        .btn-login:active { transform: translateY(0); }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
 
         .alert {
-            padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 20px; font-weight: 500;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            font-weight: 500;
         }
-        .alert-error { background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-        .alert-success { background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+
+        .alert-error {
+            background-color: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .alert-success {
+            background-color: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
 
         .hint {
-            margin-top: 24px; text-align: center; font-size: 13px; color: var(--text-secondary); line-height: 1.6;
+            margin-top: 24px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
         }
-        .hint span { font-weight: 600; color: var(--text-primary); }
+
+        .hint span {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
     </style>
 </head>
+
 <body>
 
     <div class="login-card">
         <div class="logo">
-            <h1><span class="red">BENNETT</span> UNIVERSITY</h1>
+            <h1><span class="red">Student</span> OS</h1>
             <span class="subtitle">Smart Student Management Portal</span>
         </div>
 
@@ -122,7 +213,8 @@
         <div th:if="${param.error}" class="alert alert-error">
             Invalid username or password. Please try again.
         </div>
-        <div th:if="${param.roleError}" class="alert alert-error" th:text="${studentLoginMode} ? 'This portal is for students only.' : 'Student accounts must use Student Login.'">
+        <div th:if="${param.roleError}" class="alert alert-error"
+            th:text="${studentLoginMode} ? 'This portal is for students only.' : 'Student accounts must use Student Login.'">
             This account cannot sign in from this portal.
         </div>
         <div th:if="${param.forcePasswordChange}" class="alert alert-error">
@@ -136,26 +228,32 @@
             <input type="hidden" name="loginPortal" th:value="${studentLoginMode} ? 'student' : 'staff'">
             <div class="form-group">
                 <label for="username" class="form-label">Email / Phone / Enrollment No</label>
-                <input type="text" id="username" name="username" class="form-input" placeholder="e.g. S25CSEU1006 or student@univ.edu or 9876543210" required autofocus>
+                <input type="text" id="username" name="username" class="form-input"
+                    placeholder="e.g. S25CSEU1006 or student@univ.edu or 9876543210" required autofocus>
             </div>
             <div class="form-group">
                 <label for="password" class="form-label">Password</label>
                 <div class="password-wrap">
-                    <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" required>
-                    <button class="password-toggle" type="button" id="passwordToggle" aria-label="Show password">Show</button>
+                    <input type="password" id="password" name="password" class="form-input" placeholder="••••••••"
+                        required>
+                    <button class="password-toggle" type="button" id="passwordToggle"
+                        aria-label="Show password">Show</button>
                 </div>
             </div>
             <button type="submit" class="btn-login">Sign In</button>
         </form>
 
         <div style="margin-top: 12px; text-align: right; font-size: 13px;">
-            <a href="/forgot-password" style="color: #2563eb; text-decoration: none; font-weight: 600;">Forgot Password?</a>
+            <a href="/forgot-password" style="color: #2563eb; text-decoration: none; font-weight: 600;">Forgot
+                Password?</a>
         </div>
 
         <div class="hint">
             <strong>Login Help</strong><br>
-            <span th:if="${!studentLoginMode}">Sign in with enrollment number, registered email, or registered phone.</span>
-            <span th:if="${studentLoginMode}">Use enrollment number, registered email, or registered phone with your current password.</span>
+            <span th:if="${!studentLoginMode}">Sign in with enrollment number, registered email, or registered
+                phone.</span>
+            <span th:if="${studentLoginMode}">Use enrollment number, registered email, or registered phone with your
+                current password.</span>
         </div>
 
         <div style="margin-top: 14px; text-align: center; font-size: 13px;">
@@ -181,4 +279,5 @@
     </script>
 
 </body>
+
 </html>

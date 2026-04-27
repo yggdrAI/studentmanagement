@@ -1118,7 +1118,16 @@
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ photoBase64: compressed })
                     });
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    if (!res.ok) {
+                        let errMsg = `HTTP ${res.status}`;
+                        try {
+                            const errBody = await res.text();
+                            if (errBody) {
+                                try { errMsg = JSON.parse(errBody).message || errBody; } catch { errMsg = errBody; }
+                            }
+                        } catch { /* ignore */ }
+                        throw new Error(errMsg);
+                    }
                     const img = document.createElement("img");
                     img.src = compressed;
                     img.className = "fm-student-avatar fm-avatar-img";
@@ -1844,7 +1853,9 @@
             reader.readAsDataURL(f);
         });
         const attempts = [
-            { maxDim: 1400, quality: 0.92 },
+            { maxDim: 2048, quality: 0.95 },
+            { maxDim: 1600, quality: 0.92 },
+            { maxDim: 1400, quality: 0.90 },
             { maxDim: 1200, quality: 0.88 },
             { maxDim: 1000, quality: 0.84 },
             { maxDim: 900,  quality: 0.80 },

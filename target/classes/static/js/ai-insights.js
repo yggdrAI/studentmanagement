@@ -1,21 +1,47 @@
 (function () {
     "use strict";
 
-    if (!window.smsApi || !window.smsApi.analytics) {
-        console.error("AI Insights bootstrap failed: window.smsApi.analytics is unavailable.");
-        window.addEventListener("DOMContentLoaded", function () {
-            const toastStack = document.getElementById("toastStack");
-            if (!toastStack) {
-                return;
+    /* ── Resilient bootstrap ─────────────────────────────────────────────
+     * The api-client.js may not have executed yet (e.g. loaded via sidebar
+     * fragment with defer).  Instead of bailing out permanently we wait
+     * for DOMContentLoaded and re-check, then fall back to direct fetch
+     * if smsApi is still missing.
+     */
+    function ensureAnalyticsApi() {
+        if (window.smsApi && window.smsApi.analytics) {
+            return window.smsApi.analytics;
+        }
+        // Build a minimal shim so the rest of the code still works
+        return {
+            summary: function (qs) {
+                return fetch('/api/analytics/summary' + (qs ? '?' + qs : ''), {
+                    headers: { 'Accept': 'application/json' }
+                }).then(function (r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                });
+            },
+            live: function () {
+                return fetch('/api/analytics/live', {
+                    headers: { 'Accept': 'application/json' }
+                }).then(function (r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                });
+            },
+            sendDigest: function () {
+                return fetch('/api/analytics/reports/digest', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' }
+                }).then(function (r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                });
             }
-            const item = document.createElement("div");
-            item.className = "toast error";
-            item.textContent = "AI Insights failed to initialize. Reload the page.";
-            toastStack.appendChild(item);
-            setTimeout(() => item.remove(), 4500);
-        });
-        return;
+        };
     }
+
+    var analyticsApi = ensureAnalyticsApi();
 
     const app = document.getElementById("aiApp");
     const role = app?.getAttribute("data-role") || "ADMIN";
@@ -117,7 +143,13 @@
         refreshSummary();
         setupVirtualLoad();
         setupPullToRefresh();
-        setupRealtime();
+        try {
+            setupRealtime();
+        } catch (err) {
+            console.warn("Real-time setup failed, falling back to polling:", err);
+            if (refs.feedStatus) refs.feedStatus.textContent = "Live stream unavailable; using polling";
+            setInterval(pollLiveSnapshot, 7000);
+        }
     }
 
     function bindEvents() {
@@ -191,18 +223,24 @@
     async function refreshSummary() {
         const query = buildSummaryQuery();
         try {
-            state.summary = await window.smsApi.analytics.summary(query);
+            state.summary = await analyticsApi.summary(query);
             state.displayedRows = 0;
             renderSummary();
             toast("AI insights synchronized", "success");
         } catch (error) {
+            console.warn("Analytics summary fetch failed:", error);
             toast(error.message || "Failed to fetch analytics", "error");
+            // Render empty state so the page is still usable
+            if (!state.summary) {
+                state.summary = { metrics: {}, smartCards: [], studentTags: [], charts: {}, activityFeed: [], recommendations: [] };
+                renderSummary();
+            }
         }
     }
 
     async function sendLeadershipDigest() {
         try {
-            await window.smsApi.analytics.sendDigest();
+            await analyticsApi.sendDigest();
             toast("Digest queued for delivery", "success");
         } catch (error) {
             toast(error.message || "Unable to send digest", "error");
@@ -595,42 +633,55 @@
     }
 
     function setupRealtime() {
-        const socket = new SockJS("/ws");
-        state.stompClient = Stomp.over(socket);
-        state.stompClient.debug = function () {};
-
-        state.stompClient.connect({}, () => {
-            refs.feedStatus.textContent = "Live stream connected";
-            refs.liveStatusBtn.classList.add("connected");
-
-            state.stompClient.subscribe("/topic/analytics/live", (msg) => {
-                try {
-                    const payload = JSON.parse(msg.body);
-                    animateNumber(refs.metricActive, Number(payload.activeStudents || 0));
-                    appendFeedItem(`Live update: ${Number(payload.activeStudents || 0)} active students`, payload.timestamp);
-                } catch (_error) {
-                    toast("Live message parse error", "error");
-                }
-            });
-
-            state.stompClient.subscribe("/topic/analytics/feed", (msg) => {
-                try {
-                    const payload = JSON.parse(msg.body);
-                    appendFeedItem(payload.message || "New activity", payload.timestamp);
-                    toast(payload.message || "New activity", "info");
-                } catch (_error) {
-                    toast("Feed update parse error", "error");
-                }
-            });
-        }, () => {
-            refs.feedStatus.textContent = "Live stream unavailable; retrying via API";
+        if (typeof SockJS === "undefined" || typeof Stomp === "undefined") {
+            console.warn("SockJS or Stomp not loaded, falling back to API polling");
+            if (refs.feedStatus) refs.feedStatus.textContent = "Live stream libraries unavailable; using polling";
             setInterval(pollLiveSnapshot, 7000);
-        });
+            return;
+        }
+
+        try {
+            const socket = new SockJS("/ws");
+            state.stompClient = Stomp.over(socket);
+            state.stompClient.debug = function () {};
+
+            state.stompClient.connect({}, () => {
+                if (refs.feedStatus) refs.feedStatus.textContent = "Live stream connected";
+                if (refs.liveStatusBtn) refs.liveStatusBtn.classList.add("connected");
+
+                state.stompClient.subscribe("/topic/analytics/live", (msg) => {
+                    try {
+                        const payload = JSON.parse(msg.body);
+                        animateNumber(refs.metricActive, Number(payload.activeStudents || 0));
+                        appendFeedItem(`Live update: ${Number(payload.activeStudents || 0)} active students`, payload.timestamp);
+                    } catch (_error) {
+                        toast("Live message parse error", "error");
+                    }
+                });
+
+                state.stompClient.subscribe("/topic/analytics/feed", (msg) => {
+                    try {
+                        const payload = JSON.parse(msg.body);
+                        appendFeedItem(payload.message || "New activity", payload.timestamp);
+                        toast(payload.message || "New activity", "info");
+                    } catch (_error) {
+                        toast("Feed update parse error", "error");
+                    }
+                });
+            }, () => {
+                if (refs.feedStatus) refs.feedStatus.textContent = "Live stream unavailable; retrying via API";
+                setInterval(pollLiveSnapshot, 7000);
+            });
+        } catch (err) {
+            console.warn("WebSocket setup error:", err);
+            if (refs.feedStatus) refs.feedStatus.textContent = "Live stream unavailable; using polling";
+            setInterval(pollLiveSnapshot, 7000);
+        }
     }
 
     async function pollLiveSnapshot() {
         try {
-            const payload = await window.smsApi.analytics.live();
+            const payload = await analyticsApi.live();
             animateNumber(refs.metricActive, Number(payload.activeStudents || 0));
         } catch (_error) {
             // no-op fallback
@@ -780,5 +831,9 @@
         return 1 - Math.pow(1 - t, 3);
     }
 
-    init();
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+    } else {
+        init();
+    }
 })();

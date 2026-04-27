@@ -330,7 +330,9 @@ public class StudentService {
 
         Map<String, List<Enrollment>> enrollmentsByStudentId = enrollmentRepository.findByStudentIdIn(
                 students.stream().map(Student::getId).collect(Collectors.toList())
-        ).stream().collect(Collectors.groupingBy(enrollment -> enrollment.getStudent() == null ? null : enrollment.getStudent().getId()));
+        ).stream()
+                .filter(enrollment -> enrollment.getStudent() != null && enrollment.getStudent().getId() != null)
+                .collect(Collectors.groupingBy(enrollment -> enrollment.getStudent().getId()));
 
         for (Student student : students) {
             List<Enrollment> enrollments = enrollmentsByStudentId.getOrDefault(student.getId(), List.of());

@@ -73,6 +73,7 @@ public class HierarchyCatalogService {
     /**
      * Returns the full Program → Class → Batch tree with student counts.
      */
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getProgramTree() {
         List<AcademicProgram> programs = programRepository.findAll();
         programs.sort(Comparator.comparing(AcademicProgram::getName, String.CASE_INSENSITIVE_ORDER));
@@ -118,6 +119,7 @@ public class HierarchyCatalogService {
     /**
      * Returns students belonging to a specific program.
      */
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getStudentsForProgram(Long programId) {
         List<Student> students = studentRepository.findAllWithHierarchy().stream()
                 .filter(s -> s.getAcademicProgram() != null && programId.equals(s.getAcademicProgram().getId()))

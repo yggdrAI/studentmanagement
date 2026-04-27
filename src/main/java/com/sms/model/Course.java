@@ -1,6 +1,9 @@
 package com.sms.model;
 import java.io.Serializable;
 
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.ConstraintMode;
 import jakarta.persistence.Entity;
@@ -26,6 +29,7 @@ public class Course implements Serializable {
 
     @ManyToOne
     @JoinColumn(name = "teacher_id", foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
+    @NotFound(action = NotFoundAction.IGNORE)
     private Teacher teacher;
 
     public Course() {}
