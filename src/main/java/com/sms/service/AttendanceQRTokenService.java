@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
@@ -174,8 +176,13 @@ public class AttendanceQRTokenService {
      * Generate hash of token for duplicate checking
      */
     public String hashToken(String token) {
-        return Base64.getEncoder().encodeToString(
-                token.getBytes()).substring(0, Math.min(40, token.length()));
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest((token == null ? "" : token).getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Unable to hash attendance token", ex);
+        }
     }
 
     /**

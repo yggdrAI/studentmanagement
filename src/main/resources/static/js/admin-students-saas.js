@@ -1339,15 +1339,20 @@
         );
 
         const mimeType = resolveFaceMimeType(draft);
-        const blob = await canvasToBlob(exportCanvas, mimeType, mimeType === "image/png" ? undefined : 0.98);
+        let effectiveMimeType = mimeType;
+        let blob = await canvasToBlob(exportCanvas, mimeType, mimeType === "image/png" ? undefined : 1.0);
+        if (!blob && mimeType !== "image/png") {
+            effectiveMimeType = "image/png";
+            blob = await canvasToBlob(exportCanvas, "image/png");
+        }
         if (!blob) {
             return null;
         }
 
         const originalName = draft.originalFileName || "face-upload";
-        const extension = mimeType === "image/png" ? ".png" : mimeType === "image/webp" ? ".webp" : ".jpg";
+        const extension = effectiveMimeType === "image/png" ? ".png" : effectiveMimeType === "image/webp" ? ".webp" : ".jpg";
         const fileName = /\.[a-z0-9]+$/i.test(originalName) ? originalName : `${originalName}${extension}`;
-        return new File([blob], fileName, { type: mimeType });
+        return new File([blob], fileName, { type: effectiveMimeType });
     }
 
     function fileToImage(file) {

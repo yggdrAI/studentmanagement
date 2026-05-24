@@ -98,10 +98,12 @@ public class AdminStudentProfileApiController {
             profile.setStudentId(studentId);
         }
         profile.setProfileImage(processedDataUri);
-        profile.setProfilePhotoUrl(processedDataUri);
+        profile.setProfilePhotoUrl(normalizePhotoUrl(processedDataUri, profile.getProfilePhotoUrl()));
         studentProfileRepository.save(profile);
 
-        // Also persist on the Student entity for backward compatibility
+        // Also persist on the Student entity for backward compatibility. StudentService
+        // mirrors this field back onto StudentProfile during save, so keep the original
+        // data URI here and only guard the VARCHAR profilePhotoUrl field above.
         student.setProfileImageUrl(processedDataUri);
         studentService.save(student);
 
@@ -109,5 +111,18 @@ public class AdminStudentProfileApiController {
                 "success", true,
                 "message", "Profile photo uploaded successfully",
                 "studentId", studentId));
+    }
+
+    private String normalizePhotoUrl(String profileImage, String existingPhotoUrl) {
+        if (profileImage == null || profileImage.isBlank()) {
+            return existingPhotoUrl;
+        }
+
+        String normalized = profileImage.trim();
+        if (normalized.startsWith("data:image") || normalized.length() > 2048) {
+            return existingPhotoUrl;
+        }
+
+        return normalized;
     }
 }

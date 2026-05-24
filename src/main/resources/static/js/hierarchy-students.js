@@ -1112,11 +1112,11 @@
                 if (!file) return;
                 photoBtn.textContent = "⏳";
                 try {
-                    const compressed = await compressImageSafe(file);
+                    const uploadedImage = await prepareImageUpload(file);
                     const res = await fetch(`/api/admin/student/${encodeURIComponent(sid)}/photo`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ photoBase64: compressed })
+                        body: JSON.stringify({ photoBase64: uploadedImage })
                     });
                     if (!res.ok) {
                         let errMsg = `HTTP ${res.status}`;
@@ -1129,7 +1129,7 @@
                         throw new Error(errMsg);
                     }
                     const img = document.createElement("img");
-                    img.src = compressed;
+                    img.src = uploadedImage;
                     img.className = "fm-student-avatar fm-avatar-img";
                     const existingAvatar = wrap.querySelector(".fm-student-avatar");
                     if (existingAvatar) existingAvatar.replaceWith(img);
@@ -1137,7 +1137,7 @@
                 } catch (err) {
                     const msg = err.message || "Unknown error";
                     showToast(msg.includes("413") || msg.toLowerCase().includes("too large")
-                        ? "❌ Image too large even after compression. Try a smaller photo."
+                        ? "❌ Image too large to upload at original quality. Try a smaller photo."
                         : `❌ Photo upload failed: ${msg.substring(0, 120)}`);
                     photoInput.value = "";
                 } finally {
@@ -1844,31 +1844,43 @@
         });
     }
 
-    function compressImageSafe(file) {
-        const MAX_BASE64_SIZE = 10 * 1024 * 1024;
+    function prepareImageUpload(file) {
+        const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
         const fileToDataUri   = (f) => new Promise((resolve, reject) => {
             const reader  = new FileReader();
             reader.onload = () => resolve(String(reader.result || ""));
             reader.onerror = () => reject(new Error("Failed to read file"));
             reader.readAsDataURL(f);
         });
-        const attempts = [
-            { maxDim: 2048, quality: 0.95 },
-            { maxDim: 1600, quality: 0.92 },
-            { maxDim: 1400, quality: 0.90 },
-            { maxDim: 1200, quality: 0.88 },
-            { maxDim: 1000, quality: 0.84 },
-            { maxDim: 900,  quality: 0.80 },
-            { maxDim: 768,  quality: 0.76 },
-        ];
+
         return (async () => {
+            if (file && file.size <= MAX_IMAGE_SIZE) {
+                return fileToDataUri(file);
+            }
+
             const original = await fileToDataUri(file);
-            if (original.length <= MAX_BASE64_SIZE) return original;
+            if (original.length <= MAX_IMAGE_SIZE) {
+                return original;
+            }
+
+            const attempts = [
+                { maxDim: 2048, quality: 0.98 },
+                { maxDim: 1600, quality: 0.97 },
+                { maxDim: 1400, quality: 0.96 },
+                { maxDim: 1200, quality: 0.95 },
+                { maxDim: 1000, quality: 0.94 },
+                { maxDim: 900,  quality: 0.93 },
+                { maxDim: 768,  quality: 0.92 },
+            ];
+
             for (const { maxDim, quality } of attempts) {
                 const result = await compressImage(file, maxDim, quality);
-                if (result.length <= MAX_BASE64_SIZE) return result;
+                if (result.length <= MAX_IMAGE_SIZE) {
+                    return result;
+                }
             }
-            return compressImage(file, 640, 0.72);
+
+            return compressImage(file, 640, 0.90);
         })();
     }
 

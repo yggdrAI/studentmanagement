@@ -23,6 +23,13 @@ public class MarkAttendanceRequest {
     private Double brightnessVariance;
     private List<List<Double>> frameEmbeddings;
     private List<String> frameSnapshots;
+    private String wifiSsidHash;
+    private String wifiBssidHash;
+    private List<String> bluetoothBeaconIds;
+    private Boolean mockLocationDetected;
+    private Boolean emulatorDetected;
+    private Boolean rootedOrJailbroken;
+    private Boolean vpnDetectedByClient;
 
     public MarkAttendanceRequest() {}
 
@@ -175,5 +182,61 @@ public class MarkAttendanceRequest {
 
     public void setFrameSnapshots(List<String> frameSnapshots) {
         this.frameSnapshots = frameSnapshots;
+    }
+
+    public String getWifiSsidHash() {
+        return wifiSsidHash;
+    }
+
+    public void setWifiSsidHash(String wifiSsidHash) {
+        this.wifiSsidHash = wifiSsidHash;
+    }
+
+    public String getWifiBssidHash() {
+        return wifiBssidHash;
+    }
+
+    public void setWifiBssidHash(String wifiBssidHash) {
+        this.wifiBssidHash = wifiBssidHash;
+    }
+
+    public List<String> getBluetoothBeaconIds() {
+        return bluetoothBeaconIds;
+    }
+
+    public void setBluetoothBeaconIds(List<String> bluetoothBeaconIds) {
+        this.bluetoothBeaconIds = bluetoothBeaconIds;
+    }
+
+    public Boolean getMockLocationDetected() {
+        return mockLocationDetected;
+    }
+
+    public void setMockLocationDetected(Boolean mockLocationDetected) {
+        this.mockLocationDetected = mockLocationDetected;
+    }
+
+    public Boolean getEmulatorDetected() {
+        return emulatorDetected;
+    }
+
+    public void setEmulatorDetected(Boolean emulatorDetected) {
+        this.emulatorDetected = emulatorDetected;
+    }
+
+    public Boolean getRootedOrJailbroken() {
+        return rootedOrJailbroken;
+    }
+
+    public void setRootedOrJailbroken(Boolean rootedOrJailbroken) {
+        this.rootedOrJailbroken = rootedOrJailbroken;
+    }
+
+    public Boolean getVpnDetectedByClient() {
+        return vpnDetectedByClient;
+    }
+
+    public void setVpnDetectedByClient(Boolean vpnDetectedByClient) {
+        this.vpnDetectedByClient = vpnDetectedByClient;
     }
 }

@@ -14,6 +14,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\controller\TeacherController.j
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\PortalController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\DefaultOtpDeliveryService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\TimetableConflictRepository.java
+F:\Coding\studentmanagement\src\main\java\com\sms\service\HybridAttendanceTrustService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\TeacherCredentials.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\AuditLogRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\AcademicClassRepository.java
@@ -34,10 +35,12 @@ F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\TimetableUpdateR
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\attendance\MarkAttendanceResponse.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\profile\AcademicRecordDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\campus\LocationDTO.java
+F:\Coding\studentmanagement\src\main\java\com\sms\service\StudentTransferService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\CourseProgressDto.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\AcademicProgramRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\AnalyticsRealtimeNotifier.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\DashboardDTO.java
+F:\Coding\studentmanagement\src\main\java\com\sms\dto\ai\AiAssistantCommandResponse.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\auth\AdminSetPasswordRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\imports\StudentImportUploadRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\AnalyticsSnapshotScheduler.java
@@ -73,6 +76,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\ClassDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\CampusLocationWebSocketController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\SchemaUpgradeService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\IpGeolocationService.java
+F:\Coding\studentmanagement\src\main\java\com\sms\dto\ai\AiIngestionAnalyzeResponse.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\TeacherFraudController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\ImportService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminPublicationController.java
@@ -111,6 +115,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\dto\publication\PublicationRes
 F:\Coding\studentmanagement\src\main\java\com\sms\service\ImageUploadService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\AdminProfileController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\CourseRepository.java
+F:\Coding\studentmanagement\src\main\java\com\sms\controller\AiAssistantController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\identity\DigitalIDCardDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\NotificationService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\Permission.java
@@ -141,6 +146,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\dto\MoveScheduleRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\ScheduleEntry.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\StudentLocation.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\PublicationScope.java
+F:\Coding\studentmanagement\src\main\java\com\sms\controller\AiIngestionController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\AcademicPublicationService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\UserService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\DietLogRepository.java
@@ -149,6 +155,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\repository\ScheduleEntryReposi
 F:\Coding\studentmanagement\src\main\java\com\sms\service\OtpDeliveryService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\publication\PublicationCreateRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\RolePermissionService.java
+F:\Coding\studentmanagement\src\main\java\com\sms\service\SmartIngestionAnalysisService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\IdentityLookupService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\config\PasswordEncoderConfig.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\ClassSessionRepository.java
@@ -196,6 +203,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\service\FaceVerificationServic
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\CreateSubjectRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\TeacherAttendanceController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\support\TenantSpecifications.java
+F:\Coding\studentmanagement\src\main\java\com\sms\controller\StudentTransferApiController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\diet\DietSuggestionResponse.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\TeacherCredentialsRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\FaceLivenessClientService.java
@@ -207,6 +215,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\model\StudentImportJob.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\AuthenticationService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\TimetableHolidayRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\AntiCheatingService.java
+F:\Coding\studentmanagement\src\main\java\com\sms\service\AiAssistantCommandService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\util\StudentComparators.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\StudentImportService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\StudentManagementApplication.java
@@ -215,6 +224,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\model\Course.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\TaskStatus.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\PasswordResetService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\controller\DashboardController.java
+F:\Coding\studentmanagement\src\main\java\com\sms\controller\BatchHierarchyApiController.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\FraudLog.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\ScheduleClassRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\StudentRepository.java
@@ -223,6 +233,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\service\DatabaseMigrationServi
 F:\Coding\studentmanagement\src\main\java\com\sms\repository\EnrollmentRepository.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\TimetableConflict.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\auth\VerifyOtpRequest.java
+F:\Coding\studentmanagement\src\main\java\com\sms\dto\student\BatchHierarchyDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\config\AdminActionAuditFilter.java
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\student\filter\StudentFilterNode.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\CollaborationRealtimeService.java
@@ -248,6 +259,7 @@ F:\Coding\studentmanagement\src\main\java\com\sms\service\StudentGroupingService
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\student\StudentProfileDTO.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\FraudDetectionService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\config\AnalyticsRedisBridge.java
+F:\Coding\studentmanagement\src\main\java\com\sms\dto\student\TransferStudentResponse.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\TimetableHoliday.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\AdminDashboardService.java
 F:\Coding\studentmanagement\src\main\java\com\sms\service\AttendanceQRTokenService.java
@@ -263,4 +275,6 @@ F:\Coding\studentmanagement\src\main\java\com\sms\dto\profile\StudentDocumentDTO
 F:\Coding\studentmanagement\src\main\java\com\sms\dto\dashboard\AssignTeacherRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\PublicationAudience.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\User.java
+F:\Coding\studentmanagement\src\main\java\com\sms\dto\ai\AiAssistantCommandRequest.java
 F:\Coding\studentmanagement\src\main\java\com\sms\model\LoginUser.java
+F:\Coding\studentmanagement\src\main\java\com\sms\dto\student\TransferStudentRequest.java

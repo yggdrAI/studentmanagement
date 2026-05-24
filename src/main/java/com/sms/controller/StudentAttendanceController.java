@@ -11,6 +11,7 @@ import com.sms.service.CampusTrackingService;
 import com.sms.service.FraudDetectionService;
 import com.sms.service.FaceVerificationService;
 import com.sms.service.GeolocationService;
+import com.sms.service.HybridAttendanceTrustService;
 import com.sms.model.Attendance;
 import com.sms.model.Student;
 import com.sms.repository.CampusLocationRepository;
@@ -60,6 +61,9 @@ public class StudentAttendanceController {
 
     @Autowired
     private StudentRepository studentRepository;
+
+    @Autowired
+    private HybridAttendanceTrustService hybridAttendanceTrustService;
 
     /**
      * Mark attendance by scanning QR code
@@ -354,24 +358,52 @@ public class StudentAttendanceController {
                     vpnResult,
                     movementResult);
 
-            if (fraudAssessment.isRejected()) {
+            HybridAttendanceTrustService.TrustDecision trustDecision = hybridAttendanceTrustService.evaluate(
+                    new HybridAttendanceTrustService.TrustInput(
+                            markRequest,
+                            faceVerificationRequired,
+                            !faceVerificationRequired || faceResult != null,
+                            faceResult != null ? faceResult.getSimilarity() : 1.0,
+                            locationVerified,
+                            confidenceScore,
+                            deviceSharingDetected,
+                            vpnResult != null && vpnResult.isVPNDetected,
+                            movementResult != null && movementResult.isImpossible,
+                            fraudAssessment.getFraudScore(),
+                            fraudAssessment.isSuspicious(),
+                            fraudAssessment.isRejected(),
+                            claims.getExpiresAt(),
+                            markRequest.getQrDetectedAtEpochMs()));
+
+            if (fraudAssessment.isRejected() || !trustDecision.approved()) {
+                List<String> rejectionReasons = new ArrayList<>();
+                rejectionReasons.addAll(fraudAssessment.getReasons());
+                rejectionReasons.addAll(trustDecision.reasons());
                 fraudDetectionService.recordDecision(
                         studentId,
                         claims.getSubjectId(),
                         null,
                         fraudAssessment.getFraudScore(),
-                        fraudAssessment.getDecision(),
-                        fraudAssessment.getReasons(),
+                        "REJECTED",
+                        rejectionReasons,
                         clientDeviceId,
                         clientIp,
                         latitude,
                         longitude,
                         true);
 
-                return ResponseEntity.ok(new MarkAttendanceResponse(
+                MarkAttendanceResponse rejectedResponse = new MarkAttendanceResponse(
                         false,
-                        "Fraud score too high: " + String.join(" | ", fraudAssessment.getReasons()),
-                        "REJECTED"));
+                        "Attendance verification failed: " + String.join(" | ", rejectionReasons),
+                        "REJECTED");
+                applyTrustDecision(rejectedResponse, trustDecision);
+                rejectedResponse.setFraudScore(fraudAssessment.getFraudScore());
+                rejectedResponse.setDecision("REJECTED");
+                rejectedResponse.setRiskLevel("HIGH");
+                rejectedResponse.setFaceVerified(!faceVerificationRequired || faceResult != null);
+                rejectedResponse.setFaceSimilarity(faceResult != null ? faceResult.getSimilarity() : 1.0);
+                rejectedResponse.setLocationVerified(locationVerified);
+                return ResponseEntity.ok(rejectedResponse);
             }
 
             String attendanceStatus = fraudAssessment.isSuspicious() ? "PRESENT" : "PRESENT";
@@ -433,8 +465,9 @@ public class StudentAttendanceController {
                 response.setFaceSimilarity(faceResult != null ? faceResult.getSimilarity() : 1.0);
                 response.setLocationVerified(locationVerified);
                 response.setFraudScore(fraudAssessment.getFraudScore());
-                response.setDecision(fraudAssessment.getDecision());
+                response.setDecision(trustDecision.decision());
                 response.setRiskLevel(fraudAssessment.getRiskLevel());
+                applyTrustDecision(response, trustDecision);
 
                 return ResponseEntity.ok(response);
             } catch (RuntimeException e) {
@@ -450,6 +483,21 @@ public class StudentAttendanceController {
                     "Server error: " + e.getMessage(),
                     "ERROR"));
         }
+    }
+
+    private void applyTrustDecision(MarkAttendanceResponse response,
+                                    HybridAttendanceTrustService.TrustDecision trustDecision) {
+        if (response == null || trustDecision == null) {
+            return;
+        }
+        response.setFinalTrustScore(trustDecision.finalScore());
+        response.setFaceTrustScore(trustDecision.faceScore());
+        response.setLivenessTrustScore(trustDecision.livenessScore());
+        response.setQrTrustScore(trustDecision.qrScore());
+        response.setLocationTrustScore(trustDecision.locationScore());
+        response.setDeviceTrustScore(trustDecision.deviceScore());
+        response.setBehavioralTrustScore(trustDecision.behavioralScore());
+        response.setVerificationReasons(trustDecision.reasons());
     }
 
     @PostMapping("/register-face")

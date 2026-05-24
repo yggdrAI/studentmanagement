@@ -1,6 +1,7 @@
 package com.sms.dto.attendance;
 
 import java.time.LocalTime;
+import java.util.List;
 
 /**
  * Response after marking attendance
@@ -18,6 +19,14 @@ public class MarkAttendanceResponse {
     private Double fraudScore;
     private String decision;
     private String riskLevel;
+    private Double finalTrustScore;
+    private Double faceTrustScore;
+    private Double livenessTrustScore;
+    private Double qrTrustScore;
+    private Double locationTrustScore;
+    private Double deviceTrustScore;
+    private Double behavioralTrustScore;
+    private List<String> verificationReasons;
 
     public MarkAttendanceResponse(Boolean success, String message, String status) {
         this.success = success;
@@ -137,5 +146,69 @@ public class MarkAttendanceResponse {
 
     public void setRiskLevel(String riskLevel) {
         this.riskLevel = riskLevel;
+    }
+
+    public Double getFinalTrustScore() {
+        return finalTrustScore;
+    }
+
+    public void setFinalTrustScore(Double finalTrustScore) {
+        this.finalTrustScore = finalTrustScore;
+    }
+
+    public Double getFaceTrustScore() {
+        return faceTrustScore;
+    }
+
+    public void setFaceTrustScore(Double faceTrustScore) {
+        this.faceTrustScore = faceTrustScore;
+    }
+
+    public Double getLivenessTrustScore() {
+        return livenessTrustScore;
+    }
+
+    public void setLivenessTrustScore(Double livenessTrustScore) {
+        this.livenessTrustScore = livenessTrustScore;
+    }
+
+    public Double getQrTrustScore() {
+        return qrTrustScore;
+    }
+
+    public void setQrTrustScore(Double qrTrustScore) {
+        this.qrTrustScore = qrTrustScore;
+    }
+
+    public Double getLocationTrustScore() {
+        return locationTrustScore;
+    }
+
+    public void setLocationTrustScore(Double locationTrustScore) {
+        this.locationTrustScore = locationTrustScore;
+    }
+
+    public Double getDeviceTrustScore() {
+        return deviceTrustScore;
+    }
+
+    public void setDeviceTrustScore(Double deviceTrustScore) {
+        this.deviceTrustScore = deviceTrustScore;
+    }
+
+    public Double getBehavioralTrustScore() {
+        return behavioralTrustScore;
+    }
+
+    public void setBehavioralTrustScore(Double behavioralTrustScore) {
+        this.behavioralTrustScore = behavioralTrustScore;
+    }
+
+    public List<String> getVerificationReasons() {
+        return verificationReasons;
+    }
+
+    public void setVerificationReasons(List<String> verificationReasons) {
+        this.verificationReasons = verificationReasons;
     }
 }

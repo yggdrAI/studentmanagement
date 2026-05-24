@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import { createSeedSnapshot, mergeLiveEvent, normalizeSnapshot } from '../lib/analytics';
 
@@ -67,6 +66,17 @@ export function useLiveAnalytics() {
 
     const connectSocket = async () => {
       try {
+        // Load sockjs-client dynamically to ensure any runtime polyfills
+        // (like `window.global`) are already applied before evaluation.
+        let SockJS;
+        try {
+          const mod = await import('sockjs-client');
+          SockJS = mod && (mod.default || mod);
+        } catch (e) {
+          // If dynamic import fails, fall back to global (if present).
+          SockJS = (window && window.SockJS) || undefined;
+        }
+
         const client = new Client({
           webSocketFactory: () => new SockJS(SOCKET_URL, null, {
             transports: ['websocket', 'xhr-streaming', 'xhr-polling'],

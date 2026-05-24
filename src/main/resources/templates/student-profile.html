@@ -1291,6 +1291,10 @@
             return '/api/student/profile';
         }
 
+        function isDataImageUri(value) {
+            return typeof value === 'string' && value.trim().toLowerCase().startsWith('data:image');
+        }
+
         function showToast(message) {
             const toast = document.getElementById('saveToast');
             toast.textContent = message;
@@ -1958,6 +1962,18 @@
             }
 
             const payload = collectPayload();
+
+            if (PROFILE_MODE === 'ADMIN' && TARGET_STUDENT_ID && isDataImageUri(currentProfile?.profileImage)) {
+                await window.smsApi.request(`/api/admin/student/${encodeURIComponent(TARGET_STUDENT_ID)}/photo`, {
+                    method: 'POST',
+                    body: JSON.stringify({ photoBase64: currentProfile.profileImage })
+                });
+
+                delete payload.profileImage;
+                if (payload.profileSections && payload.profileSections.identity) {
+                    delete payload.profileSections.identity.profileImage;
+                }
+            }
 
             currentProfile = await window.smsApi.student.profile.update(apiBase(), payload);
             if (!isAuto) {

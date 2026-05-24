@@ -7,7 +7,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -219,16 +218,16 @@ public class TeacherAttendanceController {
                 faceVerificationRequired);
 
             String qrImageBase64 = qrTokenService.generateQRCodeBase64(qrToken);
-            long expiryMs = (long) expirySeconds * 1000L;
-            long expiresAt = System.currentTimeMillis() + expiryMs;
-            String sessionId = UUID.randomUUID().toString();
+            AttendanceQRTokenService.AttendanceTokenClaims generatedClaims =
+                    qrTokenService.validateAttendanceToken(qrToken);
+            String sessionId = generatedClaims.getSessionId();
 
             AttendanceQRResponse response = new AttendanceQRResponse(
                 qrToken,
                 qrImageBase64,
                 request.getSubjectId(),
                 subjectName,
-                expiresAt,
+                generatedClaims.getExpiresAt(),
                 expirySeconds,
                 sessionId,
                 faceVerificationRequired);
